@@ -1,0 +1,1808 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Battery Vital — Intelligent Battery Safety System</title>
+<meta name="description" content="Real-time battery health monitoring dashboard with gas, thermal, power, and AI-driven predictive analysis.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+/* ===== RESET & TOKENS ===== */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg-deep:#070B15;--bg-surface:#0C1220;--bg-elevated:#111A2E;
+  --bg-glass:rgba(17,26,46,0.65);--bg-glass-heavy:rgba(17,26,46,0.85);
+  --border-glass:rgba(255,255,255,0.06);--border-glass-strong:rgba(255,255,255,0.10);
+  --text-primary:#E8EDF5;--text-secondary:#8899B4;--text-muted:#4A5A78;
+  --brand:#00E8A0;--green:#00FF88;--emerald:#00E8A0;--yellow:#FFD60A;
+  --orange:#FF6B35;--red:#FF2D55;--purple:#7C3AED;--blue:#00BFFF;--cyan:#22D3EE;
+  --font:'Space Grotesk',system-ui,-apple-system,sans-serif;
+  --mono:'JetBrains Mono','Fira Code',monospace;
+  --radius-sm:8px;--radius-md:14px;--radius-lg:20px;--radius-xl:28px;
+  --shadow-glass:0 8px 32px rgba(0,0,0,0.4);
+  --shadow-clay-sm:0 6px 16px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.06);
+  --anim-smooth:cubic-bezier(0.22,1,0.36,1);
+  --sidebar-w:220px;--header-h:60px;--tabbar-h:56px;
+}
+html{font-size:16px;scroll-behavior:smooth}
+body{font-family:var(--font);background:var(--bg-deep);color:var(--text-primary);min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased;position:relative}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;background:radial-gradient(ellipse 80% 50% at 50% -20%,rgba(0,232,160,0.06) 0%,transparent 70%),radial-gradient(ellipse 60% 40% at 80% 80%,rgba(124,58,237,0.04) 0%,transparent 60%),radial-gradient(ellipse 50% 40% at 20% 60%,rgba(0,191,255,0.03) 0%,transparent 50%)}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(74,90,120,0.4);border-radius:3px}
+
+/* ===== LAYOUT SHELL ===== */
+.app-shell{display:flex;min-height:100vh;position:relative;z-index:1}
+
+/* Sidebar (desktop ≥768px) */
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:var(--sidebar-w);background:var(--bg-glass-heavy);backdrop-filter:blur(32px) saturate(1.4);border-right:1px solid var(--border-glass-strong);display:flex;flex-direction:column;z-index:200;padding:20px 0;transition:transform 0.3s var(--anim-smooth)}
+.sidebar-logo{display:flex;align-items:center;gap:10px;padding:0 20px 24px;text-decoration:none;border-bottom:1px solid var(--border-glass)}
+.sidebar-logo-icon{width:32px;height:32px;position:relative;flex-shrink:0}
+.sidebar-logo-glow{position:absolute;inset:-4px;border-radius:50%;background:radial-gradient(circle,rgba(0,232,160,0.25),transparent 70%);animation:glow-pulse 3s ease-in-out infinite}
+@keyframes glow-pulse{0%,100%{opacity:0.5;transform:scale(1)}50%{opacity:1;transform:scale(1.15)}}
+.sidebar-logo-text{font-weight:700;font-size:16px;letter-spacing:-0.5px;background:linear-gradient(135deg,#E8EDF5,#8899B4);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sidebar-logo-sub{font-size:9px;color:var(--text-muted);letter-spacing:0.3px;text-transform:uppercase}
+.sidebar-nav{flex:1;padding:16px 0;display:flex;flex-direction:column;gap:2px}
+.nav-link{display:flex;align-items:center;gap:12px;padding:10px 20px;font-size:13px;font-weight:500;color:var(--text-secondary);text-decoration:none;cursor:pointer;border-left:3px solid transparent;transition:all 0.2s var(--anim-smooth);min-height:44px}
+.nav-link:hover{background:rgba(255,255,255,0.03);color:var(--text-primary)}
+.nav-link.active{color:var(--brand);border-left-color:var(--brand);background:rgba(0,232,160,0.04)}
+.nav-link .nav-icon{font-size:18px;width:24px;text-align:center;flex-shrink:0}
+.sidebar-footer{padding:16px 20px;border-top:1px solid var(--border-glass);font-size:10px;color:var(--text-muted);display:flex;flex-direction:column;gap:4px}
+
+/* Main Content */
+.main-content{flex:1;margin-left:var(--sidebar-w);display:flex;flex-direction:column;min-height:100vh}
+
+/* Header */
+.header{position:sticky;top:0;z-index:100;height:var(--header-h);display:flex;align-items:center;gap:16px;padding:0 24px;background:var(--bg-glass-heavy);backdrop-filter:blur(32px) saturate(1.4);border-bottom:1px solid var(--border-glass-strong);flex-shrink:0}
+.header-left{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.header-page-title{font-size:18px;font-weight:600;letter-spacing:-0.3px}
+.header-center{flex:1}
+.header-right{display:flex;align-items:center;gap:16px;flex-shrink:0;font-size:11px;color:var(--text-secondary)}
+.header-right-item{display:flex;align-items:center;gap:5px;white-space:nowrap}
+.header-right-item .label{color:var(--text-muted)}
+.header-right-item .mono{font-family:var(--mono);font-size:11px;color:var(--text-primary)}
+.header-mobile-logo{display:none;align-items:center;gap:8px;text-decoration:none}
+.header-mobile-logo .logo-text{font-weight:700;font-size:15px;background:linear-gradient(135deg,#E8EDF5,#8899B4);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hamburger{display:none;background:none;border:none;color:var(--text-secondary);font-size:22px;cursor:pointer;padding:8px;min-height:44px;min-width:44px;align-items:center;justify-content:center}
+.header-dropdown{display:none;position:absolute;top:calc(var(--header-h) - 4px);right:16px;background:var(--bg-glass-heavy);backdrop-filter:blur(32px);border:1px solid var(--border-glass-strong);border-radius:var(--radius-md);padding:12px 16px;flex-direction:column;gap:6px;box-shadow:var(--shadow-glass);z-index:150;font-size:11px}
+.header-dropdown.show{display:flex}
+.header-dropdown-item{display:flex;justify-content:space-between;gap:16px;padding:4px 0}
+.header-dropdown-item .label{color:var(--text-muted)}
+.header-dropdown-item .val{font-family:var(--mono);color:var(--text-primary)}
+
+/* Connection Badge */
+.conn-badge{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:600;letter-spacing:0.8px;text-transform:uppercase;padding:4px 14px;border-radius:100px;cursor:default;transition:all 0.3s}
+.conn-badge.connecting{background:rgba(148,163,184,0.08);border:1px solid rgba(148,163,184,0.2);color:#94a3b8}
+.conn-badge.live{background:rgba(0,232,160,0.08);border:1px solid rgba(0,232,160,0.2);color:var(--emerald);box-shadow:0 0 20px rgba(0,232,160,0.05)}
+.conn-badge.stale{background:rgba(255,214,10,0.08);border:1px solid rgba(255,214,10,0.2);color:var(--yellow)}
+.conn-badge.offline{background:rgba(255,45,85,0.08);border:1px solid rgba(255,45,85,0.2);color:var(--red)}
+.conn-dot{width:7px;height:7px;border-radius:50%;position:relative;flex-shrink:0}
+.conn-dot::after{content:'';position:absolute;inset:-3px;border-radius:50%;animation:conn-ring 2s ease-out infinite}
+.conn-badge.connecting .conn-dot{background:#94a3b8}.conn-badge.connecting .conn-dot::after{border:1.5px solid #94a3b8}
+.conn-badge.live .conn-dot{background:var(--green)}.conn-badge.live .conn-dot::after{border:1.5px solid var(--green)}
+.conn-badge.stale .conn-dot{background:var(--yellow)}.conn-badge.stale .conn-dot::after{border:1.5px solid var(--yellow);animation-duration:1s}
+.conn-badge.offline .conn-dot{background:var(--red)}.conn-badge.offline .conn-dot::after{border:1.5px solid var(--red);animation-duration:1.5s}
+@keyframes conn-ring{0%{transform:scale(1);opacity:0.6}100%{transform:scale(2.5);opacity:0}}
+
+/* Bottom Tab Bar (mobile <768px) */
+.tab-bar{display:none;position:fixed;bottom:0;left:0;right:0;height:var(--tabbar-h);background:var(--bg-glass-heavy);backdrop-filter:blur(32px) saturate(1.4);border-top:1px solid var(--border-glass-strong);z-index:200;padding:0 4px;align-items:stretch}
+.tab-bar-inner{display:flex;width:100%;max-width:500px;margin:0 auto}
+.tab-link{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-decoration:none;color:var(--text-muted);font-size:9px;font-weight:500;letter-spacing:0.2px;cursor:pointer;transition:color 0.2s;min-height:44px;min-width:44px;padding:4px 0}
+.tab-link .tab-icon{font-size:20px}
+.tab-link.active{color:var(--brand)}
+
+/* Page Container */
+.page-container{flex:1;padding:20px 24px 40px;max-width:1400px;width:100%;margin:0 auto}
+.page-section{display:none}
+.page-section.active{display:block}
+
+/* ===== GLASS CARD ===== */
+.glass-card{background:var(--bg-glass);backdrop-filter:blur(20px) saturate(1.2);border:1px solid var(--border-glass);border-radius:var(--radius-lg);box-shadow:var(--shadow-glass),inset 0 1px 0 rgba(255,255,255,0.04);transition:transform 0.35s var(--anim-smooth),box-shadow 0.35s var(--anim-smooth)}
+.glass-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-glass),0 12px 40px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.06)}
+
+/* ===== BUTTONS ===== */
+.clay-btn{background:linear-gradient(145deg,rgba(255,255,255,0.07),rgba(255,255,255,0.02));border-radius:var(--radius-md);box-shadow:var(--shadow-clay-sm);border:none;color:var(--text-primary);font-family:var(--font);cursor:pointer;transition:all 0.25s var(--anim-smooth);position:relative;overflow:hidden;min-height:44px;padding:8px 18px;font-size:13px}
+.clay-btn:active{transform:scale(0.96)}
+.clay-btn-primary{background:linear-gradient(145deg,var(--brand),#00B87A);color:#000;font-weight:600;box-shadow:0 4px 16px rgba(0,232,160,0.25),inset 0 1px 0 rgba(255,255,255,0.15)}
+.clay-btn-danger{background:linear-gradient(145deg,var(--red),#CC0033);color:#fff;font-weight:600;box-shadow:0 4px 16px rgba(255,45,85,0.25),inset 0 1px 0 rgba(255,255,255,0.1)}
+.clay-btn:disabled{opacity:0.35;cursor:not-allowed;transform:none!important}
+
+/* ===== BHI GAUGE ===== */
+.bhi-gauge-card{padding:28px 24px;display:flex;flex-direction:column;align-items:center;gap:14px;background:linear-gradient(145deg,rgba(17,26,46,0.7),rgba(12,18,32,0.8));border:1px solid var(--border-glass);border-radius:var(--radius-lg);box-shadow:var(--shadow-glass),inset 0 1px 0 rgba(255,255,255,0.03);position:relative;overflow:hidden}
+.bhi-gauge-card::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 30%,rgba(0,232,160,0.04),transparent 70%);pointer-events:none}
+.bhi-gauge-wrap{position:relative;width:200px;height:200px}
+.bhi-gauge svg{transform:rotate(-90deg);width:100%;height:100%}
+.bhi-gauge-bg{fill:none;stroke:rgba(255,255,255,0.04);stroke-width:10}
+.bhi-gauge-arc{fill:none;stroke-width:10;stroke-linecap:round;transition:stroke-dashoffset 0.8s var(--anim-smooth),stroke 0.4s;filter:drop-shadow(0 0 8px currentColor)}
+.bhi-gauge-ring{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,rgba(0,232,160,0.03),transparent 60%,transparent);animation:spin-glow 8s linear infinite}
+@keyframes spin-glow{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+.bhi-gauge-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;z-index:1}
+.bhi-gauge-score{font-family:var(--mono);font-size:clamp(36px,8vw,54px);font-weight:600;line-height:1;background:linear-gradient(135deg,#fff,var(--text-secondary));-webkit-background-clip:text;-webkit-text-fill-color:transparent;transition:all 0.5s var(--anim-smooth)}
+.bhi-gauge-max{font-size:13px;color:var(--text-muted);letter-spacing:1px}
+.bhi-gauge-label{font-size:10px;color:var(--text-muted);letter-spacing:2px;text-transform:uppercase;margin-top:2px}
+.safety-badge{display:inline-block;padding:5px 18px;border-radius:100px;font-size:11px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;transition:all 0.3s}
+.safety-badge.safe{background:rgba(0,255,136,0.1);color:var(--green);border:1px solid rgba(0,255,136,0.15)}
+.safety-badge.caution{background:rgba(255,214,10,0.1);color:var(--yellow);border:1px solid rgba(255,214,10,0.15)}
+.safety-badge.warning{background:rgba(255,107,53,0.1);color:var(--orange);border:1px solid rgba(255,107,53,0.15)}
+.safety-badge.critical,.safety-badge.emergency{background:rgba(255,45,85,0.1);color:var(--red);border:1px solid rgba(255,45,85,0.15);animation:badge-crit 2s infinite}
+@keyframes badge-crit{0%,100%{box-shadow:0 0 0 0 rgba(255,45,85,0.2)}50%{box-shadow:0 0 20px 4px rgba(255,45,85,0.15)}}
+
+/* Quick Info Rows */
+.quick-info{width:100%;display:flex;flex-direction:column;gap:6px}
+.quick-row{display:flex;justify-content:space-between;align-items:center;padding:5px 10px;border-radius:var(--radius-sm);font-size:11px;background:rgba(255,255,255,0.02)}
+.quick-row .lbl{color:var(--text-muted)}.quick-row .val{font-family:var(--mono);font-weight:500;color:var(--text-primary)}
+
+/* ===== DASHBOARD GRID ===== */
+.dash-hero{display:grid;grid-template-columns:280px 1fr;gap:16px;margin-bottom:16px}
+.dash-hero-left{display:flex;flex-direction:column;gap:16px}
+.dash-hero-right{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.sensor-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:16px}
+.sensor-card{padding:18px;display:flex;flex-direction:column;gap:10px;position:relative;overflow:hidden}
+.sensor-card::after{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.06),transparent)}
+.card-header{display:flex;justify-content:space-between;align-items:center}
+.card-header h3{font-size:13px;font-weight:600;display:flex;align-items:center;gap:7px;letter-spacing:-0.2px}
+.card-header .icon{font-size:16px}
+.card-badge{font-size:9px;padding:2px 10px;border-radius:100px;font-weight:600;letter-spacing:0.3px;text-transform:uppercase}
+.card-badge.live{background:rgba(0,232,160,0.1);color:var(--emerald);border:1px solid rgba(0,232,160,0.1)}
+.card-badge.warm{background:rgba(255,214,10,0.1);color:var(--yellow);border:1px solid rgba(255,214,10,0.1)}
+.main-val{font-family:var(--mono);font-weight:500}
+.main-val .num{font-size:clamp(28px,5vw,48px);line-height:1;letter-spacing:-2px}
+.main-val .unit{font-size:clamp(14px,2vw,18px);margin-left:4px;font-weight:400;color:var(--text-secondary)}
+.status-pill{display:inline-block;padding:3px 14px;border-radius:100px;font-size:11px;font-weight:500}
+.status-pill.green{background:rgba(0,255,136,0.08);color:var(--green);border:1px solid rgba(0,255,136,0.08)}
+.status-pill.yellow{background:rgba(255,214,10,0.08);color:var(--yellow);border:1px solid rgba(255,214,10,0.08)}
+.status-pill.orange{background:rgba(255,107,53,0.08);color:var(--orange);border:1px solid rgba(255,107,53,0.08)}
+.status-pill.red{background:rgba(255,45,85,0.08);color:var(--red);border:1px solid rgba(255,45,85,0.08)}
+.progress-wrap{width:100%;margin:4px 0}
+.progress-bar{height:8px;background:rgba(255,255,255,0.04);border-radius:4px;overflow:hidden}
+.progress-fill{height:100%;border-radius:4px;transition:width 0.6s var(--anim-smooth);position:relative}
+.progress-fill::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.15),transparent);animation:shimmer 2.5s ease-in-out infinite}
+@keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+.progress-fill.green{background:linear-gradient(90deg,#00E8A0,#00FF88)}
+.progress-fill.yellow{background:linear-gradient(90deg,#FFD60A,#FFE44D)}
+.progress-fill.orange{background:linear-gradient(90deg,#FF6B35,#FF8C5A)}
+.progress-fill.red{background:linear-gradient(90deg,#FF2D55,#FF5577)}
+.progress-labels{display:flex;justify-content:space-between;font-size:9px;color:var(--text-muted);margin-top:2px}
+.data-row{font-family:var(--mono);font-size:11px;color:var(--text-muted);display:flex;gap:12px;flex-wrap:wrap}
+.card-spark canvas{width:100%!important;height:36px!important;margin-top:4px;opacity:0.4;pointer-events:none}
+
+/* Mini Grid */
+.mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mini-item{display:flex;flex-direction:column;gap:2px;padding:8px 10px;border-radius:var(--radius-sm);background:rgba(255,255,255,0.02);transition:background 0.2s}
+.mini-item:hover{background:rgba(255,255,255,0.04)}
+.mini-item .top{display:flex;align-items:center;justify-content:space-between}
+.mini-item .mi-icon{font-size:16px;width:20px;text-align:center}
+.mini-item .mi-label{font-size:9px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px}
+.mini-item .mi-val{font-family:var(--mono);font-size:clamp(14px,3vw,18px);font-weight:600;line-height:1.2}
+.mini-item .mi-unit{font-size:10px;color:var(--text-muted);margin-left:2px}
+.dot{width:6px;height:6px;border-radius:50%}
+.dot.green{background:var(--green);box-shadow:0 0 6px var(--green)}
+.dot.yellow{background:var(--yellow);box-shadow:0 0 6px var(--yellow)}
+.dot.orange{background:var(--orange);box-shadow:0 0 6px var(--orange)}
+.dot.red{background:var(--red);box-shadow:0 0 6px var(--red)}
+
+/* Power Flow */
+.power-flow{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-radius:var(--radius-sm);background:rgba(255,255,255,0.02);gap:12px;flex-wrap:wrap}
+.pf-block .pf-label{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px}
+.pf-block .pf-val{font-family:var(--mono);font-size:clamp(14px,3vw,16px);font-weight:600}
+.pf-status{font-size:11px;padding:2px 10px;border-radius:100px;font-weight:500}
+.pf-status.charging{background:rgba(0,232,160,0.1);color:var(--emerald)}
+.pf-status.discharging{background:rgba(255,107,53,0.1);color:var(--orange)}
+.pf-status.idle{background:rgba(74,90,120,0.1);color:var(--text-muted)}
+
+/* Battery visual */
+.batt-body{position:relative;width:36px;height:18px;border:2px solid rgba(255,255,255,0.15);border-radius:3px;overflow:hidden}
+.batt-fill{height:100%;transition:width 0.8s var(--anim-smooth);position:relative}
+.batt-fill.green{background:linear-gradient(90deg,#00E8A0,#00FF88);box-shadow:0 0 8px rgba(0,232,160,0.3)}
+.batt-fill.yellow{background:linear-gradient(90deg,#FFD60A,#FFE44D);box-shadow:0 0 8px rgba(255,214,10,0.3)}
+.batt-fill.orange{background:linear-gradient(90deg,#FF6B35,#FF8C5A);box-shadow:0 0 8px rgba(255,107,53,0.3)}
+.batt-fill.red{background:linear-gradient(90deg,#FF2D55,#FF5577);box-shadow:0 0 8px rgba(255,45,85,0.3)}
+.batt-fill-wave{position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.1),transparent);animation:wave-shimmer 2s ease-in-out infinite}
+@keyframes wave-shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+.batt-tip{width:4px;height:8px;background:rgba(255,255,255,0.15);border-radius:0 2px 2px 0}
+.batt-pct{font-family:var(--mono);font-size:14px;font-weight:600;margin-left:6px}
+
+/* System strip */
+.sys-strip{display:flex;gap:16px;flex-wrap:wrap;font-size:11px;padding:12px 16px;border-radius:var(--radius-md);background:rgba(255,255,255,0.02);border:1px solid var(--border-glass)}
+.sys-item{display:flex;align-items:center;gap:5px}
+.sys-item .s-lbl{color:var(--text-muted)}
+.sys-item .s-val{font-family:var(--mono);color:var(--text-primary)}
+
+/* ===== CHARTS PAGE ===== */
+.charts-grid{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px}
+.chart-card{padding:18px;display:flex;flex-direction:column;gap:12px}
+.chart-card canvas{width:100%!important;height:260px!important}
+.chart-card-sm canvas{width:100%!important;height:200px!important}
+.chart-header{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.chart-header h3{font-size:14px;font-weight:600;display:flex;align-items:center;gap:6px}
+.chart-controls{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+.chart-time-btn{padding:3px 10px;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;border:1px solid rgba(255,255,255,0.06);background:transparent;color:var(--text-muted);font-family:var(--font);transition:all 0.2s;min-height:32px}
+.chart-time-btn.active{background:var(--emerald);color:#000;border-color:var(--emerald)}
+.chart-action-btn{padding:3px 10px;border-radius:6px;font-size:10px;font-weight:500;cursor:pointer;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.03);color:var(--text-secondary);font-family:var(--font);transition:all 0.2s;min-height:32px}
+
+/* ===== CONTROLS PAGE ===== */
+.mode-banner{padding:14px 20px;border-radius:var(--radius-md);margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;font-size:13px;gap:12px;flex-wrap:wrap;backdrop-filter:blur(12px)}
+.mode-banner.auto-mode{background:rgba(0,232,160,0.06);border:1px solid rgba(0,232,160,0.1);color:var(--emerald)}
+.mode-banner.manual-mode{background:rgba(255,214,10,0.06);border:1px solid rgba(255,214,10,0.1);color:var(--yellow)}
+.led-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.led-card{padding:18px 14px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;background:var(--bg-glass);backdrop-filter:blur(16px) saturate(1.2);border:1px solid var(--border-glass);border-radius:var(--radius-lg);box-shadow:var(--shadow-glass);transition:all 0.3s var(--anim-smooth)}
+.led-card:hover{transform:translateY(-3px)}
+.led-card.disabled-by-auto{opacity:0.5;pointer-events:none}
+.led-card.disabled-by-auto:hover{transform:none}
+.led-icon{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;transition:all 0.4s}
+.led-icon.on{box-shadow:0 0 24px currentColor,0 0 48px currentColor;animation:led-glow 2s ease-in-out infinite}
+@keyframes led-glow{0%,100%{box-shadow:0 0 24px currentColor,0 0 48px currentColor}50%{box-shadow:0 0 32px currentColor,0 0 64px currentColor}}
+.led-icon.on.green-led{color:var(--green);background:rgba(0,255,136,0.1)}
+.led-icon.on.yellow-led{color:var(--yellow);background:rgba(255,214,10,0.1)}
+.led-icon.on.red-led{color:var(--red);background:rgba(255,45,85,0.1)}
+.led-icon.on.buzzer-led{color:var(--cyan);background:rgba(34,211,238,0.1)}
+.led-icon.off{color:var(--text-muted);background:rgba(255,255,255,0.02)}
+.led-name{font-size:12px;font-weight:500}
+.led-label{font-size:9px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px}
+.led-state{font-weight:700;font-size:13px;letter-spacing:0.5px}
+.led-state.on{color:var(--green)}.led-state.off{color:var(--text-muted)}
+.led-btn{padding:8px 18px;border-radius:var(--radius-sm);font-size:11px;font-weight:600;border:none;cursor:pointer;font-family:var(--font);transition:all 0.25s var(--anim-smooth);width:100%;min-height:44px}
+.led-btn.turn-on{background:linear-gradient(145deg,var(--emerald),#00B87A);color:#000;box-shadow:0 4px 12px rgba(0,232,160,0.2)}
+.led-btn.turn-off{background:rgba(255,255,255,0.04);color:var(--text-secondary);border:1px solid rgba(255,255,255,0.06)}
+.quick-actions{display:flex;gap:8px;flex-wrap:wrap}
+.quick-actions button{min-height:44px}
+
+/* ===== AI PAGE ===== */
+.ai-card{border-radius:var(--radius-lg);padding:24px;background:linear-gradient(145deg,rgba(17,26,46,0.7),rgba(12,18,32,0.8));border:1px solid rgba(124,58,237,0.15);border-left:3px solid var(--purple);box-shadow:var(--shadow-glass)}
+.ai-header{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.ai-dot{width:7px;height:7px;border-radius:50%;background:var(--purple);box-shadow:0 0 8px var(--purple);position:relative;flex-shrink:0}
+.ai-dot::after{content:'';position:absolute;inset:-2px;border-radius:50%;border:1px solid var(--purple);animation:conn-ring 2s ease-out infinite}
+.ai-empty{text-align:center;padding:40px 20px}
+.ai-empty .ai-icon{font-size:48px;color:var(--purple);margin-bottom:12px}
+.ai-empty h3{font-size:18px;font-weight:600;margin-bottom:8px}
+.ai-empty p{font-size:13px;color:var(--text-muted);line-height:1.6;max-width:400px;margin:0 auto}
+.ai-result{padding:16px;border-radius:var(--radius-md);background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.04)}
+.ai-result .timestamp{font-size:10px;color:var(--text-muted);margin-bottom:8px}
+.ai-risk-banner{padding:10px 16px;border-radius:var(--radius-sm);font-size:14px;font-weight:700;margin-bottom:10px;text-align:center}
+.ai-risk-banner.low{background:rgba(0,232,160,0.08);color:var(--green);border:1px solid rgba(0,232,160,0.1)}
+.ai-risk-banner.moderate{background:rgba(255,214,10,0.08);color:var(--yellow);border:1px solid rgba(255,214,10,0.1)}
+.ai-risk-banner.high{background:rgba(255,107,53,0.08);color:var(--orange);border:1px solid rgba(255,107,53,0.1)}
+.ai-risk-banner.critical{background:rgba(255,45,85,0.08);color:var(--red);border:1px solid rgba(255,45,85,0.1)}
+.ai-prediction{padding:10px 14px;border-radius:var(--radius-sm);background:rgba(124,58,237,0.04);border-left:2px solid var(--purple);margin-bottom:8px;line-height:1.6;font-size:13px}
+.ai-recs ul{margin:4px 0;padding-left:18px;font-size:12px;color:var(--text-secondary);line-height:1.7}
+
+/* ===== ALERTS PAGE ===== */
+/* Desktop table */
+.alert-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.alert-table{width:100%;border-collapse:collapse;font-size:11px}
+.alert-table th{text-align:left;padding:8px 10px;color:var(--text-muted);font-weight:500;border-bottom:1px solid rgba(255,255,255,0.04);white-space:nowrap;font-size:10px;text-transform:uppercase;letter-spacing:0.3px}
+.alert-table td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.02)}
+.alert-row{cursor:pointer;transition:background 0.15s}
+.alert-row:hover{background:rgba(255,255,255,0.02)}
+.alert-row .sev-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.alert-tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px}
+.alert-tab{padding:5px 14px;border-radius:100px;font-size:10px;font-weight:500;cursor:pointer;border:1px solid rgba(255,255,255,0.04);background:rgba(255,255,255,0.02);color:var(--text-muted);font-family:var(--font);transition:all 0.2s;min-height:32px}
+.alert-tab.active{background:var(--emerald);color:#000;border-color:var(--emerald);font-weight:600}
+.alert-empty{padding:24px;text-align:center;color:var(--text-muted);font-size:13px}
+/* Mobile stacked cards */
+.alert-cards{display:none;flex-direction:column;gap:8px}
+.alert-card-item{padding:12px 14px;border-radius:var(--radius-md);background:rgba(255,255,255,0.02);border:1px solid var(--border-glass);cursor:pointer;transition:background 0.15s}
+.alert-card-item:hover{background:rgba(255,255,255,0.04)}
+.alert-card-top{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.alert-card-top .sev-pill{font-size:9px;padding:2px 8px;border-radius:100px;font-weight:600;text-transform:uppercase}
+.alert-card-top .time{font-size:10px;color:var(--text-muted);font-family:var(--mono);margin-left:auto}
+.alert-card-msg{font-size:12px;color:var(--text-secondary)}
+.alert-card-detail{display:none;margin-top:8px;padding-top:8px;border-top:1px solid var(--border-glass);font-size:11px;color:var(--text-muted);font-family:var(--mono)}
+.alert-card-item.expanded .alert-card-detail{display:block}
+
+/* ===== SETTINGS PAGE ===== */
+.settings-section{margin-bottom:20px}
+.settings-section h4{font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.04)}
+.setting-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;gap:12px;flex-wrap:wrap}
+.setting-row label{font-size:13px;color:var(--text-primary);min-width:160px}
+.setting-row input[type=text],.setting-row input[type=number]{padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:rgba(0,0,0,0.2);color:var(--text-primary);font-family:var(--mono);font-size:12px;width:160px;outline:none;min-height:40px}
+.setting-row input[type=range]{width:120px;accent-color:var(--emerald);cursor:pointer}
+.setting-row select{padding:6px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:rgba(0,0,0,0.2);color:var(--text-primary);font-size:12px;outline:none;min-height:40px}
+.toggle-sw{position:relative;width:40px;height:22px;display:inline-block;flex-shrink:0}
+.toggle-sw input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;cursor:pointer;inset:0;background:rgba(255,255,255,0.06);border-radius:22px;transition:0.25s}
+.toggle-slider::before{content:'';position:absolute;height:16px;width:16px;left:3px;bottom:3px;background:var(--text-muted);border-radius:50%;transition:0.25s var(--anim-smooth)}
+.toggle-sw input:checked+.toggle-slider{background:var(--emerald)}
+.toggle-sw input:checked+.toggle-slider::before{transform:translateX(18px);background:#fff}
+.range-val{font-family:var(--mono);font-size:12px;color:var(--text-secondary);min-width:36px;text-align:right}
+.settings-actions{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}
+.device-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.device-info-item{padding:10px 12px;border-radius:var(--radius-sm);background:rgba(255,255,255,0.02);font-size:12px}
+.device-info-item .di-label{color:var(--text-muted);font-size:10px;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:2px}
+.device-info-item .di-val{font-family:var(--mono);color:var(--text-primary)}
+
+/* ===== TOAST ===== */
+.toast-container{position:fixed;bottom:calc(var(--tabbar-h) + 12px);right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{padding:12px 18px;border-radius:var(--radius-md);font-size:12px;font-weight:500;box-shadow:0 8px 32px rgba(0,0,0,0.5);animation:toast-in 0.35s var(--anim-smooth);max-width:340px;backdrop-filter:blur(16px)}
+.toast.success{background:rgba(0,232,160,0.12);border:1px solid rgba(0,232,160,0.2);color:var(--emerald)}
+.toast.error{background:rgba(255,45,85,0.12);border:1px solid rgba(255,45,85,0.2);color:var(--red)}
+.toast.info{background:rgba(0,191,255,0.12);border:1px solid rgba(0,191,255,0.2);color:var(--blue)}
+@keyframes toast-in{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+.toast.out{animation:toast-out 0.3s var(--anim-smooth) forwards}
+@keyframes toast-out{from{transform:translateX(0);opacity:1}to{transform:translateX(100%);opacity:0}}
+
+/* ===== MODAL ===== */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);z-index:1000;display:none;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.show{display:flex}
+.modal{background:var(--bg-glass-heavy);backdrop-filter:blur(32px);border:1px solid var(--border-glass-strong);border-radius:var(--radius-lg);padding:24px;max-width:500px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,0.5)}
+.modal h3{font-size:16px;font-weight:600;margin-bottom:12px}
+.modal p{font-size:13px;color:var(--text-secondary);line-height:1.6;margin-bottom:16px}
+.modal-close{position:absolute;top:12px;right:16px;background:none;border:none;color:var(--text-muted);font-size:22px;cursor:pointer;line-height:1;z-index:2;min-height:44px;min-width:44px;display:flex;align-items:center;justify-content:center}.modal-close:hover{color:var(--text-primary)}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end}
+
+/* ===== DEMO BANNER ===== */
+.demo-banner{display:none;margin:0 0 12px;padding:10px 18px;border-radius:var(--radius-md);font-size:12px;align-items:center;gap:10px;background:rgba(255,214,10,0.06);border:1px solid rgba(255,214,10,0.12);color:var(--yellow)}
+.demo-banner.show{display:flex}
+.demo-banner button{margin-left:auto;padding:6px 14px;border-radius:var(--radius-sm);font-size:11px;font-weight:600;border:1px solid var(--yellow);background:transparent;color:var(--yellow);cursor:pointer;font-family:var(--font);min-height:36px}
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:1100px){
+  .dash-hero{grid-template-columns:1fr}
+  .sensor-grid{grid-template-columns:repeat(3,1fr)}
+  .charts-grid{grid-template-columns:1fr}
+}
+@media(max-width:1024px){
+  .sensor-grid{grid-template-columns:repeat(2,1fr)}
+  .led-grid{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .main-content{margin-left:0}
+  .tab-bar{display:flex}
+  .header-mobile-logo{display:flex}
+  .header-right{display:none}
+  .hamburger{display:flex}
+  .header-dropdown-trigger{display:block}
+  .page-container{padding:16px 12px calc(var(--tabbar-h) + 16px)}
+  .toast-container{bottom:calc(var(--tabbar-h) + 12px);right:12px;left:12px}
+  .toast{max-width:100%}
+  /* Alerts: hide table, show cards */
+  .alert-table-wrap{display:none}
+  .alert-cards{display:flex}
+}
+@media(max-width:640px){
+  .dash-hero-right{grid-template-columns:1fr}
+  .sensor-grid{grid-template-columns:1fr}
+  .led-grid{grid-template-columns:1fr}
+  .device-info-grid{grid-template-columns:1fr}
+  .bhi-gauge-wrap{width:160px;height:160px}
+  .header{padding:0 12px}
+  .page-container{padding:12px 10px calc(var(--tabbar-h) + 12px)}
+}
+/* Desktop: toast at bottom-right without tab bar offset */
+@media(min-width:769px){
+  .toast-container{bottom:20px;right:20px}
+}
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+
+<!-- ===== SIDEBAR (Desktop ≥768px) ===== -->
+<nav class="sidebar" id="sidebar">
+  <a class="sidebar-logo" href="#">
+    <div class="sidebar-logo-icon">
+      <div class="sidebar-logo-glow"></div>
+      <svg viewBox="0 0 32 32" fill="none">
+        <rect x="2" y="8" width="22" height="16" rx="4" stroke="url(#lgS)" stroke-width="2" fill="none"/>
+        <rect x="24" y="13" width="2" height="6" rx="1" fill="url(#lgS)"/>
+        <polyline points="5,15 10,15 12,10 15,20 18,13 20,17 25,15" stroke="url(#lgS)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <defs><linearGradient id="lgS" x1="0" y1="0" x2="32" y2="32"><stop offset="0%" stop-color="#00E8A0"/><stop offset="100%" stop-color="#00FF88"/></linearGradient></defs>
+      </svg>
+    </div>
+    <div>
+      <div class="sidebar-logo-text">Battery Vital</div>
+      <div class="sidebar-logo-sub">Safety System</div>
+    </div>
+  </a>
+  <div class="sidebar-nav">
+    <a class="nav-link active" data-page="dashboard" onclick="navigateTo('dashboard')"><span class="nav-icon">⊞</span> Dashboard</a>
+    <a class="nav-link" data-page="trends" onclick="navigateTo('trends')"><span class="nav-icon">⊏</span> Trends</a>
+    <a class="nav-link" data-page="controls" onclick="navigateTo('controls')"><span class="nav-icon">◉</span> Controls</a>
+    <a class="nav-link" data-page="ai" onclick="navigateTo('ai')"><span class="nav-icon">◈</span> AI Analyst</a>
+    <a class="nav-link" data-page="alerts" onclick="navigateTo('alerts')"><span class="nav-icon">⚠</span> Alerts</a>
+    <a class="nav-link" data-page="settings" onclick="navigateTo('settings')"><span class="nav-icon">⚙</span> Settings</a>
+  </div>
+  <div class="sidebar-footer">
+    <span>Battery Vital v1.0</span>
+    <span>College Mega Project</span>
+  </div>
+</nav>
+
+<!-- ===== MAIN CONTENT ===== -->
+<div class="main-content">
+
+<!-- Header -->
+<header class="header" id="mainHeader">
+  <a class="header-mobile-logo" href="#">
+    <svg viewBox="0 0 32 32" fill="none" width="28" height="28">
+      <rect x="2" y="8" width="22" height="16" rx="4" stroke="url(#lgH)" stroke-width="2" fill="none"/>
+      <rect x="24" y="13" width="2" height="6" rx="1" fill="url(#lgH)"/>
+      <polyline points="5,15 10,15 12,10 15,20 18,13 20,17 25,15" stroke="url(#lgH)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <defs><linearGradient id="lgH" x1="0" y1="0" x2="32" y2="32"><stop offset="0%" stop-color="#00E8A0"/><stop offset="100%" stop-color="#00FF88"/></linearGradient></defs>
+    </svg>
+    <span class="logo-text">Battery Vital</span>
+  </a>
+  <div class="header-left">
+    <h1 class="header-page-title" id="pageTitle">Dashboard</h1>
+  </div>
+  <div class="header-center">
+    <div class="conn-badge connecting" id="connBadge">
+      <span class="conn-dot"></span>
+      <span id="connText">CONNECTING</span>
+    </div>
+  </div>
+  <div class="header-right" id="headerRight">
+    <div class="header-right-item"><span class="label">Uptime</span> <span class="mono" id="uptimeDisplay">00:00:00</span></div>
+    <div class="header-right-item"><span class="label">RSSI</span> <span class="mono" id="rssiDisplay">--</span></div>
+    <div class="header-right-item"><span class="label">Updated</span> <span class="mono" id="updatedDisplay">--</span></div>
+  </div>
+  <button class="hamburger" id="hamburgerBtn" onclick="toggleMobileMenu()">☰</button>
+  <div class="header-dropdown" id="headerDropdown">
+    <div class="header-dropdown-item"><span class="label">Uptime</span><span class="val" id="ddUptime">00:00:00</span></div>
+    <div class="header-dropdown-item"><span class="label">RSSI</span><span class="val" id="ddRssi">--</span></div>
+    <div class="header-dropdown-item"><span class="label">Updated</span><span class="val" id="ddUpdated">--</span></div>
+    <div class="header-dropdown-item"><span class="label">IP</span><span class="val" id="ddIp">--</span></div>
+    <div class="header-dropdown-item"><span class="label">Heap</span><span class="val" id="ddHeap">--</span></div>
+  </div>
+</header>
+
+<!-- Page Container -->
+<div class="page-container">
+
+<!-- Demo Banner -->
+<div class="demo-banner" id="demoBanner">
+  <span>⚡ DEMO MODE — Simulated Data</span>
+  <button onclick="exitDemo()">Exit Demo</button>
+</div>
+
+<!-- ========== PAGE: DASHBOARD ========== -->
+<section class="page-section active" id="page-dashboard">
+
+<div class="dash-hero">
+  <div class="dash-hero-left">
+    <!-- BHI Gauge -->
+    <div class="bhi-gauge-card">
+      <div class="bhi-gauge-wrap">
+        <div class="bhi-gauge">
+          <div class="bhi-gauge-ring"></div>
+          <svg viewBox="0 0 200 200">
+            <circle class="bhi-gauge-bg" cx="100" cy="100" r="88"/>
+            <circle class="bhi-gauge-arc" id="bhiArc" cx="100" cy="100" r="88" stroke="#00FF88" stroke-dasharray="552.9" stroke-dashoffset="552.9"/>
+          </svg>
+          <div class="bhi-gauge-center">
+            <div class="bhi-gauge-score" id="bhiScore">--</div>
+            <div class="bhi-gauge-max">/ 100</div>
+            <div class="bhi-gauge-label">BHI Score</div>
+          </div>
+        </div>
+      </div>
+      <div class="safety-badge safe" id="safetyBadge">SAFE</div>
+      <div class="quick-info">
+        <div class="quick-row"><span class="lbl">Safety</span><span class="val" id="safetyText" style="color:var(--green)">Safe</span></div>
+        <div class="quick-row"><span class="lbl">Direction</span><span class="val" id="opDirection">--</span></div>
+        <div class="quick-row"><span class="lbl">Errors</span><span class="val" id="errorCount">0</span></div>
+        <div class="quick-row"><span class="lbl">Updated</span><span class="val" id="bhiTimestamp">--</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dash-hero-right">
+    <!-- Sensor Overview Card -->
+    <div class="glass-card" style="padding:16px 18px;display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;font-weight:500">Sensor Overview</span>
+        <canvas id="bhiSparkline" width="120" height="32" style="max-width:120px"></canvas>
+      </div>
+      <div class="mini-grid">
+        <div class="mini-item">
+          <div class="top"><span class="mi-icon" style="color:var(--orange)">G</span><span class="dot green" id="dotGas"></span></div>
+          <div class="mi-label">Gas (MQ2)</div>
+          <div><span class="mi-val" id="qGas">--</span><span class="mi-unit">idx</span></div>
+        </div>
+        <div class="mini-item">
+          <div class="top"><span class="mi-icon" style="color:var(--purple)">V</span><span class="dot green" id="dotVoc"></span></div>
+          <div class="mi-label">VOC (MQ135)</div>
+          <div><span class="mi-val" id="qVoc">--</span><span class="mi-unit">idx</span></div>
+        </div>
+        <div class="mini-item">
+          <div class="top"><span class="mi-icon" style="color:var(--red)">T</span><span class="dot green" id="dotTemp"></span></div>
+          <div class="mi-label">Temp</div>
+          <div><span class="mi-val" id="qTemp">--</span><span class="mi-unit">°C</span></div>
+        </div>
+        <div class="mini-item">
+          <div class="top"><span class="mi-icon" style="color:var(--blue)">H</span><span class="dot green" id="dotHumid"></span></div>
+          <div class="mi-label">Humidity</div>
+          <div><span class="mi-val" id="qHumid">--</span><span class="mi-unit">%</span></div>
+        </div>
+        <div class="mini-item">
+          <div class="top"><span class="mi-icon" style="color:var(--yellow)">V</span><span class="dot green" id="dotVolt"></span></div>
+          <div class="mi-label">Voltage</div>
+          <div><span class="mi-val" id="qVolt">--</span><span class="mi-unit">V</span></div>
+        </div>
+        <div class="mini-item">
+          <div class="top"><span class="mi-icon" style="color:var(--orange)">A</span><span class="dot green" id="dotCurr"></span></div>
+          <div class="mi-label">Current</div>
+          <div><span class="mi-val" id="qCurr">--</span><span class="mi-unit">A</span></div>
+        </div>
+      </div>
+      <div class="power-flow">
+        <div class="pf-block">
+          <div class="pf-label">Power</div>
+          <div class="pf-val" id="qPower" style="color:var(--cyan)">-- W</div>
+        </div>
+        <div class="pf-block">
+          <div class="pf-label">SOC</div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="batt-body"><span class="batt-fill green" id="heroFill" style="width:0%"><span class="batt-fill-wave"></span></span></span>
+            <span class="batt-tip"></span>
+            <span class="batt-pct" id="heroPct" style="color:var(--emerald)">--%</span>
+          </div>
+        </div>
+        <div class="pf-block">
+          <div class="pf-label">Direction</div>
+          <div class="pf-status idle" id="qDirection">Idle</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- System Status Card -->
+    <div class="glass-card" style="padding:16px 18px;display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span style="font-size:12px;font-weight:500">System Status</span>
+        <span class="card-badge live" id="sysMiniBadge">Online</span>
+      </div>
+      <div class="mini-grid">
+        <div class="mini-item" style="padding:6px 8px">
+          <div class="mi-label">WiFi RSSI</div>
+          <div><span class="mi-val" style="font-size:15px" id="sysMiniRssi">--</span><span class="mi-unit">dBm</span></div>
+        </div>
+        <div class="mini-item" style="padding:6px 8px">
+          <div class="mi-label">IP Address</div>
+          <div><span class="mi-val" style="font-size:13px" id="sysMiniIp">--</span></div>
+        </div>
+        <div class="mini-item" style="padding:6px 8px">
+          <div class="mi-label">Requests</div>
+          <div><span class="mi-val" style="font-size:15px" id="sysMiniPackets">0</span></div>
+        </div>
+        <div class="mini-item" style="padding:6px 8px">
+          <div class="mi-label">Free Heap</div>
+          <div><span class="mi-val" style="font-size:15px" id="sysMiniHeap">--</span><span class="mi-unit">KB</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Sensor Detail Grid -->
+<div class="sensor-grid">
+  <!-- Gas Card -->
+  <div class="glass-card sensor-card" id="gasCard">
+    <div class="card-header">
+      <h3><span class="icon" style="color:var(--orange)">G</span> Gas (MQ-2)</h3>
+      <span class="card-badge live" id="gasBadge">Live</span>
+    </div>
+    <div><span class="main-val"><span class="num" id="gasVal">--</span><span class="unit" style="color:var(--orange)">idx</span></span></div>
+    <div><span class="status-pill green" id="gasStatus">Normal</span></div>
+    <div class="progress-wrap">
+      <div class="progress-bar"><div class="progress-fill green" id="gasBar" style="width:0%"></div></div>
+      <div class="progress-labels"><span>0</span><span>5000</span></div>
+    </div>
+    <div class="data-row"><span>Status: <span id="gasStatusText">--</span></span></div>
+  </div>
+
+  <!-- VOC Card -->
+  <div class="glass-card sensor-card" id="vocCard">
+    <div class="card-header">
+      <h3><span class="icon" style="color:var(--purple)">V</span> VOC (MQ-135)</h3>
+      <span class="card-badge" id="vocBadge" style="background:rgba(255,214,10,0.1);color:var(--yellow);border:1px solid rgba(255,214,10,0.1)">Warming</span>
+    </div>
+    <div><span class="main-val"><span class="num" id="vocVal">--</span><span class="unit" style="color:var(--purple)">idx</span></span></div>
+    <div><span class="status-pill green" id="vocStatus">Normal</span></div>
+    <div class="data-row"><span>Warm: <span id="vocWarm">--</span></span></div>
+  </div>
+
+  <!-- Temperature Card -->
+  <div class="glass-card sensor-card" id="tempCard">
+    <div class="card-header">
+      <h3><span class="icon" style="color:var(--red)">T</span> Temperature</h3>
+      <span class="card-badge live">Live</span>
+    </div>
+    <div><span class="main-val"><span class="num" id="tempVal">--</span><span class="unit" style="color:var(--red)">°C</span></span></div>
+    <div><span class="status-pill green" id="tempStatus">Normal</span></div>
+  </div>
+
+  <!-- Humidity Card -->
+  <div class="glass-card sensor-card" id="humidCard">
+    <div class="card-header">
+      <h3><span class="icon" style="color:var(--blue)">H</span> Humidity</h3>
+      <span class="card-badge live">Live</span>
+    </div>
+    <div><span class="main-val"><span class="num" id="humidVal">--</span><span class="unit" style="color:var(--blue)">% RH</span></span></div>
+    <div><span class="status-pill green" id="humidStatus">Optimal</span></div>
+  </div>
+
+  <!-- Voltage Card -->
+  <div class="glass-card sensor-card" id="voltCard">
+    <div class="card-header">
+      <h3><span class="icon" style="color:var(--yellow)">V</span> Voltage</h3>
+      <span class="card-badge live">INA219</span>
+    </div>
+    <div><span class="main-val"><span class="num" id="voltVal">--</span><span class="unit" style="color:var(--yellow)">V</span></span></div>
+    <div><span class="status-pill green" id="voltStatus">Normal</span></div>
+  </div>
+
+  <!-- Current Card -->
+  <div class="glass-card sensor-card" id="currCard">
+    <div class="card-header">
+      <h3><span class="icon" style="color:var(--orange)">A</span> Current</h3>
+      <span class="card-badge live">INA219</span>
+    </div>
+    <div><span class="main-val"><span class="num" id="currVal">--</span><span class="unit" style="color:var(--orange)">A</span></span></div>
+    <div><span class="status-pill green" id="currStatus">Normal</span></div>
+  </div>
+
+  <!-- Power Card -->
+  <div class="glass-card sensor-card" id="powerCard">
+    <div class="card-header">
+      <h3><span class="icon" style="color:var(--cyan)">P</span> Power</h3>
+      <span class="card-badge live">Calculated</span>
+    </div>
+    <div><span class="main-val"><span class="num" id="powerVal">--</span><span class="unit" style="color:var(--cyan)">W</span></span></div>
+    <div class="data-row"><span id="powerCalc">= --V × --A</span></div>
+  </div>
+
+  <!-- Internal Resistance Card -->
+  <div class="glass-card sensor-card" id="irCard">
+    <div class="card-header">
+      <h3><span class="icon" style="color:var(--text-secondary)">Ω</span> Internal Resistance</h3>
+      <span class="card-badge" style="background:rgba(148,163,184,0.06);color:var(--text-secondary);border:1px solid rgba(148,163,184,0.06)">Calculated</span>
+    </div>
+    <div><span class="main-val"><span class="num" id="irVal">--</span><span class="unit" style="color:var(--text-secondary)">mΩ</span></span></div>
+    <div><span class="status-pill green" id="irStatus">Waiting</span></div>
+  </div>
+</div>
+
+<!-- System Strip -->
+<div class="sys-strip" id="sysStrip">
+  <div class="sys-item"><span class="s-lbl">WiFi</span><span class="s-val" id="sysRssi">--</span></div>
+  <div class="sys-item"><span class="s-lbl">IP</span><span class="s-val" id="sysIp">--</span></div>
+  <div class="sys-item"><span class="s-lbl">Heap</span><span class="s-val" id="sysHeap">--</span></div>
+  <div class="sys-item"><span class="s-lbl">Requests</span><span class="s-val" id="sysRequests">0</span></div>
+  <div class="sys-item"><span class="s-lbl">Errors</span><span class="s-val" id="sysErrors">0</span></div>
+  <div class="sys-item"><span class="s-lbl">FW</span><span class="s-val" id="sysFirmware">--</span></div>
+</div>
+
+</section>
+
+<!-- ========== PAGE: TRENDS ========== -->
+<section class="page-section" id="page-trends">
+  <div class="charts-grid">
+    <div class="glass-card chart-card">
+      <div class="chart-header">
+        <h3>Live Sensor Trends</h3>
+        <div class="chart-controls">
+          <button class="chart-time-btn active" onclick="setChartWindow(1,this)">1M</button>
+          <button class="chart-time-btn" onclick="setChartWindow(5,this)">5M</button>
+          <button class="chart-time-btn" onclick="setChartWindow(15,this)">15M</button>
+          <button class="chart-time-btn" onclick="setChartWindow(60,this)">1H</button>
+        </div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap">
+          <button class="chart-action-btn" id="chartPauseBtn" onclick="togglePause()">Pause</button>
+          <button class="chart-action-btn" onclick="clearCharts()">Clear</button>
+          <button class="chart-action-btn" onclick="exportCSV()">CSV ↓</button>
+        </div>
+      </div>
+      <canvas id="mainChart"></canvas>
+    </div>
+    <div class="glass-card chart-card chart-card-sm">
+      <div class="chart-header"><h3>Current Snapshot</h3></div>
+      <canvas id="barChart"></canvas>
+    </div>
+  </div>
+</section>
+
+<!-- ========== PAGE: CONTROLS ========== -->
+<section class="page-section" id="page-controls">
+
+  <div class="mode-banner auto-mode" id="modeBanner">
+    <span>Auto Mode: <strong>ACTIVE</strong> — BHI controls outputs automatically. Manual buttons are disabled.</span>
+    <button class="clay-btn" style="padding:6px 16px;min-height:36px;font-size:12px" onclick="toggleAutoMode()">Switch to Manual</button>
+  </div>
+
+  <!-- LED Grid — CORRECT PIN LABELS from firmware -->
+  <div class="led-grid" id="ledGrid">
+    <div class="led-card disabled-by-auto" id="cardGreen">
+      <div class="led-icon off green-led" id="iconGreen">●</div>
+      <div class="led-name">Vital Stable</div>
+      <div class="led-label">Green LED · GPIO 14</div>
+      <div class="led-state off" id="stateGreen">OFF</div>
+      <button class="led-btn turn-on" id="btnGreen" onclick="toggleOutput('green')">Turn ON</button>
+    </div>
+    <div class="led-card disabled-by-auto" id="cardYellow">
+      <div class="led-icon off yellow-led" id="iconYellow">●</div>
+      <div class="led-name">Monitor</div>
+      <div class="led-label">Yellow LED · GPIO 26</div>
+      <div class="led-state off" id="stateYellow">OFF</div>
+      <button class="led-btn turn-on" id="btnYellow" onclick="toggleOutput('yellow')">Turn ON</button>
+    </div>
+    <div class="led-card disabled-by-auto" id="cardRed">
+      <div class="led-icon off red-led" id="iconRed">●</div>
+      <div class="led-name">Critical Alert</div>
+      <div class="led-label">Red LED · GPIO 27</div>
+      <div class="led-state off" id="stateRed">OFF</div>
+      <button class="led-btn turn-on" id="btnRed" onclick="toggleOutput('red')">Turn ON</button>
+    </div>
+    <div class="led-card disabled-by-auto" id="cardBuzzer">
+      <div class="led-icon off buzzer-led" id="iconBuzzer">♫</div>
+      <div class="led-name">Alert Buzzer</div>
+      <div class="led-label">Buzzer · GPIO 25</div>
+      <div class="led-state off" id="stateBuzzer">OFF</div>
+      <button class="led-btn turn-on" id="btnBuzzer" onclick="toggleOutput('buzzer')">Turn ON</button>
+    </div>
+  </div>
+
+  <div class="quick-actions">
+    <button class="clay-btn clay-btn-danger" onclick="sendCommand('ALL_OFF')">Silence All</button>
+    <button class="clay-btn" onclick="sendCommand('DEMO_CYCLE')">Demo Cycle</button>
+    <button class="clay-btn" onclick="sendCommand('TEST_BUZZER')">Test Buzzer</button>
+    <button class="clay-btn" onclick="sendCommand('RESET_ALARM')">Reset Alarm</button>
+  </div>
+
+</section>
+
+<!-- ========== PAGE: AI ========== -->
+<section class="page-section" id="page-ai">
+  <div class="ai-card">
+    <div class="ai-header">
+      <span class="ai-dot"></span>
+      <h3 style="font-size:16px;font-weight:600">AI Vital Analyst</h3>
+    </div>
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.04)">Powered by n8n AI Workflow — Predictive Battery Intelligence</p>
+    <div id="aiContent">
+      <div class="ai-empty" id="aiEmpty">
+        <div class="ai-icon">⬡</div>
+        <h3>AI Analysis</h3>
+        <p>AI predictions will appear here automatically when the backend processes telemetry data through the n8n workflow. No configuration needed on this page.</p>
+      </div>
+      <div id="aiResult" style="display:none"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== PAGE: ALERTS ========== -->
+<section class="page-section" id="page-alerts">
+  <div class="glass-card" style="padding:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <h3 style="font-size:15px;font-weight:600">Battery Vital Alert Log</h3>
+      <div style="display:flex;gap:4px">
+        <button class="chart-action-btn" onclick="exportAlertCSV()">Export CSV</button>
+        <button class="chart-action-btn" onclick="clearAlertLog()">Clear</button>
+      </div>
+    </div>
+    <div class="alert-tabs" id="alertTabs">
+      <button class="alert-tab active" onclick="filterAlerts('all',this)">All</button>
+      <button class="alert-tab" onclick="filterAlerts('safe',this)">Safe</button>
+      <button class="alert-tab" onclick="filterAlerts('caution',this)">Caution</button>
+      <button class="alert-tab" onclick="filterAlerts('warning',this)">Warning</button>
+      <button class="alert-tab" onclick="filterAlerts('critical',this)">Critical</button>
+    </div>
+    <!-- Desktop: Table -->
+    <div class="alert-table-wrap">
+      <table class="alert-table">
+        <thead><tr>
+          <th>Time</th>
+          <th>Severity</th>
+          <th>BHI</th>
+          <th>Message</th>
+          <th>Details</th>
+        </tr></thead>
+        <tbody id="alertTableBody"><tr><td colspan="5" class="alert-empty">No alerts recorded. System is monitoring…</td></tr></tbody>
+      </table>
+    </div>
+    <!-- Mobile: Stacked Cards -->
+    <div class="alert-cards" id="alertCards"></div>
+  </div>
+</section>
+
+<!-- ========== PAGE: SETTINGS ========== -->
+<section class="page-section" id="page-settings">
+  <div class="glass-card" style="padding:24px">
+
+    <div class="settings-section">
+      <h4>Chemistry Profile</h4>
+      <div class="setting-row">
+        <label>Battery Type</label>
+        <select id="setBattType" onchange="onProfileChange()">
+          <option value="LEAD_ACID">Lead Acid</option>
+          <option value="LIPO">LiPo</option>
+          <option value="LI_ION">Li-ion</option>
+          <option value="LIFEPO4">LiFePO4</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <label>Nominal Voltage (V)</label>
+        <input type="number" id="setNomVolt" value="12.6" step="0.1">
+      </div>
+      <div class="setting-row">
+        <label>Capacity (Ah)</label>
+        <input type="number" id="setCapacity" value="60">
+      </div>
+      <div class="setting-row">
+        <button class="clay-btn clay-btn-primary" style="font-size:12px;padding:6px 18px;min-height:40px" onclick="sendCommand('SET_PROFILE',document.getElementById('setBattType').value)">Apply Profile to Device</button>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <h4>Sampling</h4>
+      <div class="setting-row">
+        <label>Sample Interval (s)</label>
+        <input type="range" id="setSampleRate" min="1" max="30" value="3" oninput="document.getElementById('sampleRateVal').textContent=this.value+'s'">
+        <span class="range-val" id="sampleRateVal">3s</span>
+      </div>
+      <div class="setting-row">
+        <button class="clay-btn" style="font-size:12px;padding:6px 18px;min-height:40px" onclick="sendCommand('SET_SAMPLE_INTERVAL',document.getElementById('setSampleRate').value)">Apply to Device</button>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <h4>Calibration & Diagnostics</h4>
+      <div class="setting-row">
+        <label>Start Calibration</label>
+        <button class="clay-btn" style="font-size:12px;padding:6px 18px;min-height:40px" onclick="sendCommand('START_CALIBRATION')">Calibrate</button>
+      </div>
+      <div class="setting-row">
+        <label>Run Self-Test</label>
+        <button class="clay-btn" style="font-size:12px;padding:6px 18px;min-height:40px" onclick="sendCommand('RUN_SELF_TEST')">Self-Test</button>
+      </div>
+      <div class="setting-row">
+        <label>Reboot Device</label>
+        <button class="clay-btn" style="font-size:12px;padding:6px 18px;min-height:40px;color:var(--yellow)" onclick="sendCommand('REBOOT')">Reboot</button>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <h4>Display</h4>
+      <div class="setting-row">
+        <label>Temperature Unit</label>
+        <div>
+          <label style="font-size:12px;cursor:pointer"><input type="radio" name="tempUnit" value="C" checked onchange="saveTempUnit()"> °C</label>
+          <label style="font-size:12px;cursor:pointer;margin-left:12px"><input type="radio" name="tempUnit" value="F" onchange="saveTempUnit()"> °F</label>
+        </div>
+      </div>
+      <div class="setting-row">
+        <label>Sound Alerts</label>
+        <label class="toggle-sw"><input type="checkbox" id="setSound" checked><span class="toggle-slider"></span></label>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <h4>Connection</h4>
+      <div class="setting-row">
+        <label>Backend API URL</label>
+        <input type="text" id="setApiUrl" value="/api" style="width:220px">
+      </div>
+      <div class="setting-row">
+        <label>Poll Interval (s)</label>
+        <input type="range" id="setPollRate" min="1" max="10" value="3" oninput="document.getElementById('pollRateVal').textContent=this.value+'s'">
+        <span class="range-val" id="pollRateVal">3s</span>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <h4>Device Info</h4>
+      <div class="device-info-grid">
+        <div class="device-info-item"><div class="di-label">Firmware</div><div class="di-val" id="diFw">--</div></div>
+        <div class="device-info-item"><div class="di-label">MAC Address</div><div class="di-val" id="diMac">--</div></div>
+        <div class="device-info-item"><div class="di-label">IP Address</div><div class="di-val" id="diIp">--</div></div>
+        <div class="device-info-item"><div class="di-label">Uptime</div><div class="di-val" id="diUptime">--</div></div>
+      </div>
+    </div>
+
+    <div class="settings-section" style="margin-bottom:0">
+      <h4>Danger Zone</h4>
+      <div class="setting-row">
+        <label>Factory Reset Device</label>
+        <button class="clay-btn clay-btn-danger" style="font-size:12px;padding:6px 18px;min-height:40px" onclick="confirmFactoryReset()">Factory Reset</button>
+      </div>
+    </div>
+
+    <div class="settings-actions">
+      <button class="clay-btn clay-btn-primary" onclick="saveAllSettings()">Save Dashboard Settings</button>
+      <button class="clay-btn" style="color:var(--red);border:1px solid rgba(255,45,85,0.2)" onclick="resetDashDefaults()">Reset Dashboard Defaults</button>
+    </div>
+
+  </div>
+</section>
+
+</div><!-- /page-container -->
+
+</div><!-- /main-content -->
+</div><!-- /app-shell -->
+
+<!-- ===== BOTTOM TAB BAR (Mobile) ===== -->
+<nav class="tab-bar" id="tabBar">
+  <div class="tab-bar-inner">
+    <a class="tab-link active" data-page="dashboard" onclick="navigateTo('dashboard')"><span class="tab-icon">⊞</span>Home</a>
+    <a class="tab-link" data-page="trends" onclick="navigateTo('trends')"><span class="tab-icon">⊏</span>Trends</a>
+    <a class="tab-link" data-page="controls" onclick="navigateTo('controls')"><span class="tab-icon">◉</span>Control</a>
+    <a class="tab-link" data-page="alerts" onclick="navigateTo('alerts')"><span class="tab-icon">⚠</span>Alerts</a>
+    <a class="tab-link" data-page="settings" onclick="navigateTo('settings')"><span class="tab-icon">⚙</span>Settings</a>
+  </div>
+</nav>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" style="position:relative">
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   Battery Vital Dashboard — Complete JavaScript
+   ===================================================================== */
+
+// ===== CONFIG =====
+const CFG = {
+  apiBase: '/api',
+  pollInterval: 3000,
+  maxHistory: 300,
+  version: '1.0',
+};
+
+// ===== STATE =====
+let state = {
+  connState: 'connecting', // connecting | live | stale | offline
+  lastDataTs: 0,
+  lastData: null,
+  history: [],
+  alertLog: [],
+  autoMode: true,
+  ledStates: { green: false, yellow: false, red: false, buzzer: false },
+  tempUnit: 'C',
+  soundEnabled: true,
+  isDemo: false,
+  chartPaused: false,
+  chartWindow: 1, // minutes
+  updatedAgo: 0,
+  uptimeSec: 0,
+  totalRequests: 0,
+  errors: 0,
+  lastSafety: '',
+  fetchTimer: null,
+  demoTimer: null,
+};
+
+let mainChart = null, barChart = null;
+
+// ===== ROUTER =====
+const PAGES = ['dashboard','trends','controls','ai','alerts','settings'];
+const PAGE_TITLES = {dashboard:'Dashboard',trends:'Trends',controls:'Controls',ai:'AI Analyst',alerts:'Alerts',settings:'Settings'};
+
+function navigateTo(page) {
+  if (!PAGES.includes(page)) page = 'dashboard';
+  window.location.hash = '#' + page;
+}
+
+function applyRoute() {
+  let hash = window.location.hash.replace('#','') || 'dashboard';
+  if (!PAGES.includes(hash)) hash = 'dashboard';
+  // Toggle sections
+  PAGES.forEach(p => {
+    const sec = document.getElementById('page-' + p);
+    if (sec) sec.classList.toggle('active', p === hash);
+  });
+  // Update nav
+  document.querySelectorAll('.nav-link').forEach(l => l.classList.toggle('active', l.dataset.page === hash));
+  document.querySelectorAll('.tab-link').forEach(l => l.classList.toggle('active', l.dataset.page === hash));
+  // Title
+  document.getElementById('pageTitle').textContent = PAGE_TITLES[hash] || 'Dashboard';
+  // Close mobile sidebar
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('headerDropdown').classList.remove('show');
+  // Init charts lazily
+  if (hash === 'trends' && !mainChart) initCharts();
+}
+window.addEventListener('hashchange', applyRoute);
+
+// ===== CONNECTION STATE MACHINE =====
+function updateConnState() {
+  const now = Date.now();
+  const age = state.lastDataTs > 0 ? (now - state.lastDataTs) / 1000 : Infinity;
+  let newState;
+  if (state.lastDataTs === 0) newState = 'connecting';
+  else if (age < 5) newState = 'live';
+  else if (age < 30) newState = 'live'; // still OK
+  else if (age < 120) newState = 'stale';
+  else newState = 'offline';
+
+  if (newState !== state.connState) {
+    state.connState = newState;
+    const badge = document.getElementById('connBadge');
+    const text = document.getElementById('connText');
+    badge.className = 'conn-badge ' + newState;
+    const labels = { connecting: 'CONNECTING', live: 'LIVE', stale: 'STALE', offline: 'OFFLINE' };
+    text.textContent = labels[newState];
+    // System badge
+    const sysBadge = document.getElementById('sysMiniBadge');
+    if (newState === 'live') { sysBadge.className = 'card-badge live'; sysBadge.textContent = 'Online'; }
+    else if (newState === 'stale') { sysBadge.className = 'card-badge warm'; sysBadge.textContent = 'Stale'; }
+    else { sysBadge.className = 'card-badge'; sysBadge.textContent = 'Offline'; sysBadge.style.cssText = 'background:rgba(255,45,85,0.1);color:var(--red);border:1px solid rgba(255,45,85,0.1)'; }
+  }
+}
+
+// ===== TIMERS =====
+function startTimers() {
+  setInterval(() => {
+    state.uptimeSec++;
+    const up = fmtTime(state.uptimeSec);
+    setText('uptimeDisplay', up);
+    setText('ddUptime', up);
+  }, 1000);
+  setInterval(() => {
+    if (state.lastDataTs > 0) {
+      state.updatedAgo = Math.floor((Date.now() - state.lastDataTs) / 1000);
+      const txt = state.updatedAgo + 's ago';
+      setText('updatedDisplay', txt);
+      setText('ddUpdated', txt);
+      setText('bhiTimestamp', txt);
+    }
+    updateConnState();
+  }, 1000);
+}
+
+function fmtTime(s) {
+  return String(Math.floor(s/3600)).padStart(2,'0') + ':' + String(Math.floor((s%3600)/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
+}
+
+// ===== DATA FETCH =====
+async function fetchTelemetry() {
+  if (state.isDemo) return;
+  try {
+    const resp = await fetch(CFG.apiBase + '/telemetry?t=' + Date.now(), { signal: AbortSignal.timeout(5000) });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    state.totalRequests++;
+    state.lastDataTs = Date.now();
+    processTelemetry(data);
+  } catch (e) {
+    state.errors++;
+    // If never connected and 10s passed, offer demo
+    if (state.lastDataTs === 0 && state.uptimeSec > 8 && !state.isDemo && !state._demoOffered) {
+      state._demoOffered = true;
+      if (confirm('Cannot reach backend API at ' + CFG.apiBase + '. Start demo mode with simulated data?')) startDemo();
+    }
+  }
+}
+
+function startFetchLoop() {
+  if (state.fetchTimer) clearInterval(state.fetchTimer);
+  fetchTelemetry();
+  state.fetchTimer = setInterval(fetchTelemetry, CFG.pollInterval);
+}
+
+// ===== PROCESS TELEMETRY (firmware JSON binding) =====
+function processTelemetry(d) {
+  state.lastData = d;
+
+  // BHI
+  const bhi = d.risk?.bhi ?? null;
+  updateBHIGauge(bhi);
+
+  // Safety badge
+  const safety = d.battery?.safety ?? 'SAFE';
+  updateSafetyBadge(safety);
+
+  // Gas
+  updateVal('gasVal', d.gas?.index_mq2);
+  updateVal('qGas', d.gas?.index_mq2);
+  setText('gasStatusText', d.gas?.status_mq2 ?? '--');
+  updateGasBar(d.gas?.index_mq2);
+  const warmDone = d.gas?.warm ?? false;
+  const vocBadge = document.getElementById('vocBadge');
+  if (warmDone) { vocBadge.textContent = 'Live'; vocBadge.style.cssText = 'background:rgba(0,232,160,0.1);color:var(--emerald);border:1px solid rgba(0,232,160,0.1)'; }
+  else { vocBadge.textContent = 'Warming'; vocBadge.style.cssText = 'background:rgba(255,214,10,0.1);color:var(--yellow);border:1px solid rgba(255,214,10,0.1)'; }
+  setText('vocWarm', warmDone ? 'Ready' : 'Heating...');
+
+  // VOC
+  updateVal('vocVal', d.gas?.index_mq135);
+  updateVal('qVoc', d.gas?.index_mq135);
+
+  // Temp / Humidity
+  const temp = d.environment?.temperature;
+  const humid = d.environment?.humidity;
+  if (temp != null) {
+    const tv = state.tempUnit === 'F' ? temp * 9/5 + 32 : temp;
+    updateVal('tempVal', tv);
+    updateVal('qTemp', state.tempUnit === 'F' ? tv : temp);
+    updateTempStatus(temp);
+  }
+  if (humid != null) {
+    updateVal('humidVal', humid);
+    updateVal('qHumid', humid);
+    updateHumidStatus(humid);
+  }
+
+  // Battery
+  const volt = d.battery?.voltage;
+  const curr = d.battery?.current;
+  const power = d.battery?.power;
+  const soc = d.battery?.soc;
+  const op = d.battery?.op;
+  const ir = d.battery?.resistance;
+
+  updateVal('voltVal', volt);
+  updateVal('qVolt', volt);
+  updateVal('currVal', curr);
+  updateVal('qCurr', curr);
+  updateVal('powerVal', power);
+  updateVal('irVal', ir);
+
+  if (volt != null && curr != null) {
+    setText('powerCalc', '= ' + n(volt) + 'V × ' + n(curr) + 'A');
+    const pw = power ?? (volt * curr);
+    document.getElementById('qPower').textContent = n(pw) + ' W';
+  }
+
+  // SOC & direction
+  updateSOC(soc);
+  updateDirection(op);
+
+  // Voltage/Current status
+  if (volt != null) updateVoltStatus(volt);
+  if (curr != null) updateCurrStatus(curr);
+  if (ir != null) updateIRStatus(ir);
+
+  // Network
+  const rssi = d.network?.rssi;
+  const ip = d.network?.ip;
+  const heap = d.network?.heap;
+  const reqs = d.network?.requests;
+  setText('rssiDisplay', rssi != null ? rssi + ' dBm' : '--');
+  setText('ddRssi', rssi != null ? rssi + ' dBm' : '--');
+  setText('sysMiniRssi', rssi ?? '--');
+  setText('sysRssi', rssi != null ? rssi + ' dBm' : '--');
+  setText('sysMiniIp', ip ?? '--');
+  setText('sysIp', ip ?? '--');
+  setText('ddIp', ip ?? '--');
+  setText('diIp', ip ?? '--');
+  if (heap != null) {
+    const hkb = (heap / 1024).toFixed(0);
+    setText('sysMiniHeap', hkb);
+    setText('sysHeap', hkb + ' KB');
+    setText('ddHeap', hkb + ' KB');
+  }
+  setText('sysMiniPackets', reqs ?? state.totalRequests);
+  setText('sysRequests', reqs ?? state.totalRequests);
+  setText('sysErrors', d.errors ?? state.errors);
+  setText('errorCount', d.errors ?? state.errors);
+  setText('sysFirmware', d.firmware ?? '--');
+  setText('diFw', d.firmware ?? '--');
+  setText('diMac', d.mac ?? '--');
+  setText('diUptime', d.uptime ?? fmtTime(state.uptimeSec));
+
+  // Outputs
+  if (d.outputs) {
+    const auto = d.outputs.auto;
+    if (auto !== undefined && auto !== state.autoMode) {
+      state.autoMode = !!auto;
+      renderAutoMode();
+    }
+    ['green','yellow','red','buzzer'].forEach(k => {
+      if (d.outputs[k] !== undefined) {
+        const on = !!d.outputs[k];
+        state.ledStates[k] = on;
+        renderLED(k, on);
+      }
+    });
+  }
+
+  // Sensor dots
+  updateDots(d);
+
+  // History
+  const snap = {
+    time: new Date().toISOString(), bhi: bhi ?? 0,
+    gas: d.gas?.index_mq2 ?? 0, voc: d.gas?.index_mq135 ?? 0,
+    temp: d.environment?.temperature ?? 0, humid: d.environment?.humidity ?? 0,
+    volt: volt ?? 0, curr: curr ?? 0, power: power ?? 0,
+  };
+  state.history.push(snap);
+  if (state.history.length > CFG.maxHistory) state.history.shift();
+  if (!state.chartPaused && mainChart) updateCharts();
+  updateSparkline();
+
+  // Alerts
+  checkSafetyChange(safety, bhi, d);
+
+  // Events from firmware
+  if (d.events && Array.isArray(d.events)) {
+    d.events.forEach(ev => {
+      if (!state.alertLog.find(a => a.id === ev.id)) {
+        state.alertLog.unshift(ev);
+      }
+    });
+    if (state.alertLog.length > 200) state.alertLog = state.alertLog.slice(0, 200);
+    renderAlerts();
+    saveAlertLog();
+  }
+}
+
+// ===== HELPERS =====
+function n(v, d=2) { return v != null && typeof v === 'number' ? v.toFixed(d) : '--'; }
+function setText(id, v) { const el = document.getElementById(id); if (el) el.textContent = v ?? '--'; }
+function updateVal(id, v) { const el = document.getElementById(id); if (!el) return; if (v == null) el.textContent = '--'; else if (typeof v === 'number') el.textContent = v % 1 !== 0 ? v.toFixed(1) : v; else el.textContent = v; }
+
+// ===== BHI GAUGE =====
+function updateBHIGauge(score) {
+  const s = Math.min(100, Math.max(0, score ?? 0));
+  const circ = 2 * Math.PI * 88;
+  const offset = circ - (s / 100) * circ;
+  const arc = document.getElementById('bhiArc');
+  arc.setAttribute('stroke-dashoffset', offset);
+  let sc = '#00FF88';
+  if (s > 75) sc = '#FF2D55';
+  else if (s > 55) sc = '#FF6B35';
+  else if (s > 30) sc = '#FFD60A';
+  arc.setAttribute('stroke', sc);
+  document.getElementById('bhiScore').textContent = score != null ? Math.round(s) : '--';
+}
+
+function updateSafetyBadge(safety) {
+  const badge = document.getElementById('safetyBadge');
+  const txt = document.getElementById('safetyText');
+  const s = (safety || 'SAFE').toUpperCase();
+  badge.textContent = s;
+  let cls = 'safe', col = 'var(--green)';
+  if (s === 'EMERGENCY' || s === 'CRITICAL') { cls = 'critical'; col = 'var(--red)'; }
+  else if (s === 'WARNING') { cls = 'warning'; col = 'var(--orange)'; }
+  else if (s === 'CAUTION') { cls = 'caution'; col = 'var(--yellow)'; }
+  badge.className = 'safety-badge ' + cls;
+  txt.textContent = s.charAt(0) + s.slice(1).toLowerCase();
+  txt.style.color = col;
+}
+
+// ===== STATUS HELPERS =====
+function updateGasBar(v) {
+  if (v == null) return;
+  const pct = Math.min(100, (v / 5000) * 100);
+  const bar = document.getElementById('gasBar');
+  bar.style.width = pct + '%';
+  let c = 'green', st = 'Normal', sc = 'green';
+  if (v > 4000) { c='red'; st='Critical'; sc='red'; }
+  else if (v > 2000) { c='red'; st='High'; sc='red'; }
+  else if (v > 1000) { c='orange'; st='Moderate'; sc='orange'; }
+  else if (v > 500) { c='yellow'; st='Low Detection'; sc='yellow'; }
+  bar.className = 'progress-fill ' + c;
+  const pill = document.getElementById('gasStatus');
+  pill.className = 'status-pill ' + sc; pill.textContent = st;
+}
+
+function updateTempStatus(t) {
+  let s = 'Normal', c = 'green';
+  if (t > 50) { s='Dangerous'; c='red'; }
+  else if (t > 40) { s='Elevated'; c='orange'; }
+  else if (t > 35) { s='Warm'; c='yellow'; }
+  const p = document.getElementById('tempStatus');
+  p.className = 'status-pill ' + c; p.textContent = s;
+}
+
+function updateHumidStatus(h) {
+  let s = 'Optimal', c = 'green';
+  if (h > 85) { s='High Moisture'; c='red'; }
+  else if (h > 75) { s='Elevated'; c='yellow'; }
+  else if (h < 30) { s='Low / Dry'; c='yellow'; }
+  const p = document.getElementById('humidStatus');
+  p.className = 'status-pill ' + c; p.textContent = s;
+}
+
+function updateVoltStatus(v) {
+  let s = 'Normal', c = 'green';
+  const nom = parseFloat(document.getElementById('setNomVolt')?.value) || 12.6;
+  if (v > nom * 1.1) { s='High'; c='orange'; }
+  else if (v < nom * 0.85) { s='Low'; c='red'; }
+  const p = document.getElementById('voltStatus');
+  p.className = 'status-pill ' + c; p.textContent = s;
+}
+
+function updateCurrStatus(c) {
+  let s = 'Normal', cl = 'green';
+  if (Math.abs(c) > 4) { s='Over-current'; cl='red'; }
+  else if (Math.abs(c) > 3) { s='High'; cl='orange'; }
+  const p = document.getElementById('currStatus');
+  p.className = 'status-pill ' + cl; p.textContent = s;
+}
+
+function updateIRStatus(ir) {
+  let s = 'Good', c = 'green';
+  if (ir > 40) { s='Critical'; c='red'; }
+  else if (ir > 30) { s='Poor'; c='orange'; }
+  else if (ir > 20) { s='Degrading'; c='yellow'; }
+  const p = document.getElementById('irStatus');
+  p.className = 'status-pill ' + c; p.textContent = s;
+}
+
+function updateSOC(soc) {
+  const fill = document.getElementById('heroFill');
+  const pct = document.getElementById('heroPct');
+  if (soc == null) { if (pct) pct.textContent = '--%'; return; }
+  const v = Math.min(100, Math.max(0, soc));
+  const cls = v > 60 ? 'green' : v > 30 ? 'yellow' : v > 15 ? 'orange' : 'red';
+  const col = v > 60 ? 'var(--emerald)' : v > 30 ? 'var(--yellow)' : v > 15 ? 'var(--orange)' : 'var(--red)';
+  if (fill) { fill.style.width = v + '%'; fill.className = 'batt-fill ' + cls; }
+  if (pct) { pct.textContent = Math.round(v) + '%'; pct.style.color = col; }
+}
+
+function updateDirection(op) {
+  const el = document.getElementById('qDirection');
+  const el2 = document.getElementById('opDirection');
+  if (!el) return;
+  const o = (op || 'IDLE').toUpperCase();
+  el.textContent = o.charAt(0) + o.slice(1).toLowerCase();
+  if (el2) el2.textContent = o.charAt(0) + o.slice(1).toLowerCase();
+  el.className = 'pf-status ' + (o === 'CHARGING' ? 'charging' : o === 'DISCHARGING' ? 'discharging' : 'idle');
+}
+
+function updateDots(d) {
+  const setDot = (id, val, warnThresh, critThresh) => {
+    const el = document.getElementById(id);
+    if (!el || val == null) return;
+    let c = 'green';
+    if (Math.abs(val) > critThresh) c = 'red';
+    else if (Math.abs(val) > warnThresh) c = 'orange';
+    el.className = 'dot ' + c;
+  };
+  setDot('dotGas', d.gas?.index_mq2, 1000, 2000);
+  setDot('dotVoc', d.gas?.index_mq135, 100, 200);
+  setDot('dotTemp', d.environment?.temperature, 35, 45);
+  setDot('dotHumid', d.environment?.humidity, 75, 85);
+  setDot('dotVolt', d.battery?.voltage, 14, 15);
+  setDot('dotCurr', d.battery?.current, 3, 4);
+}
+
+// ===== SPARKLINE =====
+function updateSparkline() {
+  const c = document.getElementById('bhiSparkline');
+  if (!c || state.history.length < 2) return;
+  const ctx = c.getContext('2d');
+  c.width = c.parentElement?.clientWidth || 120; c.height = 32;
+  ctx.clearRect(0, 0, c.width, c.height);
+  const d = state.history.slice(-20).map(x => x.bhi);
+  const mn = Math.min(...d), mx = Math.max(...d), r = mn === mx ? 1 : mx - mn;
+  ctx.beginPath();
+  ctx.strokeStyle = document.getElementById('bhiArc')?.getAttribute('stroke') || '#00FF88';
+  ctx.lineWidth = 2;
+  d.forEach((v, i) => {
+    const x = i / (d.length - 1) * c.width;
+    const y = c.height - 4 - ((v - mn) / r) * (c.height - 8);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+}
+
+// ===== CHARTS =====
+function initCharts() {
+  const ctx1 = document.getElementById('mainChart')?.getContext('2d');
+  const ctx2 = document.getElementById('barChart')?.getContext('2d');
+  if (!ctx1 || !ctx2) return;
+  const dsCfg = (label, color) => ({ label, data: [], borderColor: color, borderWidth: 2, pointRadius: 0, fill: false, tension: 0.3 });
+  mainChart = new Chart(ctx1, {
+    type: 'line',
+    data: { labels: [], datasets: [
+      dsCfg('BHI','#00C896'), dsCfg('Gas','#FF6B35'), dsCfg('VOC','#7C3AED'),
+      dsCfg('Temp','#FF2D55'), dsCfg('Humidity','#00BFFF'), dsCfg('Voltage','#FFD60A'), dsCfg('Current','#FF8C00'),
+    ]},
+    options: { responsive:true, maintainAspectRatio:false, animation:false, interaction:{mode:'index',intersect:false},
+      plugins:{ legend:{labels:{color:'#8899B4',font:{size:11},boxWidth:12}} },
+      scales:{ x:{ticks:{color:'#4A5A78',font:{size:10},maxRotation:45},grid:{color:'rgba(255,255,255,0.04)'}},
+               y:{min:0,max:100,ticks:{color:'#4A5A78',font:{size:10}},grid:{color:'rgba(255,255,255,0.04)'}} }
+    }
+  });
+  barChart = new Chart(ctx2, {
+    type: 'bar',
+    data: { labels: ['Gas','VOC','Temp','Humid','Volt','Curr'],
+      datasets: [{ label:'Current', data:[0,0,0,0,0,0], backgroundColor:['#FF6B35','#7C3AED','#FF2D55','#00BFFF','#FFD60A','#FF8C00'], borderRadius:4 }]
+    },
+    options: { responsive:true, maintainAspectRatio:false, animation:false,
+      plugins:{ legend:{display:false} },
+      scales:{ x:{ticks:{color:'#4A5A78',font:{size:11}},grid:{display:false}}, y:{beginAtZero:true,ticks:{color:'#4A5A78'},grid:{color:'rgba(255,255,255,0.04)'}} }
+    }
+  });
+}
+
+function updateCharts() {
+  if (!mainChart || !barChart) return;
+  const wp = state.chartWindow === 1 ? 30 : state.chartWindow === 5 ? 150 : state.chartWindow === 15 ? 450 : 1800;
+  const data = state.history.slice(-Math.min(wp, state.history.length));
+  const labels = data.map(d => { const t = new Date(d.time); return t.getHours().toString().padStart(2,'0')+':'+t.getMinutes().toString().padStart(2,'0')+':'+t.getSeconds().toString().padStart(2,'0'); });
+  mainChart.data.labels = labels;
+  mainChart.data.datasets[0].data = data.map(d => d.bhi);
+  mainChart.data.datasets[1].data = data.map(d => Math.min(100, (d.gas / 5000) * 100));
+  mainChart.data.datasets[2].data = data.map(d => Math.min(100, (d.voc / 300) * 100));
+  mainChart.data.datasets[3].data = data.map(d => Math.min(100, Math.max(0, ((d.temp - 20) / 60) * 100)));
+  mainChart.data.datasets[4].data = data.map(d => d.humid);
+  mainChart.data.datasets[5].data = data.map(d => Math.min(100, Math.max(0, ((d.volt - 10) / 5) * 100)));
+  mainChart.data.datasets[6].data = data.map(d => Math.min(100, (Math.abs(d.curr) / 5) * 100));
+  mainChart.update('none');
+  if (data.length > 0) {
+    const last = data[data.length - 1];
+    barChart.data.datasets[0].data = [last.gas, last.voc, last.temp, last.humid, last.volt, Math.abs(last.curr)];
+    barChart.update('none');
+  }
+}
+
+function setChartWindow(min, btn) { state.chartWindow = min; document.querySelectorAll('.chart-time-btn').forEach(b => b.classList.remove('active')); if (btn) btn.classList.add('active'); updateCharts(); }
+function togglePause() { state.chartPaused = !state.chartPaused; document.getElementById('chartPauseBtn').textContent = state.chartPaused ? 'Resume' : 'Pause'; }
+function clearCharts() { state.history = []; updateCharts(); showToast('Charts cleared', 'info'); }
+
+function exportCSV() {
+  if (state.history.length === 0) { showToast('No data to export', 'error'); return; }
+  let csv = 'Time,BHI,Gas,VOC,Temp,Humidity,Voltage,Current,Power\n';
+  state.history.forEach(d => { csv += new Date(d.time).toLocaleString()+','+d.bhi+','+d.gas+','+d.voc+','+d.temp+','+d.humid+','+d.volt+','+d.curr+','+d.power+'\n'; });
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'battery_vital_data.csv'; a.click(); URL.revokeObjectURL(a.href);
+  showToast('CSV exported', 'success');
+}
+
+// ===== CONTROLS =====
+function toggleAutoMode() {
+  state.autoMode = !state.autoMode;
+  renderAutoMode();
+  sendCommand(state.autoMode ? 'LED_MODE' : 'LED_MODE', state.autoMode ? 'AUTO' : 'MANUAL');
+}
+
+function renderAutoMode() {
+  const banner = document.getElementById('modeBanner');
+  const cards = document.querySelectorAll('#ledGrid .led-card');
+  if (state.autoMode) {
+    banner.className = 'mode-banner auto-mode';
+    banner.innerHTML = '<span>Auto Mode: <strong>ACTIVE</strong> — BHI controls outputs automatically. Manual buttons are disabled.</span><button class="clay-btn" style="padding:6px 16px;min-height:36px;font-size:12px" onclick="toggleAutoMode()">Switch to Manual</button>';
+    cards.forEach(c => c.classList.add('disabled-by-auto'));
+  } else {
+    banner.className = 'mode-banner manual-mode';
+    banner.innerHTML = '<span>Manual Override: <strong>ACTIVE</strong> — You control outputs directly.</span><button class="clay-btn" style="padding:6px 16px;min-height:36px;font-size:12px" onclick="toggleAutoMode()">Enable Auto Mode</button>';
+    cards.forEach(c => c.classList.remove('disabled-by-auto'));
+  }
+}
+
+function renderLED(key, on) {
+  const cap = key.charAt(0).toUpperCase() + key.slice(1);
+  const icon = document.getElementById('icon' + cap);
+  const st = document.getElementById('state' + cap);
+  const btn = document.getElementById('btn' + cap);
+  if (!icon) return;
+  const ledClass = key === 'buzzer' ? 'buzzer-led' : key + '-led';
+  icon.className = 'led-icon ' + (on ? 'on ' : 'off ') + ledClass;
+  icon.textContent = key === 'buzzer' ? '♫' : '●';
+  if (st) { st.textContent = on ? 'ON' : 'OFF'; st.className = 'led-state ' + (on ? 'on' : 'off'); }
+  if (btn) { btn.textContent = on ? 'Turn OFF' : 'Turn ON'; btn.className = 'led-btn ' + (on ? 'turn-off' : 'turn-on'); }
+}
+
+function toggleOutput(key) {
+  if (state.autoMode) { showToast('Disable auto mode first', 'info'); return; }
+  const newState = !state.ledStates[key];
+  const cmd = key === 'buzzer' ? (newState ? 'BUZZER_ON' : 'BUZZER_OFF') : 'LED_MODE';
+  const val = key === 'buzzer' ? undefined : (key.toUpperCase() + '_' + (newState ? 'ON' : 'OFF'));
+  sendCommand(cmd, val).then(() => {
+    state.ledStates[key] = newState;
+    renderLED(key, newState);
+    showToast(key + ' turned ' + (newState ? 'ON' : 'OFF'), 'info');
+  }).catch(() => showToast('Command failed', 'error'));
+}
+
+async function sendCommand(command, value) {
+  const reqId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  try {
+    const resp = await fetch(CFG.apiBase + '/commands', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ command, value, requestId: reqId }),
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    showToast('Command sent: ' + command, 'success');
+    return data;
+  } catch (e) {
+    // In demo mode, simulate success
+    if (state.isDemo) {
+      showToast('(Demo) Command: ' + command, 'info');
+      return { ok: true };
+    }
+    throw e;
+  }
+}
+
+// ===== ALERTS =====
+function checkSafetyChange(safety, bhi, d) {
+  if (state.lastSafety && safety !== state.lastSafety) {
+    const entry = {
+      id: Date.now(),
+      time: new Date().toLocaleTimeString(),
+      severity: safety,
+      bhi: Math.round(bhi ?? 0),
+      message: 'Safety state changed: ' + state.lastSafety + ' → ' + safety,
+      gas: d.gas?.index_mq2 ?? 0,
+      temp: d.environment?.temperature ?? 0,
+      volt: d.battery?.voltage ?? 0,
+    };
+    state.alertLog.unshift(entry);
+    if (state.alertLog.length > 200) state.alertLog.pop();
+    saveAlertLog();
+    renderAlerts();
+    if (state.soundEnabled) playAlert(safety);
+  }
+  state.lastSafety = safety;
+}
+
+function renderAlerts(filter) {
+  // Desktop table
+  const tbody = document.getElementById('alertTableBody');
+  const cards = document.getElementById('alertCards');
+  if (state.alertLog.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="alert-empty">No alerts recorded. System is monitoring…</td></tr>';
+    cards.innerHTML = '<div class="alert-empty">No alerts recorded</div>';
+    return;
+  }
+  let items = state.alertLog;
+  if (filter && filter !== 'all') items = items.filter(e => (e.severity || '').toUpperCase() === filter.toUpperCase());
+
+  // Table rows
+  tbody.innerHTML = items.map((e, i) => {
+    const sev = (e.severity || 'SAFE').toUpperCase();
+    const col = sev === 'SAFE' ? 'var(--green)' : sev === 'CAUTION' ? 'var(--yellow)' : sev === 'WARNING' ? 'var(--orange)' : 'var(--red)';
+    return '<tr class="alert-row" onclick="showAlertDetail(' + i + ')"><td>' + e.time + '</td><td><span class="sev-dot" style="background:' + col + '"></span>' + sev + '</td><td>' + (e.bhi ?? '--') + '</td><td>' + (e.message || '--') + '</td><td style="font-size:10px;color:var(--text-muted)">Gas:' + (e.gas ?? '--') + ' T:' + (e.temp ?? '--') + ' V:' + (e.volt ?? '--') + '</td></tr>';
+  }).join('');
+
+  // Mobile cards
+  cards.innerHTML = items.map((e, i) => {
+    const sev = (e.severity || 'SAFE').toUpperCase();
+    const col = sev === 'SAFE' ? 'var(--green)' : sev === 'CAUTION' ? 'var(--yellow)' : sev === 'WARNING' ? 'var(--orange)' : 'var(--red)';
+    return '<div class="alert-card-item" onclick="this.classList.toggle(\'expanded\')"><div class="alert-card-top"><span class="sev-pill" style="background:' + col + '22;color:' + col + ';border:1px solid ' + col + '33">' + sev + '</span><span style="font-size:12px">' + (e.message || '--') + '</span><span class="time">' + e.time + '</span></div><div class="alert-card-detail">BHI: ' + (e.bhi ?? '--') + ' | Gas: ' + (e.gas ?? '--') + ' | Temp: ' + (e.temp ?? '--') + '°C | Volt: ' + (e.volt ?? '--') + 'V</div></div>';
+  }).join('');
+}
+
+function filterAlerts(filter, btn) {
+  document.querySelectorAll('.alert-tab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderAlerts(filter);
+}
+
+function showAlertDetail(idx) {
+  const e = state.alertLog[idx];
+  if (!e) return;
+  document.getElementById('modalContent').innerHTML = '<h3>Alert Detail</h3><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;font-size:13px">' +
+    '<div><span style="color:var(--text-muted)">Time:</span> ' + e.time + '</div>' +
+    '<div><span style="color:var(--text-muted)">Severity:</span> ' + e.severity + '</div>' +
+    '<div><span style="color:var(--text-muted)">BHI:</span> ' + (e.bhi ?? '--') + '</div>' +
+    '<div><span style="color:var(--text-muted)">Gas:</span> ' + (e.gas ?? '--') + '</div>' +
+    '<div><span style="color:var(--text-muted)">Temp:</span> ' + (e.temp ?? '--') + '°C</div>' +
+    '<div><span style="color:var(--text-muted)">Voltage:</span> ' + (e.volt ?? '--') + 'V</div>' +
+    '<div style="grid-column:span 2"><span style="color:var(--text-muted)">Message:</span> ' + (e.message || '--') + '</div></div>';
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function exportAlertCSV() {
+  if (state.alertLog.length === 0) { showToast('No alerts', 'error'); return; }
+  let csv = 'Time,Severity,BHI,Message,Gas,Temp,Voltage\n';
+  state.alertLog.forEach(e => { csv += e.time + ',' + e.severity + ',' + (e.bhi??'') + ',"' + (e.message??'') + '",' + (e.gas??'') + ',' + (e.temp??'') + ',' + (e.volt??'') + '\n'; });
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'battery_vital_alerts.csv'; a.click();
+  showToast('Alerts CSV exported', 'success');
+}
+
+function clearAlertLog() {
+  if (state.alertLog.length === 0 || !confirm('Clear all alert entries?')) return;
+  state.alertLog = [];
+  saveAlertLog();
+  renderAlerts();
+  showToast('Alert log cleared', 'info');
+}
+
+function saveAlertLog() { try { localStorage.setItem('bv_alerts', JSON.stringify(state.alertLog.slice(0, 200))); } catch(e) {} }
+function loadAlertLog() { try { const d = localStorage.getItem('bv_alerts'); if (d) { state.alertLog = JSON.parse(d); renderAlerts(); } } catch(e) {} }
+
+function playAlert(severity) {
+  if (!state.soundEnabled) return;
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator(); const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination); osc.type = 'sine';
+    const s = (severity || '').toUpperCase();
+    if (s === 'CRITICAL' || s === 'EMERGENCY') { osc.frequency.value = 1000; gain.gain.value = 0.4; osc.start(); osc.stop(ctx.currentTime + 0.5); }
+    else if (s === 'WARNING') { osc.frequency.value = 880; gain.gain.value = 0.3; osc.start(); osc.stop(ctx.currentTime + 0.3); }
+    else { osc.frequency.value = 440; gain.gain.value = 0.2; osc.start(); osc.stop(ctx.currentTime + 0.15); }
+  } catch(e) {}
+}
+
+// ===== SETTINGS =====
+function loadSettings() {
+  try {
+    const s = localStorage.getItem('bv_settings');
+    if (s) {
+      const o = JSON.parse(s);
+      if (o.apiBase) CFG.apiBase = o.apiBase;
+      if (o.pollInterval) CFG.pollInterval = o.pollInterval;
+      if (o.tempUnit) state.tempUnit = o.tempUnit;
+      if (o.soundEnabled !== undefined) state.soundEnabled = o.soundEnabled;
+      if (o.autoMode !== undefined) state.autoMode = o.autoMode;
+    }
+    // Apply to UI
+    const el = (id) => document.getElementById(id);
+    if (el('setApiUrl')) el('setApiUrl').value = CFG.apiBase;
+    if (el('setPollRate')) { el('setPollRate').value = CFG.pollInterval / 1000; el('pollRateVal').textContent = (CFG.pollInterval/1000) + 's'; }
+    const tu = document.querySelector('input[name="tempUnit"][value="' + state.tempUnit + '"]');
+    if (tu) tu.checked = true;
+    if (el('setSound')) el('setSound').checked = state.soundEnabled;
+  } catch(e) {}
+}
+
+function saveAllSettings() {
+  CFG.apiBase = document.getElementById('setApiUrl')?.value || '/api';
+  CFG.pollInterval = parseInt(document.getElementById('setPollRate')?.value || '3') * 1000;
+  state.tempUnit = document.querySelector('input[name="tempUnit"]:checked')?.value || 'C';
+  state.soundEnabled = document.getElementById('setSound')?.checked ?? true;
+  const settings = { apiBase: CFG.apiBase, pollInterval: CFG.pollInterval, tempUnit: state.tempUnit, soundEnabled: state.soundEnabled, autoMode: state.autoMode };
+  localStorage.setItem('bv_settings', JSON.stringify(settings));
+  if (state.fetchTimer) { clearInterval(state.fetchTimer); startFetchLoop(); }
+  showToast('Settings saved', 'success');
+}
+
+function saveTempUnit() {
+  state.tempUnit = document.querySelector('input[name="tempUnit"]:checked')?.value || 'C';
+  // Re-render if we have data
+  if (state.lastData) processTelemetry(state.lastData);
+}
+
+function onProfileChange() {
+  const type = document.getElementById('setBattType').value;
+  const voltMap = { LEAD_ACID: 12.6, LIPO: 11.1, LI_ION: 11.1, LIFEPO4: 12.8 };
+  document.getElementById('setNomVolt').value = voltMap[type] || 12.6;
+}
+
+function resetDashDefaults() {
+  localStorage.removeItem('bv_settings');
+  localStorage.removeItem('bv_alerts');
+  location.reload();
+}
+
+function confirmFactoryReset() {
+  document.getElementById('modalContent').innerHTML = '<h3 style="color:var(--red)">⚠ Factory Reset</h3><p>This will erase all device settings, calibration data, and profiles. The device will reboot with factory defaults.</p><p><strong>This action cannot be undone.</strong></p><div class="modal-actions"><button class="clay-btn" onclick="closeModal()">Cancel</button><button class="clay-btn clay-btn-danger" onclick="executeFactoryReset()">Confirm Factory Reset</button></div>';
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function executeFactoryReset() {
+  closeModal();
+  sendCommand('FACTORY_RESET').then(() => showToast('Factory reset sent. Device will reboot.', 'info')).catch(() => showToast('Command failed', 'error'));
+}
+
+// ===== MOBILE =====
+function toggleMobileMenu() {
+  const dd = document.getElementById('headerDropdown');
+  dd.classList.toggle('show');
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', (e) => {
+  const dd = document.getElementById('headerDropdown');
+  const hb = document.getElementById('hamburgerBtn');
+  if (dd && !dd.contains(e.target) && !hb.contains(e.target)) dd.classList.remove('show');
+});
+
+// ===== TOAST =====
+function showToast(msg, type, dur) {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = 'toast ' + (type || 'success');
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 300); }, dur || 3000);
+}
+
+// ===== MODAL =====
+function closeModal() { document.getElementById('modalOverlay').classList.remove('show'); }
+
+// ===== DEMO MODE =====
+const demoBase = {
+  risk: { bhi: 28 },
+  battery: { safety: 'SAFE', voltage: 12.64, current: 1.23, power: 15.55, soc: 72, op: 'CHARGING', resistance: 8.5 },
+  gas: { index_mq2: 342, status_mq2: 'NORMAL', index_mq135: 75, warm: true },
+  environment: { temperature: 34.5, humidity: 62.3 },
+  network: { rssi: -65, ip: '192.168.1.150', requests: 0, heap: 185432 },
+  outputs: { green: false, yellow: false, red: false, buzzer: false, auto: true },
+  errors: 0, firmware: 'v1.0', mac: 'AA:BB:CC:DD:EE:FF', uptime: '--',
+};
+
+function startDemo() {
+  state.isDemo = true;
+  document.getElementById('demoBanner').classList.add('show');
+  if (state.fetchTimer) clearInterval(state.fetchTimer);
+  if (state.demoTimer) clearInterval(state.demoTimer);
+  state.demoTimer = setInterval(generateDemo, 2000);
+  generateDemo();
+}
+
+function exitDemo() {
+  state.isDemo = false;
+  document.getElementById('demoBanner').classList.remove('show');
+  if (state.demoTimer) clearInterval(state.demoTimer);
+  startFetchLoop();
+}
+
+function generateDemo() {
+  const walk = (v, min, max, step) => Math.max(min, Math.min(max, v + (Math.random() - 0.5) * step * 2));
+  const d = JSON.parse(JSON.stringify(demoBase));
+  // Walk values
+  demoBase.gas.index_mq2 = walk(demoBase.gas.index_mq2, 200, 800, 15);
+  demoBase.gas.index_mq135 = walk(demoBase.gas.index_mq135, 40, 160, 5);
+  demoBase.environment.temperature = walk(demoBase.environment.temperature, 28, 42, 0.3);
+  demoBase.environment.humidity = walk(demoBase.environment.humidity, 40, 80, 1);
+  demoBase.battery.voltage = walk(demoBase.battery.voltage, 12.0, 13.2, 0.05);
+  demoBase.battery.current = walk(demoBase.battery.current, 0.5, 2.5, 0.1);
+  demoBase.battery.power = demoBase.battery.voltage * demoBase.battery.current;
+  demoBase.battery.resistance = walk(demoBase.battery.resistance, 5, 25, 0.5);
+  demoBase.battery.soc = walk(demoBase.battery.soc, 30, 95, 1);
+  demoBase.network.requests++;
+  // BHI calculation
+  const g = demoBase.gas.index_mq2 / 5000;
+  const v = demoBase.gas.index_mq135 / 300;
+  const t = (demoBase.environment.temperature - 20) / 60;
+  const bhi = Math.round(Math.min(100, Math.max(0, (g * 25 + v * 20 + t * 15 + (1 - demoBase.battery.soc / 100) * 20 + (demoBase.battery.resistance / 50) * 20))));
+  demoBase.risk.bhi = bhi;
+  // Safety
+  if (bhi > 75) demoBase.battery.safety = 'CRITICAL';
+  else if (bhi > 55) demoBase.battery.safety = 'WARNING';
+  else if (bhi > 30) demoBase.battery.safety = 'CAUTION';
+  else demoBase.battery.safety = 'SAFE';
+
+  // Copy for this tick
+  Object.assign(d, JSON.parse(JSON.stringify(demoBase)));
+  d.outputs = { ...state.ledStates, auto: state.autoMode };
+
+  state.lastDataTs = Date.now();
+  processTelemetry(d);
+}
+
+// ===== AI DISPLAY =====
+function showAIResult(data) {
+  const el = document.getElementById('aiResult');
+  const empty = document.getElementById('aiEmpty');
+  if (!el) return;
+  empty.style.display = 'none';
+  el.style.display = 'block';
+  const risk = (data.risk_level || data.risk || 'low').toLowerCase();
+  const rl = { low: 'LOW RISK', moderate: 'MODERATE RISK', high: 'HIGH RISK', critical: 'CRITICAL RISK' };
+  const pred = data.prediction || data.analysis || '';
+  const recs = data.recommendations || data.recommended_actions || [];
+  el.innerHTML = '<div class="ai-result"><div class="timestamp">Analysis at ' + new Date().toLocaleTimeString() + '</div>' +
+    '<div class="ai-risk-banner ' + risk + '">' + (rl[risk] || risk) + '</div>' +
+    (pred ? '<div class="ai-prediction">' + pred + '</div>' : '') +
+    (recs.length ? '<div class="ai-recs"><h4 style="font-size:12px;margin-bottom:6px">Recommendations:</h4><ul>' + recs.map(r => '<li>' + r + '</li>').join('') + '</ul></div>' : '') +
+    '</div>';
+}
+
+// ===== INIT =====
+function init() {
+  loadSettings();
+  loadAlertLog();
+  applyRoute();
+  startTimers();
+  renderAutoMode();
+  startFetchLoop();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+
+</body>
+</html>
