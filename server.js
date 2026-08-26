@@ -139,6 +139,100 @@ app.post('/api/ml-training-data', async (req, res) => {
   }
 });
 
+// ===== GEMINI AI ANALYSIS =====
+app.post('/api/analyze', async (req, res) => {
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+  if (!GEMINI_API_KEY) {
+    return res.status(500).json({ success: false, error: 'GEMINI_API_KEY not set in .env' });
+  }
+
+  try {
+    const data = req.body;
+
+    const prompt = `You are a battery safety expert AI. Analyze this battery data and respond in JSON only.
+
+Battery Data:
+- Voltage: ${data.voltage}V
+- Current: ${data.current}A
+- Temperature: ${data.temperature}\u00B0C
+- Humidity: ${data.humidity}%
+- Gas MQ2 Index: ${data.gasMq2}
+- Gas MQ135 VOC Index: ${data.gasMq135}
+- SOC: ${data.soc}%
+- Safety Status: ${data.safety}
+- Internal Resistance: ${data.resistance} mOhm
+- BHI Score: ${data.bhi}
+- Power: ${data.power}W
+- Direction: ${data.opDirection}
+
+Respond with EXACTLY this JSON format, nothing else:
+{
+  "health": "excellent or good or warning or critical or failure",
+  "bhi": 0 to 100 number,
+  "thermal_runaway_risk": true or false,
+  "anomaly_detected": true or false,
+  "remaining_cycles": number,
+  "remaining_months": number,
+  "danger_level": "safe or warning or danger",
+  "explanation": "one sentence explaining the battery condition",
+  "action": "recommended action to take"
+}
+
+Rules:
+- temp > 55 = critical thermal risk
+- voltage < 12 = critical
+- Gas MQ2 > 2000 = thermal runaway true
+- SOC < 20 and current > 3 = warning
+- BHI > 75 = critical danger
+- Be conservative, safety first
+- JSON only, no other text`;
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 500
+          }
+        })
+      }
+    );
+
+    if (!response.ok) {
+      const errData = await response.json();
+      throw new Error(errData.error?.message || 'Gemini API error');
+    }
+
+    const result = await response.json();
+    const text = result.candidates[0].content.parts[0].text;
+    const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    const prediction = JSON.parse(cleanText);
+
+    // Save prediction to MongoDB
+    try {
+      const Prediction = require('./models/Prediction');
+      await Prediction.create({
+        batteryId: data.batteryId || 'BAT001',
+        riskLevel: prediction.danger_level === 'danger' ? 'CRITICAL' : prediction.danger_level === 'warning' ? 'HIGH' : 'LOW',
+        riskScore: prediction.bhi,
+        analysis: prediction.explanation,
+        recommendations: prediction.action ? [prediction.action] : [],
+        modelVersion: 'gemini-2.0-flash'
+      });
+    } catch (e) { /* non-critical */ }
+
+    res.json({ success: true, prediction });
+
+  } catch (error) {
+    console.error('Gemini AI error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Serve frontend
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
