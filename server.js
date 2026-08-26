@@ -9,318 +9,149 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname)));
 
-// MongoDB Connection
+// ===== MONGODB ATLAS CONNECTION =====
 const MONGODB_URI = process.env.MONGODB_URI;
 
 if (!MONGODB_URI) {
   console.error('ERROR: MONGODB_URI not set in .env file');
+  console.error('Copy .env.example to .env and add your MongoDB Atlas connection string');
   process.exit(1);
 }
 
 mongoose.connect(MONGODB_URI)
-  .then(() => console.log('Connected to MongoDB Atlas'))
+  .then(() => {
+    console.log('Connected to MongoDB Atlas - BatteryVitals database');
+    console.log('Database:', mongoose.connection.db.databaseName);
+  })
   .catch(err => {
-    console.error('MongoDB connection error:', err);
+    console.error('MongoDB connection error:', err.message);
     process.exit(1);
   });
 
-// ===== SCHEMAS =====
-
-// Telemetry Schema - stores every reading from ESP32
-const telemetrySchema = new mongoose.Schema({
-  timestamp: { type: Date, default: Date.now, index: true },
-  
-  // Gas sensors
-  gas: {
-    mq2_index: Number,
-    mq2_status: String,
-    mq135_index: Number,
-    warm: Boolean
-  },
-  
-  // Environment
-  environment: {
-    temperature: Number,
-    humidity: Number
-  },
-  
-  // Battery
-  battery: {
-    voltage: Number,
-    current: Number,
-    power: Number,
-    soc: Number,
-    safety: String,
-    op: String,
-    resistance: Number
-  },
-  
-  // Risk
-  risk: {
-    bhi: Number
-  },
-  
-  // Network
-  network: {
-    rssi: Number,
-    ip: String,
-    heap: Number,
-    mac: String
-  },
-  
-  // Outputs state
-  outputs: {
-    green: Boolean,
-    yellow: Boolean,
-    red: Boolean,
-    buzzer: Boolean,
-    auto: Boolean
-  },
-  
-  // Device info
-  firmware: String,
-  uptime: String,
-  errors: Number,
-  
-  // Raw data for debugging
-  raw: mongoose.Schema.Types.Mixed
-});
-
-const Telemetry = mongoose.model('Telemetry', telemetrySchema);
-
-// Alert Schema - stores safety events
-const alertSchema = new mongoose.Schema({
-  timestamp: { type: Date, default: Date.now, index: true },
-  severity: { type: String, enum: ['SAFE', 'CAUTION', 'WARNING', 'CRITICAL', 'EMERGENCY'], index: true },
-  bhi: Number,
-  message: String,
-  gas: Number,
-  temp: Number,
-  volt: Number,
-  auto: Boolean
-});
-
-const Alert = mongoose.model('Alert', alertSchema);
+// ===== IMPORT ROUTES =====
+const telemetryRoutes = require('./routes/telemetry');
+const alertRoutes = require('./routes/alerts');
+const deviceRoutes = require('./routes/devices');
 
 // ===== API ROUTES =====
+app.use('/api', telemetryRoutes);
+app.use('/api', alertRoutes);
+app.use('/api', deviceRoutes);
 
-// POST /api/telemetry - ESP32 sends data here
-app.post('/api/telemetry', async (req, res) => {
-  try {
-    const data = req.body;
-    
-    // Process and store telemetry
-    const telemetry = new Telemetry({
-      gas: {
-        mq2_index: data.gas?.index_mq2,
-        mq2_status: data.gas?.status_mq2,
-        mq135_index: data.gas?.index_mq135,
-        warm: data.gas?.warm
-      },
-      environment: {
-        temperature: data.environment?.temperature,
-        humidity: data.environment?.humidity
-      },
-      battery: {
-        voltage: data.battery?.voltage,
-        current: data.battery?.current,
-        power: data.battery?.power,
-        soc: data.battery?.soc,
-        safety: data.battery?.safety,
-        op: data.battery?.op,
-        resistance: data.battery?.resistance
-      },
-      risk: {
-        bhi: data.risk?.bhi
-      },
-      network: {
-        rssi: data.network?.rssi,
-        ip: data.network?.ip,
-        heap: data.network?.heap,
-        mac: data.mac
-      },
-      outputs: data.outputs,
-      firmware: data.firmware,
-      uptime: data.uptime,
-      errors: data.errors,
-      raw: data
-    });
-    
-    await telemetry.save();
-    
-    // Check for safety changes and create alerts
-    const lastTelemetry = await Telemetry.findOne({ _id: { $ne: telemetry._id } })
-      .sort({ timestamp: -1 })
-      .lean();
-    
-    if (lastTelemetry && lastTelemetry.battery?.safety !== data.battery?.safety) {
-      const alert = new Alert({
-        severity: data.battery?.safety || 'SAFE',
-        bhi: data.risk?.bhi,
-        message: `Safety changed: ${lastTelemetry.battery?.safety} -> ${data.battery?.safety}`,
-        gas: data.gas?.index_mq2,
-        temp: data.environment?.temperature,
-        volt: data.battery?.voltage,
-        auto: data.outputs?.auto
+// Legacy endpoints - redirect to new structure
+app.get('/api/telemetry', (req, res) => {
+  // Keep old endpoint working for backward compatibility
+  const LiveData = require('./models/LiveData');
+  LiveData.findOne({ batteryId: 'BAT001' }).sort({ timestamp: -1 }).lean()
+    .then(data => {
+      if (!data) return res.json({ message: 'No data yet' });
+      res.json({
+        gas: { index_mq2: data.gasIndex?.mq2, status_mq2: '--', index_mq135: data.gasIndex?.mq135, warm: true },
+        environment: { temperature: data.temperature, humidity: data.humidity },
+        battery: { voltage: data.voltage, current: data.current, power: data.power, soc: data.soc, safety: data.safety, op: data.opDirection, resistance: data.resistance },
+        risk: { bhi: data.bhi },
+        network: data.network,
+        outputs: data.outputs,
+        firmware: '--',
+        uptime: '--',
+        errors: 0
       });
-      await alert.save();
-    }
-    
-    res.json({ success: true, id: telemetry._id });
-  } catch (err) {
-    console.error('Error saving telemetry:', err);
-    res.status(500).json({ error: err.message });
-  }
+    })
+    .catch(err => res.status(500).json({ error: err.message }));
 });
 
-// GET /api/telemetry - Get latest telemetry for dashboard
-app.get('/api/telemetry', async (req, res) => {
-  try {
-    const latest = await Telemetry.findOne().sort({ timestamp: -1 }).lean();
-    if (!latest) {
-      return res.json({ message: 'No data yet' });
-    }
-    
-    // Convert back to ESP32 format
-    res.json({
-      gas: {
-        index_mq2: latest.gas?.mq2_index,
-        status_mq2: latest.gas?.mq2_status,
-        index_mq135: latest.gas?.mq135_index,
-        warm: latest.gas?.warm
-      },
-      environment: latest.environment,
-      battery: latest.battery,
-      risk: latest.risk,
-      network: latest.network,
-      outputs: latest.outputs,
-      firmware: latest.firmware,
-      uptime: latest.uptime,
-      errors: latest.errors
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+app.post('/api/telemetry', (req, res) => {
+  // Redirect to live-data endpoint
+  req.url = '/live-data';
+  app.handle(req, res);
 });
 
-// GET /api/history - Get historical data for charts
-app.get('/api/history', async (req, res) => {
-  try {
-    const { minutes = 60, limit = 500 } = req.query;
-    const since = new Date(Date.now() - minutes * 60 * 1000);
-    
-    const data = await Telemetry.find({ timestamp: { $gte: since } })
-      .sort({ timestamp: 1 })
-      .limit(parseInt(limit))
-      .lean();
-    
-    res.json(data.map(d => ({
-      time: d.timestamp,
-      bhi: d.risk?.bhi ?? 0,
-      gas: d.gas?.mq2_index ?? 0,
-      voc: d.gas?.mq135_index ?? 0,
-      temp: d.environment?.temperature ?? 0,
-      humid: d.environment?.humidity ?? 0,
-      volt: d.battery?.voltage ?? 0,
-      curr: d.battery?.current ?? 0,
-      power: d.battery?.power ?? 0,
-      soc: d.battery?.soc ?? 0,
-      safety: d.battery?.safety
-    })));
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// GET /api/alerts - Get alert log
-app.get('/api/alerts', async (req, res) => {
-  try {
-    const { severity, limit = 100 } = req.query;
-    const query = severity && severity !== 'all' ? { severity: severity.toUpperCase() } : {};
-    
-    const alerts = await Alert.find(query)
-      .sort({ timestamp: -1 })
-      .limit(parseInt(limit))
-      .lean();
-    
-    res.json(alerts.map(a => ({
-      id: a._id,
-      time: a.timestamp.toLocaleTimeString(),
-      severity: a.severity,
-      bhi: a.bhi,
-      message: a.message,
-      gas: a.gas,
-      temp: a.temp,
-      volt: a.volt
-    })));
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// POST /api/alerts - Store alert from frontend
-app.post('/api/alerts', async (req, res) => {
-  try {
-    const alert = new Alert(req.body);
-    await alert.save();
-    res.json({ success: true, id: alert._id });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// POST /api/commands - Forward commands to ESP32 (store in DB)
 app.post('/api/commands', async (req, res) => {
+  const SystemEvent = require('./models/SystemEvent');
   try {
-    // Store command in a separate collection for history
-    const commandSchema = new mongoose.Schema({
-      timestamp: { type: Date, default: Date.now },
-      command: String,
-      value: String,
-      requestId: String,
-      status: { type: String, default: 'pending' }
+    const event = new SystemEvent({
+      type: 'USER_ACTION',
+      severity: 'INFO',
+      message: `Command: ${req.body.command} ${req.body.value || ''}`,
+      details: req.body
     });
-    
-    const Command = mongoose.model('Command', commandSchema);
-    const cmd = new Command(req.body);
-    await cmd.save();
-    
-    res.json({ success: true, id: cmd._id, message: 'Command stored' });
+    await event.save();
+    res.json({ success: true, message: 'Command logged' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// GET /api/stats - Dashboard statistics
+// Dashboard stats
 app.get('/api/stats', async (req, res) => {
   try {
-    const totalReadings = await Telemetry.countDocuments();
-    const totalAlerts = await Alert.countDocuments();
-    const latest = await Telemetry.findOne().sort({ timestamp: -1 }).lean();
-    const firstReading = await Telemetry.findOne().sort({ timestamp: 1 }).lean();
-    
+    const SensorHistory = require('./models/SensorHistory');
+    const Alert = require('./models/Alert');
+    const LiveData = require('./models/LiveData');
+    const Device = require('./models/Device');
+
+    const [totalReadings, totalAlerts, liveData, deviceCount] = await Promise.all([
+      SensorHistory.countDocuments(),
+      Alert.countDocuments(),
+      LiveData.findOne({ batteryId: 'BAT001' }).lean(),
+      Device.countDocuments()
+    ]);
+
     res.json({
       totalReadings,
       totalAlerts,
-      firstReading: firstReading?.timestamp,
-      lastReading: latest?.timestamp,
-      uptime: latest?.uptime
+      deviceCount,
+      lastReading: liveData?.timestamp,
+      currentSoc: liveData?.soc,
+      currentSafety: liveData?.safety,
+      currentBhi: liveData?.bhi
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Serve index.html for all other routes
+// ML Training Data endpoint
+app.get('/api/ml-training-data', async (req, res) => {
+  try {
+    const MLTrainingDataset = require('./models/MLTrainingDataset');
+    const { limit = 1000, label } = req.query;
+    const query = {};
+    if (label) query.label = label;
+    const data = await MLTrainingDataset.find(query).limit(parseInt(limit)).lean();
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/ml-training-data', async (req, res) => {
+  try {
+    const MLTrainingDataset = require('./models/MLTrainingDataset');
+    const data = new MLTrainingDataset(req.body);
+    await data.save();
+    res.json({ success: true, id: data._id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Serve frontend
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Start server
+// ===== START SERVER =====
 app.listen(PORT, () => {
-  console.log(`Battery Vital server running on http://localhost:${PORT}`);
-  console.log(`MongoDB URI: ${MONGODB_URI.substring(0, 30)}...`);
+  console.log('');
+  console.log('========================================');
+  console.log('  Battery Vital Server v1.1');
+  console.log('========================================');
+  console.log(`  URL:  http://localhost:${PORT}`);
+  console.log(`  DB:   BatteryVitals (MongoDB Atlas)`);
+  console.log('========================================');
+  console.log('');
 });
