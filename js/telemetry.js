@@ -5,15 +5,41 @@ async function fetchTelemetry() {
     const resp = await fetch(CFG.apiBase + '/telemetry?t=' + Date.now(), { signal: AbortSignal.timeout(5000) });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();
+    
+    // Check if we got valid data
+    if (data.message === 'No data yet') {
+      state.serverConnected = false;
+      return;
+    }
+    
+    state.serverConnected = true;
     state.totalRequests++;
     state.lastDataTs = Date.now();
     processTelemetry(data);
   } catch (e) {
     state.errors++;
+    state.serverConnected = false;
+    
+    // If never connected and 10s passed, offer demo
     if (state.lastDataTs === 0 && state.uptimeSec > 8 && !state.isDemo && !state._demoOffered) {
       state._demoOffered = true;
       if (confirm('Cannot reach backend API at ' + CFG.apiBase + '. Start demo mode with simulated data?')) startDemo();
     }
+  }
+}
+
+// ===== SAVE TO MONGODB =====
+async function saveToMongoDB(data) {
+  if (!CFG.useMongoDB || !state.serverConnected) return;
+  try {
+    await fetch(CFG.apiBase + '/telemetry', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+      signal: AbortSignal.timeout(5000),
+    });
+  } catch (e) {
+    console.log('MongoDB save failed:', e.message);
   }
 }
 

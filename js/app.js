@@ -3,7 +3,8 @@ const CFG = {
   apiBase: '/api',
   pollInterval: 3000,
   maxHistory: 300,
-  version: '1.0',
+  version: '1.1',
+  useMongoDB: true, // Set to false for demo/offline mode
 };
 
 // ===== STATE =====
@@ -27,6 +28,7 @@ let state = {
   lastSafety: '',
   fetchTimer: null,
   demoTimer: null,
+  serverConnected: false,
 };
 
 // ===== TIMERS =====

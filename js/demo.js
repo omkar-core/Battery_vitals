@@ -52,4 +52,9 @@ function generateDemo() {
 
   state.lastDataTs = Date.now();
   processTelemetry(d);
+  
+  // Save to MongoDB if server is connected
+  if (state.serverConnected) {
+    saveToMongoDB(d);
+  }
 }
