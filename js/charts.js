@@ -1,9 +1,42 @@
 let mainChart = null, barChart = null;
 
+const App = { trends: { soc: [], power: [], voltage: [], current: [], temp: [], resistance: [] } };
+
+function getCommonOptions() {
+  return {
+    responsive: true, maintainAspectRatio: false, animation: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: { legend: { labels: { color: '#8892b0', font: { size: 11 }, boxWidth: 12 } } },
+    scales: {
+      x: { ticks: { color: '#4A5A78', font: { size: 10 }, maxRotation: 45 }, grid: { color: 'rgba(255,255,255,0.04)' } },
+      y: { ticks: { color: '#4A5A78', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } }
+    }
+  };
+}
+
+function generateLabels200() {
+  const out = [];
+  for (let i = 0; i < 200; i++) out.push(i % 5 === 0 ? `${200 - i}s` : '');
+  return out;
+}
+
+function getSimField(arr, scale) {
+  return arr.map(v => v * (scale || 1));
+}
+
+function toggleChartExpand(btn) {
+  const card = btn.closest('.chart-card');
+  if (!card) return;
+  card.classList.toggle('expanded');
+  btn.textContent = card.classList.contains('expanded') ? '⛶' : '⛶';
+}
+
 function initCharts() {
   const ctx1 = document.getElementById('mainChart')?.getContext('2d');
   const ctx2 = document.getElementById('barChart')?.getContext('2d');
   if (!ctx1 || !ctx2) return;
+  const chartSkeleton = document.getElementById('chartSkeleton');
+  const barSkeleton = document.getElementById('barSkeleton');
   const dsCfg = (label, color) => ({ label, data: [], borderColor: color, borderWidth: 2, pointRadius: 0, fill: false, tension: 0.3 });
   mainChart = new Chart(ctx1, {
     type: 'line',
@@ -34,6 +67,14 @@ function initCharts() {
       scales: { x: { ticks: { color: '#4A5A78', font: { size: 11 } }, grid: { display: false } }, y: { beginAtZero: true, ticks: { color: '#4A5A78' }, grid: { color: 'rgba(255,255,255,0.04)' } } }
     }
   });
+  // Hide skeleton loaders once charts are created
+  if (chartSkeleton) chartSkeleton.style.display = 'none';
+  if (barSkeleton) barSkeleton.style.display = 'none';
+  initEfficiencyChart();
+  initCycleChart();
+  initVIScatterChart();
+  initTempResChart();
+  initSafetyTimeline();
 }
 
 function updateCharts() {
@@ -58,6 +99,20 @@ function updateCharts() {
     barChart.data.datasets[0].data = [last.gas, last.voc, last.temp, last.humid, last.volt, Math.abs(last.curr)];
     barChart.update('none');
   }
+
+  App.trends.soc = data.map(d => d.bhi);
+  App.trends.power = data.map(d => d.power);
+  App.trends.voltage = data.map(d => d.volt);
+  App.trends.current = data.map(d => d.curr);
+  App.trends.temp = data.map(d => d.temp);
+  App.trends.resistance = data.map(() => 8 + Math.random() * 5);
+
+  const trendLabels = data.map((d, i) => i % 10 === 0 ? `${data.length - i}s` : '');
+  updateEfficiencyChart(trendLabels);
+  updateCycleChart(trendLabels);
+  updateVIScatterChart();
+  updateTempResChart();
+  updateSafetyTimeline(trendLabels);
 }
 
 function setChartWindow(min, btn) {
@@ -88,3 +143,170 @@ function exportCSV() {
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'battery_vital_data.csv'; a.click(); URL.revokeObjectURL(a.href);
   showToast('CSV exported', 'success');
 }
+
+function destroyCharts() {
+  if (mainChart) { mainChart.destroy(); mainChart = null; }
+  if (barChart) { barChart.destroy(); barChart = null; }
+  if (efficiencyChartInstance) { efficiencyChartInstance.destroy(); efficiencyChartInstance = null; }
+  if (cycleChartInstance) { cycleChartInstance.destroy(); cycleChartInstance = null; }
+  if (viScatterInstance) { viScatterInstance.destroy(); viScatterInstance = null; }
+  if (tempResInstance) { tempResInstance.destroy(); tempResInstance = null; }
+  if (safetyTimelineInstance) { safetyTimelineInstance.destroy(); safetyTimelineInstance = null; }
+}
+
+// ===== ADDITIONAL CHARTS =====
+
+// --- Efficiency Chart ---
+let efficiencyChartInstance = null;
+let efficiencyMode = 'soc';
+
+function initEfficiencyChart() {
+  const ctx = document.getElementById('efficiencyChart');
+  if (!ctx) return;
+  efficiencyChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: { labels: [], datasets: [{ label: 'SOC', data: [], borderColor: '#00BFFF', backgroundColor: 'rgba(0,191,255,0.1)', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 }] },
+    options: {
+      ...getCommonOptions(),
+      scales: {
+        x: { ...getCommonOptions().scales.x },
+        y: { ...getCommonOptions().scales.y, min: 0, max: 100, title: { display: true, text: 'SOC %', color: '#8892b0' } }
+      }
+    }
+  });
+}
+
+function updateEfficiencyChart(labels) {
+  if (!efficiencyChartInstance) return;
+  if (efficiencyMode === 'soc') {
+    efficiencyChartInstance.data.labels = labels;
+    efficiencyChartInstance.data.datasets = [{ label: 'SOC', data: [...App.trends.soc].slice(-200), borderColor: '#00BFFF', backgroundColor: 'rgba(0,191,255,0.1)', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 }];
+    efficiencyChartInstance.options.scales.y.max = 100;
+    delete efficiencyChartInstance.options.scales.y1;
+  } else if (efficiencyMode === 'eff') {
+    efficiencyChartInstance.data.labels = labels;
+    efficiencyChartInstance.data.datasets = [{ label: 'Efficiency', data: [...App.trends.power].slice(-200), borderColor: '#30D158', backgroundColor: 'rgba(48,209,88,0.1)', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 }];
+    efficiencyChartInstance.options.scales.y.max = Math.max(...App.trends.power, 100) * 1.1;
+    delete efficiencyChartInstance.options.scales.y1;
+  } else {
+    efficiencyChartInstance.data.labels = labels;
+    efficiencyChartInstance.data.datasets = [
+      { label: 'SOC', data: [...App.trends.soc].slice(-200), borderColor: '#00BFFF', backgroundColor: 'rgba(0,191,255,0.05)', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2, yAxisID: 'y' },
+      { label: 'Power (W)', data: [...App.trends.power].slice(-200), borderColor: '#30D158', backgroundColor: 'rgba(48,209,88,0.05)', fill: false, tension: 0.4, pointRadius: 0, borderWidth: 2, yAxisID: 'y1' }
+    ];
+    efficiencyChartInstance.options.scales.y1 = { position: 'right', grid: { drawOnChartArea: false, color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#8892b0', font: { size: 10 } } };
+  }
+  efficiencyChartInstance.update('none');
+}
+
+// --- Cycle Count Chart ---
+let cycleChartInstance = null;
+
+function initCycleChart() {
+  const ctx = document.getElementById('cycleChart');
+  if (!ctx) return;
+  cycleChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: [], datasets: [{ label: 'Cycles', data: [], backgroundColor: 'rgba(191,90,242,0.6)', borderRadius: 4, barPercentage: 0.7 }] },
+    options: { ...getCommonOptions(), scales: { x: getCommonOptions().scales.x, y: { ...getCommonOptions().scales.y, beginAtZero: true } } }
+  });
+}
+
+function updateCycleChart(labels) {
+  if (!cycleChartInstance) return;
+  const cycles = getSimField(App.trends.soc, 0.0002);
+  const cycleData = cycles.map(v => Math.max(0, Math.floor(v / 10)));
+  cycleChartInstance.data.labels = labels.slice(-30);
+  cycleChartInstance.data.datasets[0].data = cycleData.slice(-30);
+  cycleChartInstance.update('none');
+}
+
+// --- V-I Scatter ---
+let viScatterInstance = null;
+
+function initVIScatterChart() {
+  const ctx = document.getElementById('viScatterChart');
+  if (!ctx) return;
+  viScatterInstance = new Chart(ctx, {
+    type: 'scatter',
+    data: { datasets: [{ label: 'V-I Points', data: [], backgroundColor: 'rgba(255,45,85,0.4)', pointRadius: 3 }] },
+    options: {
+      ...getCommonOptions(),
+      scales: {
+        x: { ...getCommonOptions().scales.x, title: { display: true, text: 'Voltage (V)', color: '#8892b0' } },
+        y: { ...getCommonOptions().scales.y, title: { display: true, text: 'Current (A)', color: '#8892b0' } }
+      }
+    }
+  });
+}
+
+function updateVIScatterChart() {
+  if (!viScatterInstance) return;
+  const pts = App.trends.voltage.map((v, i) => ({ x: v, y: App.trends.current[i] || 0 }));
+  viScatterInstance.data.datasets[0].data = pts.slice(-200);
+  viScatterInstance.update('none');
+}
+
+// --- Temp vs Resistance Scatter ---
+let tempResInstance = null;
+
+function initTempResChart() {
+  const ctx = document.getElementById('tempResChart');
+  if (!ctx) return;
+  tempResInstance = new Chart(ctx, {
+    type: 'scatter',
+    data: { datasets: [{ label: 'T-R Points', data: [], backgroundColor: 'rgba(255,214,10,0.4)', pointRadius: 3 }] },
+    options: {
+      ...getCommonOptions(),
+      scales: {
+        x: { ...getCommonOptions().scales.x, title: { display: true, text: 'Temperature (°C)', color: '#8892b0' } },
+        y: { ...getCommonOptions().scales.y, title: { display: true, text: 'Resistance (mΩ)', color: '#8892b0' }, min: 0 }
+      }
+    }
+  });
+}
+
+function updateTempResChart() {
+  if (!tempResInstance) return;
+  const pts = App.trends.temp.map((t, i) => ({ x: t, y: (App.trends.resistance[i] || 0) * 1000 }));
+  tempResInstance.data.datasets[0].data = pts.slice(-200);
+  tempResInstance.update('none');
+}
+
+// --- Safety Timeline ---
+let safetyTimelineInstance = null;
+
+function initSafetyTimeline() {
+  const ctx = document.getElementById('safetyTimeline');
+  if (!ctx) return;
+  safetyTimelineInstance = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: [], datasets: [{ label: 'Events', data: [], backgroundColor: 'rgba(255,45,85,0.5)', borderRadius: 2 }] },
+    options: {
+      ...getCommonOptions(),
+      indexAxis: 'x',
+      scales: { x: getCommonOptions().scales.x, y: { ...getCommonOptions().scales.y, beginAtZero: true, title: { display: true, text: 'Event Count', color: '#8892b0' } } }
+    }
+  });
+}
+
+function updateSafetyTimeline(labels) {
+  if (!safetyTimelineInstance) return;
+  const safety = getSimField(App.trends.soc, 0.03);
+  const events = safety.map(v => v > 50 ? 1 : 0);
+  safetyTimelineInstance.data.labels = labels.slice(-60);
+  safetyTimelineInstance.data.datasets[0].data = events.slice(-60);
+  safetyTimelineInstance.update('none');
+}
+
+// --- Efficiency Chart Source Toggle ---
+document.addEventListener('click', (e) => {
+  if (e.target.classList.contains('chart-btn') && e.target.dataset.source) {
+    const parent = e.target.closest('.chart-controls');
+    if (parent) parent.querySelectorAll('.chart-btn').forEach(b => b.classList.remove('active'));
+    e.target.classList.add('active');
+    efficiencyMode = e.target.dataset.source;
+    const labels = generateLabels200();
+    updateEfficiencyChart(labels);
+  }
+});

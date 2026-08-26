@@ -43,6 +43,7 @@ async function analyzeWithGemini() {
 
     if (res.success && res.prediction) {
       renderAIResult(res.prediction, data);
+      fetchAIHistory();
     } else {
       showToast('AI Error: ' + (res.error || 'Unknown error'), 'error');
       empty.style.display = 'block';
@@ -204,4 +205,155 @@ function showAIResult(data) {
     (pred ? '<div class="ai-prediction">' + pred + '</div>' : '') +
     (recs.length ? '<div class="ai-recs"><h4 style="font-size:12px;margin-bottom:6px">Recommendations:</h4><ul>' + recs.map(r => '<li>' + r + '</li>').join('') + '</ul></div>' : '') +
     '</div>';
+}
+
+// ===== AI PREDICTION HISTORY =====
+async function fetchAIHistory() {
+  const list = document.getElementById('aiHistoryList');
+  if (!list) return;
+  try {
+    const headers = {};
+    if (state.authToken) headers['Authorization'] = 'Bearer ' + state.authToken;
+    const resp = await fetch('/api/alerts/predictions?limit=10', { headers, signal: AbortSignal.timeout(5000) });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const preds = await resp.json();
+    if (!preds.length) {
+      list.innerHTML = '<div style="text-align:center;padding:16px;font-size:12px;color:var(--text-muted)">No analyses yet</div>';
+      return;
+    }
+    list.innerHTML = preds.map(p => {
+      const riskColors = { LOW: '#00FF88', MODERATE: '#FFD60A', HIGH: '#FF6B35', CRITICAL: '#FF2D55' };
+      const col = riskColors[p.riskLevel] || '#8899B4';
+      const time = new Date(p.timestamp).toLocaleString();
+      return '<div style="padding:10px 14px;border-radius:var(--radius-sm);background:rgba(0,0,0,0.15);border:1px solid rgba(255,255,255,0.04);display:flex;justify-content:space-between;align-items:center;gap:10px">' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:12px;font-weight:500;color:' + col + '">' + (p.riskLevel || 'LOW') + ' — BHI: ' + (p.riskScore ?? '--') + '</div>' +
+          '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (p.analysis || 'No analysis') + '</div>' +
+        '</div>' +
+        '<div style="font-size:10px;color:var(--text-muted);font-family:var(--mono);white-space:nowrap">' + time + '</div>' +
+        '</div>';
+    }).join('');
+  } catch (e) {
+    list.innerHTML = '<div style="text-align:center;padding:16px;font-size:12px;color:var(--text-muted)">Failed to load history</div>';
+  }
+}
+
+// Auto-fetch history when AI page is shown
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(fetchAIHistory, 2000);
+});
+
+// ===== AUTO ANALYZE =====
+let autoAnalyzeInterval = null;
+
+function toggleAutoAnalyze(enabled) {
+  if (enabled) {
+    autoAnalyzeInterval = setInterval(async () => {
+      if (App.telemetry) {
+        await analyze();
+      }
+    }, 5 * 60 * 1000);
+    UI.toast('Auto analysis enabled (every 5 min)', 'info');
+  } else {
+    clearInterval(autoAnalyzeInterval);
+    autoAnalyzeInterval = null;
+    UI.toast('Auto analysis disabled', 'info');
+  }
+}
+
+// ===== RUL FORECAST =====
+function updateRUL() {
+  const bhi = App.telemetry?.risk?.bhi ?? App.telemetry?.bhi ?? 0;
+  const soh = App.telemetry?.battery?.soh ?? App.telemetry?.soh ?? 100;
+  const cycles = App.telemetry?.battery?.cycles ?? App.sim?.cycleCount ?? 0;
+  
+  const maxCycles = 2000;
+  const sohFactor = soh / 100;
+  const bhiPenalty = bhi > 75 ? 0.3 : bhi > 55 ? 0.5 : bhi > 30 ? 0.7 : 0.9;
+  const cyclesRemaining = Math.max(0, maxCycles - cycles) * bhiPenalty * sohFactor;
+  
+  const rulMonths = Math.round(cyclesRemaining / 30);
+  const rulEl = document.getElementById('rulValue');
+  const rulLabel = document.getElementById('rulLabel');
+  const rulBar = document.getElementById('rulBar');
+  
+  if (rulEl) {
+    if (rulMonths > 60) {
+      rulEl.textContent = '5+ yr';
+      rulEl.style.color = 'var(--green)';
+    } else if (rulMonths > 24) {
+      rulEl.textContent = rulMonths + ' mo';
+      rulEl.style.color = 'var(--green)';
+    } else if (rulMonths > 6) {
+      rulEl.textContent = rulMonths + ' mo';
+      rulEl.style.color = 'var(--yellow)';
+    } else {
+      rulEl.textContent = rulMonths + ' mo';
+      rulEl.style.color = 'var(--red)';
+    }
+  }
+  if (rulLabel) {
+    rulLabel.textContent = `Based on ${Math.round(cycles)} cycles, SOH ${Math.round(soh)}%, BHI ${Math.round(bhi)}`;
+  }
+  if (rulBar) {
+    const pct = Math.min(100, (rulMonths / 60) * 100);
+    rulBar.style.width = pct + '%';
+    rulBar.style.background = rulMonths > 24 ? 'var(--green)' : rulMonths > 6 ? 'var(--yellow)' : 'var(--red)';
+  }
+}
+
+// ===== WHAT-IF SIMULATOR =====
+function updateWhatIf() {
+  const temp = parseFloat(document.getElementById('whatIfTemp')?.value ?? 35);
+  const current = parseFloat(document.getElementById('whatIfCurrent')?.value ?? 5);
+  const soc = parseFloat(document.getElementById('whatIfSoc')?.value ?? 72);
+  const cycles = parseFloat(document.getElementById('whatIfCycles')?.value ?? 200);
+  
+  document.getElementById('whatIfTempVal').textContent = temp + '°C';
+  document.getElementById('whatIfCurrentVal').textContent = current.toFixed(1) + 'A';
+  document.getElementById('whatIfSocVal').textContent = soc + '%';
+  document.getElementById('whatIfCyclesVal').textContent = Math.round(cycles);
+  
+  let risk = 0;
+  if (temp > 45) risk += (temp - 45) * 2;
+  else if (temp < 0) risk += Math.abs(temp) * 1.5;
+  else if (temp > 35) risk += (temp - 35) * 0.8;
+  
+  if (current > 20) risk += (current - 20) * 3;
+  else if (current > 10) risk += (current - 10) * 1;
+  
+  if (soc < 10) risk += (10 - soc) * 2;
+  else if (soc > 95) risk += (soc - 95) * 1;
+  
+  risk += cycles * 0.015;
+  
+  risk = Math.min(100, Math.max(0, Math.round(risk)));
+  
+  const riskEl = document.getElementById('whatIfRisk');
+  const riskBar = document.getElementById('whatIfRiskBar');
+  const riskLabel = document.getElementById('whatIfRiskLabel');
+  
+  if (riskEl) riskEl.textContent = risk;
+  if (riskBar) {
+    riskBar.style.width = risk + '%';
+    riskBar.style.background = risk > 75 ? 'var(--red)' : risk > 55 ? 'var(--orange)' : risk > 30 ? 'var(--yellow)' : 'var(--green)';
+  }
+  if (riskLabel) {
+    riskLabel.textContent = risk > 75 ? 'Critical' : risk > 55 ? 'Warning' : risk > 30 ? 'Caution' : 'Safe';
+    riskLabel.style.color = risk > 75 ? 'var(--red)' : risk > 55 ? 'var(--orange)' : risk > 30 ? 'var(--yellow)' : 'var(--green)';
+  }
+  if (riskEl) riskEl.style.color = risk > 75 ? 'var(--red)' : risk > 55 ? 'var(--orange)' : risk > 30 ? 'var(--yellow)' : 'var(--green)';
+}
+
+// ===== RECOMMENDATION CARDS (enhanced AI response) =====
+function parseRecommendations(text) {
+  const lines = text.split('\n');
+  const recs = [];
+  lines.forEach(line => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('•') || trimmed.startsWith('-') || trimmed.startsWith('*')) {
+      recs.push(trimmed.replace(/^[•\-*]\s*/, ''));
+    }
+  });
+  return recs.slice(0, 5);
 }

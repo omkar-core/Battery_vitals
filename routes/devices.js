@@ -6,8 +6,8 @@ const ChargingSession = require('../models/ChargingSession');
 const Diagnostic = require('../models/Diagnostic');
 const FirmwareLog = require('../models/FirmwareLog');
 
-// GET /api/devices - List all devices
-router.get('/devices', async (req, res) => {
+// GET / - List all devices
+router.get('/', async (req, res) => {
   try {
     const devices = await Device.find().sort({ lastSeen: -1 }).lean();
     res.json(devices);
@@ -16,8 +16,8 @@ router.get('/devices', async (req, res) => {
   }
 });
 
-// POST /api/devices - Register new device
-router.post('/devices', async (req, res) => {
+// POST / - Register new device
+router.post('/', async (req, res) => {
   try {
     const device = new Device(req.body);
     await device.save();
@@ -27,8 +27,8 @@ router.post('/devices', async (req, res) => {
   }
 });
 
-// PUT /api/devices/:id - Update device
-router.put('/devices/:id', async (req, res) => {
+// PUT /:id - Update device
+router.put('/:id', async (req, res) => {
   try {
     await Device.findByIdAndUpdate(req.params.id, req.body);
     res.json({ success: true });
@@ -37,7 +37,7 @@ router.put('/devices/:id', async (req, res) => {
   }
 });
 
-// GET /api/batteries - List all batteries
+// ===== Battery sub-routes =====
 router.get('/batteries', async (req, res) => {
   try {
     const batteries = await Battery.find().sort({ installDate: -1 }).lean();
@@ -47,7 +47,6 @@ router.get('/batteries', async (req, res) => {
   }
 });
 
-// POST /api/batteries - Register battery
 router.post('/batteries', async (req, res) => {
   try {
     const battery = new Battery(req.body);
@@ -58,7 +57,7 @@ router.post('/batteries', async (req, res) => {
   }
 });
 
-// GET /api/charging-sessions
+// ===== Charging Sessions sub-routes =====
 router.get('/charging-sessions', async (req, res) => {
   try {
     const { batteryId, limit = 20 } = req.query;
@@ -74,7 +73,6 @@ router.get('/charging-sessions', async (req, res) => {
   }
 });
 
-// POST /api/charging-sessions
 router.post('/charging-sessions', async (req, res) => {
   try {
     const session = new ChargingSession(req.body);
@@ -85,7 +83,6 @@ router.post('/charging-sessions', async (req, res) => {
   }
 });
 
-// PUT /api/charging-sessions/:id
 router.put('/charging-sessions/:id', async (req, res) => {
   try {
     await ChargingSession.findByIdAndUpdate(req.params.id, req.body);
@@ -95,7 +92,7 @@ router.put('/charging-sessions/:id', async (req, res) => {
   }
 });
 
-// GET /api/diagnostics
+// ===== Diagnostics sub-routes =====
 router.get('/diagnostics', async (req, res) => {
   try {
     const { batteryId, limit = 20 } = req.query;
@@ -111,7 +108,6 @@ router.get('/diagnostics', async (req, res) => {
   }
 });
 
-// POST /api/diagnostics
 router.post('/diagnostics', async (req, res) => {
   try {
     const diag = new Diagnostic(req.body);
@@ -122,7 +118,7 @@ router.post('/diagnostics', async (req, res) => {
   }
 });
 
-// GET /api/firmware-logs
+// ===== Firmware Logs sub-routes =====
 router.get('/firmware-logs', async (req, res) => {
   try {
     const { deviceId, limit = 50 } = req.query;
@@ -138,7 +134,6 @@ router.get('/firmware-logs', async (req, res) => {
   }
 });
 
-// POST /api/firmware-logs
 router.post('/firmware-logs', async (req, res) => {
   try {
     const log = new FirmwareLog(req.body);

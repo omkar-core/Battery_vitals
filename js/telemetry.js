@@ -2,18 +2,21 @@
 async function fetchTelemetry() {
   if (state.isDemo) return;
   try {
-    const resp = await fetch(CFG.apiBase + '/telemetry?t=' + Date.now(), { signal: AbortSignal.timeout(5000) });
+    const headers = {};
+    if (state.authToken) headers['Authorization'] = 'Bearer ' + state.authToken;
+    const resp = await fetch(CFG.apiBase + '/telemetry?t=' + Date.now(), { headers, signal: AbortSignal.timeout(5000) });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();
     
+    state.serverConnected = true;
+    state.totalRequests++;
+    
     // Check if we got valid data
     if (data.message === 'No data yet') {
-      state.serverConnected = false;
+      state.lastDataTs = state.lastDataTs || Date.now();
       return;
     }
     
-    state.serverConnected = true;
-    state.totalRequests++;
     state.lastDataTs = Date.now();
     processTelemetry(data);
   } catch (e) {
@@ -32,9 +35,11 @@ async function fetchTelemetry() {
 async function saveToMongoDB(data) {
   if (!CFG.useMongoDB || !state.serverConnected) return;
   try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (state.authToken) headers['Authorization'] = 'Bearer ' + state.authToken;
     await fetch(CFG.apiBase + '/telemetry', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(data),
       signal: AbortSignal.timeout(5000),
     });
@@ -167,8 +172,22 @@ function processTelemetry(d) {
   if (state.history.length > CFG.maxHistory) state.history.shift();
   if (!state.chartPaused && mainChart) updateCharts();
   updateSparkline();
+  // Phase 1 enhancements
+  updateSOHGauge(d.battery?.soh ?? d.soh);
+  updateSensorConf('confVoltage', d.battery?.voltageSt || d.sensorStatus?.voltage);
+  updateSensorConf('confTemp', d.environment?.tempSt || d.sensorStatus?.temperature);
+  updateSensorConf('confGas', d.gas?.status_mq2 || d.sensorStatus?.gas);
+  updateSensorConf('confVoc', d.gas?.status_mq135 || d.sensorStatus?.voc);
+  updateSensorConf('confBhi', d.risk?.bhiSt || d.sensorStatus?.bhi);
+  updateRiskLine(d);
+  updateDeepDischarge(d);
+  updateWarmup(d);
+  updateProfileChips(d);
+  updateDataLoss(d);
 
   checkSafetyChange(safety, bhi, d);
+
+  updateCostSustainability(d);
 
   if (d.events && Array.isArray(d.events)) {
     d.events.forEach(ev => {
@@ -327,4 +346,122 @@ function updateSparkline() {
     i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
   });
   ctx.stroke();
+}
+
+// ===== SOH GAUGE =====
+function updateSOHGauge(score) {
+  const s = Math.min(100, Math.max(0, score ?? 0));
+  const circ = 2 * Math.PI * 88;
+  const offset = circ - (s / 100) * circ;
+  const arc = document.getElementById('sohArc');
+  if (!arc) return;
+  arc.setAttribute('stroke-dashoffset', offset);
+  let sc = '#00BFFF';
+  if (s < 50) sc = '#FF2D55';
+  else if (s < 70) sc = '#FF6B35';
+  else if (s < 85) sc = '#FFD60A';
+  arc.setAttribute('stroke', sc);
+  document.getElementById('sohScore').textContent = score != null ? Math.round(s) : '--';
+}
+
+// ===== SENSOR CONFIDENCE CHIPS =====
+function updateSensorConf(chipId, status) {
+  const chip = document.getElementById(chipId);
+  if (!chip) return;
+  const dot = chip.querySelector('.conf-dot');
+  if (!dot) return;
+  const s = (status || 'ok').toLowerCase();
+  dot.className = 'conf-dot ' + (s === 'ok' ? 'ok' : s === 'warm' ? 'warm' : s === 'nc' || s === 'none' ? 'nc' : s === 'stuck' ? 'stuck' : 'err');
+}
+
+// ===== DOMINANT RISK LINE =====
+function updateRiskLine(d) {
+  const risk = d.risk || {};
+  const dominant = risk.dominant || risk.riskFactor || '';
+  const el = document.getElementById('riskDominant');
+  const icon = document.querySelector('.risk-line .risk-icon');
+  if (!el) return;
+  
+  const bhi = risk.bhi ?? 0;
+  if (dominant) {
+    el.textContent = dominant;
+  } else if (bhi > 75) {
+    el.textContent = 'Critical hazard detected — immediate action required';
+  } else if (bhi > 55) {
+    el.textContent = 'Warning: elevated risk — monitor closely';
+  } else if (bhi > 30) {
+    el.textContent = 'Caution: minor anomalies detected';
+  } else {
+    el.textContent = 'All systems nominal — no active risk factors';
+  }
+  
+  if (icon) {
+    const c = bhi > 75 ? 'var(--red)' : bhi > 55 ? 'var(--orange)' : bhi > 30 ? 'var(--yellow)' : 'var(--green)';
+    icon.style.color = c;
+  }
+}
+
+// ===== DEEP DISCHARGE BANNER =====
+function updateDeepDischarge(d) {
+  const ddLock = d.battery?.ddLock || d.ddLock || false;
+  const el = document.getElementById('deepDischargeBanner');
+  if (el) el.style.display = ddLock ? 'flex' : 'none';
+}
+
+// ===== WARMUP BANNER =====
+function updateWarmup(d) {
+  const warm = d.gas?.warm !== false;
+  const wRem = d.gas?.wRem ?? 0;
+  const el = document.getElementById('warmupBanner');
+  const fill = document.getElementById('warmupFill');
+  const time = document.getElementById('warmupTime');
+  if (!el) return;
+  
+  if (!warm && wRem > 0) {
+    el.style.display = 'flex';
+    const totalWarmup = 180;
+    const pct = Math.max(0, Math.min(100, ((totalWarmup - wRem) / totalWarmup) * 100));
+    if (fill) fill.style.width = pct + '%';
+    if (time) time.textContent = wRem + 's';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+// ===== PROFILE & MODE CHIPS =====
+function updateProfileChips(d) {
+  const profile = d.battery?.profile || d.profile || 'Li-ion';
+  const op = d.battery?.op || 'IDLE';
+  const phase = d.battery?.phase || 'none';
+  const energy = d.energy ?? d.battery?.energyWh ?? null;
+  
+  const profileEl = document.getElementById('batteryProfile');
+  const opEl = document.getElementById('operatingMode');
+  const phaseEl = document.getElementById('batteryPhase');
+  const energyEl = document.getElementById('energyTotal');
+  
+  if (profileEl) profileEl.textContent = profile.replace('_', ' ');
+  if (opEl) opEl.textContent = op.charAt(0) + op.slice(1).toLowerCase();
+  if (phaseEl) phaseEl.textContent = phase !== 'none' ? phase.replace('_', ' ') : '--';
+  if (energyEl) energyEl.textContent = energy != null ? energy.toFixed(1) + ' Wh' : '-- Wh';
+}
+
+// ===== DATA LOSS & API LATENCY =====
+function updateDataLoss(d) {
+  setText('sysDataLoss', d.dataLoss ?? 0);
+  setText('sysApiLatency', d.apiLatency != null ? d.apiLatency + ' ms' : '-- ms');
+}
+
+// ===== COST & SUSTAINABILITY =====
+const COST_PER_KWH = 0.12; // $/kWh — adjust as needed
+const CO2_FACTOR = 0.5; // kg CO2 per kWh
+
+function updateCostSustainability(d) {
+  if (!d) return;
+  const wh = d.energy ?? d.battery?.energyWh ?? 0;
+  const cost = (wh / 1000) * COST_PER_KWH;
+  const co2 = (wh / 1000) * CO2_FACTOR * 1000; // grams
+  setText('costTotal', '$' + cost.toFixed(2));
+  setText('energySession', wh.toFixed(1) + ' Wh');
+  setText('co2Total', co2.toFixed(0) + ' g');
 }

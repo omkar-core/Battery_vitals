@@ -9,12 +9,23 @@ function loadSettings() {
       if (o.soundEnabled !== undefined) state.soundEnabled = o.soundEnabled;
       if (o.autoMode !== undefined) state.autoMode = o.autoMode;
     }
+    const ns = JSON.parse(localStorage.getItem('bvSettings') || '{}');
     const el = (id) => document.getElementById(id);
     if (el('setApiUrl')) el('setApiUrl').value = CFG.apiBase;
     if (el('setPollRate')) { el('setPollRate').value = CFG.pollInterval / 1000; el('pollRateVal').textContent = (CFG.pollInterval / 1000) + 's'; }
     const tu = document.querySelector('input[name="tempUnit"][value="' + state.tempUnit + '"]');
     if (tu) tu.checked = true;
     if (el('setSound')) el('setSound').checked = state.soundEnabled;
+
+    // Load notification prefs
+    if (ns.prefEmailAlerts !== undefined) document.getElementById('prefEmailAlerts').checked = ns.prefEmailAlerts;
+    if (ns.prefSoundAlerts !== undefined) document.getElementById('prefSoundAlerts').checked = ns.prefSoundAlerts;
+    if (ns.prefToastDuration) { document.getElementById('prefToastDuration').value = ns.prefToastDuration; updateRangeLabel(document.getElementById('prefToastDuration'), 'toastDurVal'); }
+    if (ns.retentionLive) document.getElementById('retentionLive').value = ns.retentionLive;
+    if (ns.retentionHistory) document.getElementById('retentionHistory').value = ns.retentionHistory;
+    if (ns.prefLang) document.getElementById('prefLang').value = ns.prefLang;
+    if (ns.prefTempUnit) document.getElementById('prefTempUnit').value = ns.prefTempUnit;
+    if (ns.prefVoltageFormat) document.getElementById('prefVoltageFormat').value = ns.prefVoltageFormat;
   } catch (e) {}
 }
 
@@ -54,4 +65,64 @@ function confirmFactoryReset() {
 function executeFactoryReset() {
   closeModal();
   sendCommand('FACTORY_RESET').then(() => showToast('Factory reset sent. Device will reboot.', 'info')).catch(() => showToast('Command failed', 'error'));
+}
+
+// ===== CALIBRATION WIZARD =====
+let calibWizardRunning = false;
+let calibWizardStep = 0;
+
+function startCalibrationWizard() {
+  calibWizardRunning = true;
+  calibWizardStep = 0;
+  runCalibStep();
+}
+
+function runCalibStep() {
+  if (!calibWizardRunning || calibWizardStep >= 5) {
+    calibWizardRunning = false;
+    UI.toast(calibWizardStep >= 5 ? 'Calibration complete!' : 'Calibration cancelled', calibWizardStep >= 5 ? 'success' : 'info');
+    return;
+  }
+  
+  const steps = document.querySelectorAll('.calib-step');
+  const statuses = document.querySelectorAll('.calib-step-status');
+  
+  steps.forEach((s, i) => {
+    s.style.borderColor = i === calibWizardStep ? 'rgba(0,191,255,0.3)' : 'rgba(255,255,255,0.04)';
+    s.style.background = i === calibWizardStep ? 'rgba(0,191,255,0.05)' : 'rgba(255,255,255,0.02)';
+  });
+  
+  if (statuses[calibWizardStep]) statuses[calibWizardStep].textContent = 'Running...';
+  if (statuses[calibWizardStep]) statuses[calibWizardStep].style.color = 'var(--blue)';
+  
+  // Simulate sending calibration command
+  sendCommand('calibrate_step', calibWizardStep + 1).catch(() => {});
+  
+  setTimeout(() => {
+    if (statuses[calibWizardStep]) statuses[calibWizardStep].textContent = 'Done';
+    if (statuses[calibWizardStep]) statuses[calibWizardStep].style.color = 'var(--green)';
+    if (steps[calibWizardStep]) steps[calibWizardStep].style.borderColor = 'rgba(48,209,88,0.3)';
+    
+    calibWizardStep++;
+    setTimeout(() => runCalibStep(), 500);
+  }, 3000);
+}
+
+function resetCalibrationWizard() {
+  calibWizardRunning = false;
+  calibWizardStep = 0;
+  const statuses = document.querySelectorAll('.calib-step-status');
+  const steps = document.querySelectorAll('.calib-step');
+  statuses.forEach(s => { s.textContent = 'Pending'; s.style.color = 'var(--text-muted)'; });
+  steps.forEach(s => { s.style.borderColor = 'rgba(255,255,255,0.04)'; s.style.background = 'rgba(255,255,255,0.02)'; });
+  UI.toast('Calibration wizard reset', 'info');
+}
+
+// ===== SETTINGS SAVE HELPER =====
+function saveSetting(key, value) {
+  try {
+    const settings = JSON.parse(localStorage.getItem('bvSettings') || '{}');
+    settings[key] = value;
+    localStorage.setItem('bvSettings', JSON.stringify(settings));
+  } catch(e) {}
 }

@@ -19,7 +19,7 @@ const deviceSchema = new mongoose.Schema({
   }
 }, { collection: 'devices' });
 
-deviceSchema.index({ macAddress: 1 });
+// macAddress index already created by unique: true
 deviceSchema.index({ status: 1 });
 deviceSchema.index({ lastSeen: -1 });
 

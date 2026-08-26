@@ -25,7 +25,7 @@ const batterySchema = new mongoose.Schema({
   }
 }, { collection: 'batteries' });
 
-batterySchema.index({ batteryId: 1 });
+// batteryId index already created by unique: true
 batterySchema.index({ deviceId: 1 });
 batterySchema.index({ status: 1 });
 

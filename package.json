@@ -1,7 +1,7 @@
 {
   "name": "battery-vital-server",
-  "version": "1.1.0",
-  "description": "Battery Vital Backend Server - MongoDB Atlas",
+  "version": "2.0.0",
+  "description": "Battery Vital - Intelligent Battery Safety System",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -9,10 +9,19 @@
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
-    "cors": "^2.8.5",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "mongoose": "^8.1.1"
+    "express-mongo-sanitize": "^2.2.0",
+    "express-rate-limit": "^8.6.2",
+    "express-validator": "^7.3.2",
+    "helmet": "^8.3.0",
+    "hpp": "^0.2.3",
+    "jsonwebtoken": "^9.0.3",
+    "mongo-sanitize": "^1.1.0",
+    "mongoose": "^8.1.1",
+    "xss-clean": "^0.1.4"
   },
   "devDependencies": {
     "nodemon": "^3.0.3"

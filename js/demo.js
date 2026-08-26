@@ -1,11 +1,16 @@
 const demoBase = {
-  risk: { bhi: 28 },
-  battery: { safety: 'SAFE', voltage: 12.64, current: 1.23, power: 15.55, soc: 72, op: 'CHARGING', resistance: 8.5 },
-  gas: { index_mq2: 342, status_mq2: 'NORMAL', index_mq135: 75, warm: true },
-  environment: { temperature: 34.5, humidity: 62.3 },
+  risk: { bhi: 28, dominant: 'All systems nominal', riskFactor: 'All systems nominal' },
+  battery: { safety: 'SAFE', voltage: 12.64, current: 1.23, power: 15.55, soc: 72, soh: 92, op: 'CHARGING', resistance: 8.5, profile: 'Li-ion', phase: 'none', ddLock: false },
+  gas: { index_mq2: 342, status_mq2: 'NORMAL', index_mq135: 75, status_mq135: 'NORMAL', warm: true, wRem: 0 },
+  environment: { temperature: 34.5, humidity: 62.3, tempSt: 'ok' },
+  sensorStatus: { voltage: 'ok', temperature: 'ok', gas: 'ok', voc: 'ok', bhi: 'ok' },
   network: { rssi: -65, ip: '192.168.1.150', requests: 0, heap: 185432 },
   outputs: { green: false, yellow: false, red: false, buzzer: false, auto: true },
   errors: 0, firmware: 'v1.0', mac: 'AA:BB:CC:DD:EE:FF', uptime: '--',
+  soh: 92,
+  dataLoss: 0,
+  apiLatency: 45,
+  energy: 2.3,
 };
 
 function startDemo() {
@@ -36,16 +41,18 @@ function generateDemo() {
   demoBase.battery.power = demoBase.battery.voltage * demoBase.battery.current;
   demoBase.battery.resistance = walk(demoBase.battery.resistance, 5, 25, 0.5);
   demoBase.battery.soc = walk(demoBase.battery.soc, 30, 95, 1);
+  demoBase.battery.soh = walk(demoBase.battery.soh, 70, 99, 0.5);
+  demoBase.soh = demoBase.battery.soh;
   demoBase.network.requests++;
   const g = demoBase.gas.index_mq2 / 5000;
   const v = demoBase.gas.index_mq135 / 300;
   const t = (demoBase.environment.temperature - 20) / 60;
   const bhi = Math.round(Math.min(100, Math.max(0, (g * 25 + v * 20 + t * 15 + (1 - demoBase.battery.soc / 100) * 20 + (demoBase.battery.resistance / 50) * 20))));
   demoBase.risk.bhi = bhi;
-  if (bhi > 75) demoBase.battery.safety = 'CRITICAL';
-  else if (bhi > 55) demoBase.battery.safety = 'WARNING';
-  else if (bhi > 30) demoBase.battery.safety = 'CAUTION';
-  else demoBase.battery.safety = 'SAFE';
+  if (bhi > 75) { demoBase.battery.safety = 'CRITICAL'; demoBase.risk.dominant = 'Critical hazard detected'; demoBase.risk.riskFactor = 'Critical hazard detected'; }
+  else if (bhi > 55) { demoBase.battery.safety = 'WARNING'; demoBase.risk.dominant = 'Warning: elevated risk'; demoBase.risk.riskFactor = 'Warning: elevated risk'; }
+  else if (bhi > 30) { demoBase.battery.safety = 'CAUTION'; demoBase.risk.dominant = 'Caution: minor anomalies'; demoBase.risk.riskFactor = 'Caution: minor anomalies'; }
+  else { demoBase.battery.safety = 'SAFE'; demoBase.risk.dominant = 'All systems nominal'; demoBase.risk.riskFactor = 'All systems nominal'; }
 
   Object.assign(d, JSON.parse(JSON.stringify(demoBase)));
   d.outputs = { ...state.ledStates, auto: state.autoMode };

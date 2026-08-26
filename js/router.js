@@ -1,5 +1,5 @@
-const PAGES = ['dashboard', 'trends', 'controls', 'ai', 'alerts', 'settings'];
-const PAGE_TITLES = { dashboard: 'Dashboard', trends: 'Trends', controls: 'Controls', ai: 'AI Analyst', alerts: 'Alerts', settings: 'Settings' };
+const PAGES = ['dashboard', 'trends', 'controls', 'ai', 'alerts', 'history', 'settings', 'passport', 'diagnostics'];
+const PAGE_TITLES = { dashboard: 'Dashboard', trends: 'Trends', controls: 'Controls', ai: 'AI Analyst', alerts: 'Alerts', history: 'History', settings: 'Settings', passport: 'Battery Passport', diagnostics: 'Diagnostics' };
 
 function navigateTo(page) {
   if (!PAGES.includes(page)) page = 'dashboard';
@@ -19,6 +19,7 @@ function applyRoute() {
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('headerDropdown').classList.remove('show');
   if (hash === 'trends' && !mainChart) initCharts();
+  if (hash === 'passport' && typeof Passport !== 'undefined') Passport.init();
 }
 
 window.addEventListener('hashchange', applyRoute);
