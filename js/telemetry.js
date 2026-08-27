@@ -1,10 +1,7 @@
 // ===== DATA FETCH =====
 async function fetchTelemetry() {
-  if (state.isDemo) return;
   try {
-    const headers = {};
-    if (state.authToken) headers['Authorization'] = 'Bearer ' + state.authToken;
-    const resp = await fetch(CFG.apiBase + '/telemetry?t=' + Date.now(), { headers, signal: AbortSignal.timeout(5000) });
+    const resp = await fetch(CFG.apiBase + '/telemetry?t=' + Date.now(), { signal: AbortSignal.timeout(5000) });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();
     
@@ -23,11 +20,7 @@ async function fetchTelemetry() {
     state.errors++;
     state.serverConnected = false;
     
-    // If never connected and 10s passed, offer demo
-    if (state.lastDataTs === 0 && state.uptimeSec > 8 && !state.isDemo && !state._demoOffered) {
-      state._demoOffered = true;
-      if (confirm('Cannot reach backend API at ' + CFG.apiBase + '. Start demo mode with simulated data?')) startDemo();
-    }
+
   }
 }
 
@@ -35,11 +28,9 @@ async function fetchTelemetry() {
 async function saveToMongoDB(data) {
   if (!CFG.useMongoDB || !state.serverConnected) return;
   try {
-    const headers = { 'Content-Type': 'application/json' };
-    if (state.authToken) headers['Authorization'] = 'Bearer ' + state.authToken;
     await fetch(CFG.apiBase + '/telemetry', {
       method: 'POST',
-      headers,
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
       signal: AbortSignal.timeout(5000),
     });
@@ -166,12 +157,13 @@ function processTelemetry(d) {
     time: new Date().toISOString(), bhi: bhi ?? 0,
     gas: d.gas?.index_mq2 ?? 0, voc: d.gas?.index_mq135 ?? 0,
     temp: d.environment?.temperature ?? 0, humid: d.environment?.humidity ?? 0,
-    volt: volt ?? 0, curr: curr ?? 0, power: power ?? 0,
+    volt: volt ?? 0, curr: curr ?? 0, power: power ?? 0, soc: soc ?? 0,
   };
   state.history.push(snap);
   if (state.history.length > CFG.maxHistory) state.history.shift();
   if (!state.chartPaused && mainChart) updateCharts();
   updateSparkline();
+  if (historyChartInstance) updateHistoryChart();
   // Phase 1 enhancements
   updateSOHGauge(d.battery?.soh ?? d.soh);
   updateSensorConf('confVoltage', d.battery?.voltageSt || d.sensorStatus?.voltage);
@@ -430,7 +422,7 @@ function updateWarmup(d) {
 
 // ===== PROFILE & MODE CHIPS =====
 function updateProfileChips(d) {
-  const profile = d.battery?.profile || d.profile || 'Li-ion';
+  const profile = d.battery?.profile || d.profile || '--';
   const op = d.battery?.op || 'IDLE';
   const phase = d.battery?.phase || 'none';
   const energy = d.energy ?? d.battery?.energyWh ?? null;

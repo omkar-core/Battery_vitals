@@ -20,6 +20,7 @@ function applyRoute() {
   document.getElementById('headerDropdown').classList.remove('show');
   if (hash === 'trends' && !mainChart) initCharts();
   if (hash === 'passport' && typeof Passport !== 'undefined') Passport.init();
+  if (hash === 'history') { initHistoryChart(); updateHistoryChart(); }
 }
 
 window.addEventListener('hashchange', applyRoute);

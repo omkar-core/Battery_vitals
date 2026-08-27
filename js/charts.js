@@ -14,16 +14,6 @@ function getCommonOptions() {
   };
 }
 
-function generateLabels200() {
-  const out = [];
-  for (let i = 0; i < 200; i++) out.push(i % 5 === 0 ? `${200 - i}s` : '');
-  return out;
-}
-
-function getSimField(arr, scale) {
-  return arr.map(v => v * (scale || 1));
-}
-
 function toggleChartExpand(btn) {
   const card = btn.closest('.chart-card');
   if (!card) return;
@@ -105,7 +95,7 @@ function updateCharts() {
   App.trends.voltage = data.map(d => d.volt);
   App.trends.current = data.map(d => d.curr);
   App.trends.temp = data.map(d => d.temp);
-  App.trends.resistance = data.map(() => 8 + Math.random() * 5);
+  App.trends.resistance = data.map(() => state.lastData?.battery?.resistance ?? 0);
 
   const trendLabels = data.map((d, i) => i % 10 === 0 ? `${data.length - i}s` : '');
   updateEfficiencyChart(trendLabels);
@@ -142,16 +132,6 @@ function exportCSV() {
   const blob = new Blob([csv], { type: 'text/csv' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'battery_vital_data.csv'; a.click(); URL.revokeObjectURL(a.href);
   showToast('CSV exported', 'success');
-}
-
-function destroyCharts() {
-  if (mainChart) { mainChart.destroy(); mainChart = null; }
-  if (barChart) { barChart.destroy(); barChart = null; }
-  if (efficiencyChartInstance) { efficiencyChartInstance.destroy(); efficiencyChartInstance = null; }
-  if (cycleChartInstance) { cycleChartInstance.destroy(); cycleChartInstance = null; }
-  if (viScatterInstance) { viScatterInstance.destroy(); viScatterInstance = null; }
-  if (tempResInstance) { tempResInstance.destroy(); tempResInstance = null; }
-  if (safetyTimelineInstance) { safetyTimelineInstance.destroy(); safetyTimelineInstance = null; }
 }
 
 // ===== ADDITIONAL CHARTS =====
@@ -214,8 +194,7 @@ function initCycleChart() {
 
 function updateCycleChart(labels) {
   if (!cycleChartInstance) return;
-  const cycles = getSimField(App.trends.soc, 0.0002);
-  const cycleData = cycles.map(v => Math.max(0, Math.floor(v / 10)));
+  const cycleData = App.trends.soc.map(v => Math.max(0, Math.floor(v / 10)));
   cycleChartInstance.data.labels = labels.slice(-30);
   cycleChartInstance.data.datasets[0].data = cycleData.slice(-30);
   cycleChartInstance.update('none');
@@ -292,8 +271,7 @@ function initSafetyTimeline() {
 
 function updateSafetyTimeline(labels) {
   if (!safetyTimelineInstance) return;
-  const safety = getSimField(App.trends.soc, 0.03);
-  const events = safety.map(v => v > 50 ? 1 : 0);
+  const events = App.trends.soc.map(v => v > 50 ? 1 : 0);
   safetyTimelineInstance.data.labels = labels.slice(-60);
   safetyTimelineInstance.data.datasets[0].data = events.slice(-60);
   safetyTimelineInstance.update('none');
@@ -306,7 +284,6 @@ document.addEventListener('click', (e) => {
     if (parent) parent.querySelectorAll('.chart-btn').forEach(b => b.classList.remove('active'));
     e.target.classList.add('active');
     efficiencyMode = e.target.dataset.source;
-    const labels = generateLabels200();
-    updateEfficiencyChart(labels);
+    updateEfficiencyChart(state.history.slice(-200).map((d, i) => i % 10 === 0 ? `${state.history.length - i}s` : ''));
   }
 });

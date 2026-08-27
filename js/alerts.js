@@ -33,7 +33,7 @@ function checkSafetyChange(safety, bhi, d) {
     if (state.alertLog.length > 200) state.alertLog.pop();
     saveAlertLog();
     renderAlerts();
-    if (!quietHours || !isQuietHours()) updateAlertBell();
+    if (!isQuietHours()) updateAlertBell();
     if (state.soundEnabled) playAlert(safety);
   }
   state.lastSafety = safety;
@@ -177,17 +177,6 @@ function updateAlertPieChart(alerts) {
 }
 
 // ===== QUIET HOURS =====
-function loadQuietHours() {
-  const stored = localStorage.getItem('quietHours');
-  if (stored) {
-    const q = JSON.parse(stored);
-    document.getElementById('quietHoursToggle').checked = q.enabled;
-    document.getElementById('quietFrom').value = q.from || '22:00';
-    document.getElementById('quietTo').value = q.to || '07:00';
-    document.getElementById('quietHoursRow').style.display = q.enabled ? 'flex' : 'none';
-  }
-}
-
 function saveQuietHours() {
   const enabled = document.getElementById('quietHoursToggle').checked;
   const from = document.getElementById('quietFrom').value;
@@ -211,27 +200,4 @@ function isQuietHours() {
   const toMin = th * 60 + tm;
   if (fromMin < toMin) return current >= fromMin && current < toMin;
   return current >= fromMin || current < toMin;
-}
-
-// ===== EXPORT ALERTS =====
-function exportAlertsCSV() {
-  if (!App.alerts || App.alerts.length === 0) return UI.toast('No alerts to export', 'info');
-  let csv = 'Time,Type,Level,Dismissed\n';
-  App.alerts.forEach(a => {
-    csv += '"' + (a.time || '') + '","' + (a.type || '') + '","' + (a.level || 'Caution') + '","' + (a.dismissed || false) + '"\n';
-  });
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = 'alerts_' + new Date().toISOString().slice(0,10) + '.csv';
-  link.click();
-  URL.revokeObjectURL(url);
-  UI.toast('Alerts exported as CSV', 'success');
-}
-
-function clearAllAlerts() {
-  App.alerts = [];
-  renderAlerts();
-  UI.toast('All alerts cleared', 'success');
 }

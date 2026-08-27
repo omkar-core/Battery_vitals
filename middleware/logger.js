@@ -38,45 +38,6 @@ function logAccess(req, res, next) {
   next();
 }
 
-// Track failed attempts per IP
-const failedAttempts = new Map();
-
-function trackFailedAttempt(ip) {
-  const now = Date.now();
-  const record = failedAttempts.get(ip) || { count: 0, firstAttempt: now };
-  
-  // Reset after 15 minutes
-  if (now - record.firstAttempt > 15 * 60 * 1000) {
-    record.count = 1;
-    record.firstAttempt = now;
-  } else {
-    record.count++;
-  }
-  
-  failedAttempts.set(ip, record);
-  
-  // Alert if too many failures
-  if (record.count >= 5) {
-    logSecurity('BRUTE_FORCE', { ip, attempts: record.count });
-  }
-  
-  return record.count;
-}
-
-function resetFailedAttempts(ip) {
-  failedAttempts.delete(ip);
-}
-
-// Cleanup old records every hour
-setInterval(() => {
-  const cutoff = Date.now() - 30 * 60 * 1000;
-  for (const [ip, record] of failedAttempts.entries()) {
-    if (record.firstAttempt < cutoff) {
-      failedAttempts.delete(ip);
-    }
-  }
-}, 60 * 60 * 1000);
-
 // Suspicious pattern detection
 function detectSuspicious(req) {
   const suspicious = [];
@@ -116,7 +77,5 @@ function detectSuspicious(req) {
 module.exports = {
   logSecurity,
   logAccess,
-  trackFailedAttempt,
-  resetFailedAttempts,
   detectSuspicious
 };

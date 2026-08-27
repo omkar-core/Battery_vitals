@@ -1,26 +1,7 @@
 // js/diagnostics.js — Self-test, connectivity, raw log
 const Diagnostics = {
-  rawLog: [],
-  maxRawLog: 500,
-
-  init() {
-    this.updateConnectivity();
-  },
-
-  logPacket(data) {
-    this.rawLog.push({ ts: new Date().toISOString(), ...data });
-    if (this.rawLog.length > this.maxRawLog) this.rawLog.shift();
-    
-    const preview = document.getElementById('rawLogPreview');
-    if (preview) {
-      const last = this.rawLog[this.rawLog.length - 1];
-      preview.textContent = JSON.stringify(last, null, 2);
-      preview.scrollTop = preview.scrollHeight;
-    }
-  },
-
   updateConnectivity() {
-    const d = App.telemetry;
+    const d = state.lastData;
     if (!d) return;
     
     const rssi = d.wifi?.rssi ?? d.rssi ?? null;
@@ -73,16 +54,16 @@ const Diagnostics = {
 };
 
 function runSelfTest() {
-  UI.toast('Running self-test...', 'info');
+  showToast('Running self-test...', 'info');
   sendCommand('selftest').catch(() => {});
   setTimeout(() => {
     Diagnostics.updateConnectivity();
-    UI.toast('Self-test complete', 'success');
+    showToast('Self-test complete', 'success');
   }, 2000);
 }
 
 function downloadRawLog(format) {
-  if (Diagnostics.rawLog.length === 0) return UI.toast('No raw log data available', 'info');
+  if (Diagnostics.rawLog.length === 0) return showToast('No raw log data available', 'info');
   
   let content, ext, type;
   if (format === 'json') {
@@ -104,11 +85,11 @@ function downloadRawLog(format) {
   link.download = `raw_telemetry_${new Date().toISOString().slice(0,10)}.${ext}`;
   link.click();
   URL.revokeObjectURL(url);
-  UI.toast(`Raw log exported as ${format.toUpperCase()}`, 'success');
+  showToast(`Raw log exported as ${format.toUpperCase()}`, 'success');
 }
 
 function copyRawLog() {
-  if (Diagnostics.rawLog.length === 0) return UI.toast('No raw log data', 'info');
+  if (Diagnostics.rawLog.length === 0) return showToast('No raw log data', 'info');
   const text = JSON.stringify(Diagnostics.rawLog, null, 2);
-  navigator.clipboard.writeText(text).then(() => UI.toast('Copied to clipboard', 'success')).catch(() => UI.toast('Failed to copy', 'error'));
+  navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard', 'success')).catch(() => showToast('Failed to copy', 'error'));
 }

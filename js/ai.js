@@ -21,7 +21,7 @@ async function analyzeWithGemini() {
     bhi: parseFloat(document.getElementById('aiBhi').value) || 0,
     power: parseFloat(document.getElementById('aiPower').value) || 0,
     opDirection: document.getElementById('aiDirection').value || 'IDLE',
-    batteryId: state?.lastData?.batteryId || 'BAT001'
+    batteryId: state?.lastData?.batteryId || 'unknown'
   };
 
   // Show loading
@@ -151,23 +151,6 @@ function renderAIResult(pred, inputData) {
   `;
 }
 
-// ===== PRESET DATA =====
-function fillDangerousData() {
-  document.getElementById('aiVoltage').value = 11.2;
-  document.getElementById('aiCurrent').value = 4.8;
-  document.getElementById('aiTemp').value = 62;
-  document.getElementById('aiHumidity').value = 78;
-  document.getElementById('aiGasMq2').value = 2400;
-  document.getElementById('aiGasMq135').value = 250;
-  document.getElementById('aiSoc').value = 12;
-  document.getElementById('aiSafety').value = 'CRITICAL';
-  document.getElementById('aiResistance').value = 180;
-  document.getElementById('aiBhi').value = 92;
-  document.getElementById('aiPower').value = 53.76;
-  document.getElementById('aiDirection').value = 'DISCHARGING';
-  showToast('Dangerous data loaded -- click Analyze', 'info');
-}
-
 function fillLiveData() {
   if (state && state.lastData) {
     const d = state.lastData;
@@ -189,32 +172,12 @@ function fillLiveData() {
   }
 }
 
-// ===== LEGACY: n8n webhook result display =====
-function showAIResult(data) {
-  const el = document.getElementById('aiResult');
-  const empty = document.getElementById('aiEmpty');
-  if (!el) return;
-  empty.style.display = 'none';
-  el.style.display = 'block';
-  const risk = (data.risk_level || data.risk || 'low').toLowerCase();
-  const rl = { low: 'LOW RISK', moderate: 'MODERATE RISK', high: 'HIGH RISK', critical: 'CRITICAL RISK' };
-  const pred = data.prediction || data.analysis || '';
-  const recs = data.recommendations || data.recommended_actions || [];
-  el.innerHTML = '<div class="ai-result"><div class="timestamp">Analysis at ' + new Date().toLocaleTimeString() + '</div>' +
-    '<div class="ai-risk-banner ' + risk + '">' + (rl[risk] || risk) + '</div>' +
-    (pred ? '<div class="ai-prediction">' + pred + '</div>' : '') +
-    (recs.length ? '<div class="ai-recs"><h4 style="font-size:12px;margin-bottom:6px">Recommendations:</h4><ul>' + recs.map(r => '<li>' + r + '</li>').join('') + '</ul></div>' : '') +
-    '</div>';
-}
-
 // ===== AI PREDICTION HISTORY =====
 async function fetchAIHistory() {
   const list = document.getElementById('aiHistoryList');
   if (!list) return;
   try {
-    const headers = {};
-    if (state.authToken) headers['Authorization'] = 'Bearer ' + state.authToken;
-    const resp = await fetch('/api/alerts/predictions?limit=10', { headers, signal: AbortSignal.timeout(5000) });
+    const resp = await fetch('/api/alerts/predictions?limit=10', { signal: AbortSignal.timeout(5000) });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const preds = await resp.json();
     if (!preds.length) {
@@ -249,56 +212,15 @@ let autoAnalyzeInterval = null;
 function toggleAutoAnalyze(enabled) {
   if (enabled) {
     autoAnalyzeInterval = setInterval(async () => {
-      if (App.telemetry) {
-        await analyze();
+      if (state.lastData) {
+        await analyzeWithGemini();
       }
     }, 5 * 60 * 1000);
-    UI.toast('Auto analysis enabled (every 5 min)', 'info');
+    showToast('Auto analysis enabled (every 5 min)', 'info');
   } else {
     clearInterval(autoAnalyzeInterval);
     autoAnalyzeInterval = null;
-    UI.toast('Auto analysis disabled', 'info');
-  }
-}
-
-// ===== RUL FORECAST =====
-function updateRUL() {
-  const bhi = App.telemetry?.risk?.bhi ?? App.telemetry?.bhi ?? 0;
-  const soh = App.telemetry?.battery?.soh ?? App.telemetry?.soh ?? 100;
-  const cycles = App.telemetry?.battery?.cycles ?? App.sim?.cycleCount ?? 0;
-  
-  const maxCycles = 2000;
-  const sohFactor = soh / 100;
-  const bhiPenalty = bhi > 75 ? 0.3 : bhi > 55 ? 0.5 : bhi > 30 ? 0.7 : 0.9;
-  const cyclesRemaining = Math.max(0, maxCycles - cycles) * bhiPenalty * sohFactor;
-  
-  const rulMonths = Math.round(cyclesRemaining / 30);
-  const rulEl = document.getElementById('rulValue');
-  const rulLabel = document.getElementById('rulLabel');
-  const rulBar = document.getElementById('rulBar');
-  
-  if (rulEl) {
-    if (rulMonths > 60) {
-      rulEl.textContent = '5+ yr';
-      rulEl.style.color = 'var(--green)';
-    } else if (rulMonths > 24) {
-      rulEl.textContent = rulMonths + ' mo';
-      rulEl.style.color = 'var(--green)';
-    } else if (rulMonths > 6) {
-      rulEl.textContent = rulMonths + ' mo';
-      rulEl.style.color = 'var(--yellow)';
-    } else {
-      rulEl.textContent = rulMonths + ' mo';
-      rulEl.style.color = 'var(--red)';
-    }
-  }
-  if (rulLabel) {
-    rulLabel.textContent = `Based on ${Math.round(cycles)} cycles, SOH ${Math.round(soh)}%, BHI ${Math.round(bhi)}`;
-  }
-  if (rulBar) {
-    const pct = Math.min(100, (rulMonths / 60) * 100);
-    rulBar.style.width = pct + '%';
-    rulBar.style.background = rulMonths > 24 ? 'var(--green)' : rulMonths > 6 ? 'var(--yellow)' : 'var(--red)';
+    showToast('Auto analysis disabled', 'info');
   }
 }
 
@@ -345,15 +267,4 @@ function updateWhatIf() {
   if (riskEl) riskEl.style.color = risk > 75 ? 'var(--red)' : risk > 55 ? 'var(--orange)' : risk > 30 ? 'var(--yellow)' : 'var(--green)';
 }
 
-// ===== RECOMMENDATION CARDS (enhanced AI response) =====
-function parseRecommendations(text) {
-  const lines = text.split('\n');
-  const recs = [];
-  lines.forEach(line => {
-    const trimmed = line.trim();
-    if (trimmed.startsWith('•') || trimmed.startsWith('-') || trimmed.startsWith('*')) {
-      recs.push(trimmed.replace(/^[•\-*]\s*/, ''));
-    }
-  });
-  return recs.slice(0, 5);
-}
+

@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Battery Vital — Intelligent Battery Safety System</title>
 <meta name="description" content="Real-time battery health monitoring dashboard with gas, thermal, power, and AI-driven predictive analysis.">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔋</text></svg>">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#070B15">
@@ -27,61 +27,7 @@
   <div class="loading-bar"><div class="loading-bar-fill"></div></div>
 </div>
 
-<!-- Auth Overlay -->
-<div class="auth-overlay" id="authOverlay">
-  <div class="auth-card">
-    <div class="auth-logo">
-      <svg viewBox="0 0 32 32" fill="none">
-        <rect x="2" y="8" width="22" height="16" rx="4" stroke="#00E8A0" stroke-width="2" fill="none"/>
-        <rect x="24" y="13" width="2" height="6" rx="1" fill="#00E8A0"/>
-        <polyline points="5,15 10,15 12,10 15,20 18,13 20,17 25,15" stroke="#00FF88" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      <span class="auth-logo-text">Battery Vital</span>
-    </div>
-    <div id="authError" class="auth-error"></div>
-    <div class="auth-tabs">
-      <button class="auth-tab active" onclick="showAuthTab('login')">Login</button>
-      <button class="auth-tab" onclick="showAuthTab('register')">Register</button>
-    </div>
-    <!-- Login Form -->
-    <form id="loginForm" onsubmit="handleLogin(event)">
-      <div class="auth-field">
-        <label>Email</label>
-        <input type="email" id="loginEmail" placeholder="you@example.com" required autocomplete="email">
-      </div>
-      <div class="auth-field">
-        <label>Password</label>
-        <div class="input-wrap">
-          <input type="password" id="loginPassword" placeholder="Enter password" required autocomplete="current-password">
-          <button type="button" class="pw-toggle" onclick="togglePwVisibility('loginPassword',this)">&#128065;</button>
-        </div>
-      </div>
-      <button type="submit" class="clay-btn clay-btn-primary auth-submit" id="loginBtn">Login</button>
-    </form>
-    <!-- Register Form -->
-    <form id="registerForm" style="display:none" onsubmit="handleRegister(event)">
-      <div class="auth-field">
-        <label>Full Name</label>
-        <input type="text" id="regName" placeholder="John Doe" required minlength="2" maxlength="50" autocomplete="name">
-      </div>
-      <div class="auth-field">
-        <label>Email</label>
-        <input type="email" id="regEmail" placeholder="you@example.com" required autocomplete="email">
-      </div>
-      <div class="auth-field">
-        <label>Password</label>
-        <div class="input-wrap">
-          <input type="password" id="regPassword" placeholder="Min 8 chars, uppercase, lowercase, number" required minlength="8" autocomplete="new-password">
-          <button type="button" class="pw-toggle" onclick="togglePwVisibility('regPassword',this)">&#128065;</button>
-        </div>
-      </div>
-      <button type="submit" class="clay-btn clay-btn-primary auth-submit" id="regBtn">Create Account</button>
-    </form>
-    <div class="auth-skip">
-      <button class="clay-btn" onclick="skipAuth()" style="width:100%;font-size:11px;min-height:36px;padding:6px 16px">Continue as Guest</button>
-    </div>
-  </div>
-</div>
+
 
 <div class="app-shell">
 
@@ -144,10 +90,6 @@
     </div>
   </div>
   <div class="header-right" id="headerRight">
-    <div class="header-right-item" id="headerUserInfo" style="display:none">
-      <span class="label" id="headerUserName">--</span>
-      <button class="clay-btn" onclick="logout()" style="padding:4px 10px;min-height:28px;font-size:10px">Logout</button>
-    </div>
     <div class="header-right-item"><span class="label">Uptime</span> <span class="mono" id="uptimeDisplay">00:00:00</span></div>
     <div class="header-right-item"><span class="label">RSSI</span> <span class="mono" id="rssiDisplay">--</span></div>
     <div class="header-right-item"><span class="label">Updated</span> <span class="mono" id="updatedDisplay">--</span></div>
@@ -165,11 +107,7 @@
 <!-- Page Container -->
 <div class="page-container">
 
-<!-- Demo Banner -->
-<div class="demo-banner" id="demoBanner">
-  <span>&#9889; DEMO MODE — Simulated Data</span>
-  <button onclick="exitDemo()">Exit Demo</button>
-</div>
+
 
 <!-- ========== PAGE: DASHBOARD ========== -->
 <section class="page-section active" id="page-dashboard">
@@ -593,7 +531,7 @@
 
   <div class="quick-actions">
     <button class="clay-btn clay-btn-danger" onclick="sendCommand('ALL_OFF')">Silence All</button>
-    <button class="clay-btn" onclick="sendCommand('DEMO_CYCLE')">Demo Cycle</button>
+
     <button class="clay-btn" onclick="sendCommand('TEST_BUZZER')">Test Buzzer</button>
     <button class="clay-btn" onclick="sendCommand('RESET_ALARM')">Reset Alarm</button>
   </div>
@@ -674,47 +612,47 @@
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:16px">
         <div>
           <label style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px">Voltage (V)</label>
-          <input type="number" id="aiVoltage" value="12.6" step="0.1" class="ai-input">
+          <input type="number" id="aiVoltage" value="" step="0.1" class="ai-input">
         </div>
         <div>
           <label style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px">Current (A)</label>
-          <input type="number" id="aiCurrent" value="1.2" step="0.1" class="ai-input">
+          <input type="number" id="aiCurrent" value="" step="0.1" class="ai-input">
         </div>
         <div>
           <label style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px">Temperature (&#176;C)</label>
-          <input type="number" id="aiTemp" value="34" step="0.1" class="ai-input">
+          <input type="number" id="aiTemp" value="" step="0.1" class="ai-input">
         </div>
         <div>
           <label style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px">Humidity (%)</label>
-          <input type="number" id="aiHumidity" value="62" step="0.1" class="ai-input">
+          <input type="number" id="aiHumidity" value="" step="0.1" class="ai-input">
         </div>
         <div>
           <label style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px">Gas MQ2 Index</label>
-          <input type="number" id="aiGasMq2" value="342" class="ai-input">
+          <input type="number" id="aiGasMq2" value="" class="ai-input">
         </div>
         <div>
           <label style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px">Gas MQ135 Index</label>
-          <input type="number" id="aiGasMq135" value="75" class="ai-input">
+          <input type="number" id="aiGasMq135" value="" class="ai-input">
         </div>
         <div>
           <label style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px">SOC (%)</label>
-          <input type="number" id="aiSoc" value="75" class="ai-input">
+          <input type="number" id="aiSoc" value="" class="ai-input">
         </div>
         <div>
           <label style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px">Safety Status</label>
-          <input type="text" id="aiSafety" value="SAFE" class="ai-input">
+          <input type="text" id="aiSafety" value="" class="ai-input">
         </div>
         <div>
           <label style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px">Resistance (m&#937;)</label>
-          <input type="number" id="aiResistance" value="8.5" step="0.1" class="ai-input">
+          <input type="number" id="aiResistance" value="" step="0.1" class="ai-input">
         </div>
         <div>
           <label style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px">BHI Score</label>
-          <input type="number" id="aiBhi" value="28" class="ai-input">
+          <input type="number" id="aiBhi" value="" class="ai-input">
         </div>
         <div>
           <label style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px">Power (W)</label>
-          <input type="number" id="aiPower" value="15.12" step="0.1" class="ai-input">
+          <input type="number" id="aiPower" value="" step="0.1" class="ai-input">
         </div>
         <div>
           <label style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px">Direction</label>
@@ -729,8 +667,7 @@
         <button class="clay-btn clay-btn-primary" id="aiAnalyzeBtn" onclick="analyzeWithGemini()" style="flex:1;min-width:200px">
           <span id="aiBtnText">Analyze with Gemini AI</span>
         </button>
-        <button class="clay-btn" onclick="fillDangerousData()" style="min-width:120px">Fill Danger Data</button>
-        <button class="clay-btn" onclick="fillLiveData()" style="min-width:120px">Fill Live Data</button>
+
       </div>
     </div>
 
@@ -836,8 +773,8 @@
       <span class="bell-badge" id="alertBellBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;border-radius:100px;font-size:9px;font-weight:700;min-width:18px;height:18px;display:flex;align-items:center;justify-content:center;padding:0 4px">0</span>
     </div>
     <div style="display:flex;gap:8px">
-      <button class="clay-btn" onclick="exportAlertsCSV()" style="font-size:10px;padding:4px 12px">Export</button>
-      <button class="clay-btn" onclick="clearAllAlerts()" style="font-size:10px;padding:4px 12px;color:var(--red)">Clear All</button>
+      <button class="clay-btn" onclick="exportAlertCSV()" style="font-size:10px;padding:4px 12px">Export</button>
+      <button class="clay-btn" onclick="clearAlertLog()" style="font-size:10px;padding:4px 12px;color:var(--red)">Clear All</button>
     </div>
   </div>
 
@@ -1018,11 +955,11 @@
       </div>
       <div class="setting-row">
         <label>Nominal Voltage (V)</label>
-        <input type="number" id="setNomVolt" value="12.6" step="0.1">
+        <input type="number" id="setNomVolt" value="" step="0.1">
       </div>
       <div class="setting-row">
         <label>Capacity (Ah)</label>
-        <input type="number" id="setCapacity" value="60">
+        <input type="number" id="setCapacity" value="">
       </div>
       <div class="setting-row">
         <button class="clay-btn clay-btn-primary" style="font-size:12px;padding:6px 18px;min-height:40px" onclick="sendCommand('SET_PROFILE',document.getElementById('setBattType').value)">Apply Profile to Device</button>
@@ -1247,18 +1184,18 @@
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
       <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,rgba(0,191,255,0.2),rgba(0,191,255,0.05));display:flex;align-items:center;justify-content:center;font-size:20px">&#128267;</div>
       <div>
-        <div style="font-size:16px;font-weight:700;color:var(--text-primary)" id="passportBattId">Battery #001</div>
-        <div style="font-size:11px;color:var(--text-secondary)" id="passportProfile">Li-ion | NMC | 12V 7.2Ah</div>
+        <div style="font-size:16px;font-weight:700;color:var(--text-primary)" id="passportBattId">--</div>
+        <div style="font-size:11px;color:var(--text-secondary)" id="passportProfile">--</div>
       </div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px">
       <div style="text-align:center;padding:12px;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04)">
         <div style="font-size:9px;text-transform:uppercase;color:var(--text-muted)">Manufactured</div>
-        <div style="font-size:13px;font-weight:600;color:var(--text-primary);font-family:var(--mono);margin-top:4px" id="passportMfgDate">2024-01-15</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text-primary);font-family:var(--mono);margin-top:4px" id="passportMfgDate">--</div>
       </div>
       <div style="text-align:center;padding:12px;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04)">
         <div style="font-size:9px;text-transform:uppercase;color:var(--text-muted)">First Use</div>
-        <div style="font-size:13px;font-weight:600;color:var(--text-primary);font-family:var(--mono);margin-top:4px" id="passportFirstUse">2024-02-01</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text-primary);font-family:var(--mono);margin-top:4px" id="passportFirstUse">--</div>
       </div>
       <div style="text-align:center;padding:12px;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04)">
         <div style="font-size:9px;text-transform:uppercase;color:var(--text-muted)">Total Cycles</div>
@@ -1464,11 +1401,12 @@ if ('serviceWorker' in navigator) {
 <script src="js/controls.js"></script>
 <script src="js/alerts.js"></script>
 <script src="js/settings.js"></script>
-<script src="js/demo.js"></script>
+
 <script src="js/ai.js"></script>
 <script src="js/passport.js"></script>
 <script src="js/diagnostics.js"></script>
 <script src="js/export.js"></script>
+<script src="js/history.js"></script>
 <script src="js/app.js"></script>
 
 </body>

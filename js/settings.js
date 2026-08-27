@@ -80,7 +80,7 @@ function startCalibrationWizard() {
 function runCalibStep() {
   if (!calibWizardRunning || calibWizardStep >= 5) {
     calibWizardRunning = false;
-    UI.toast(calibWizardStep >= 5 ? 'Calibration complete!' : 'Calibration cancelled', calibWizardStep >= 5 ? 'success' : 'info');
+    showToast(calibWizardStep >= 5 ? 'Calibration complete!' : 'Calibration cancelled', calibWizardStep >= 5 ? 'success' : 'info');
     return;
   }
   
@@ -95,7 +95,7 @@ function runCalibStep() {
   if (statuses[calibWizardStep]) statuses[calibWizardStep].textContent = 'Running...';
   if (statuses[calibWizardStep]) statuses[calibWizardStep].style.color = 'var(--blue)';
   
-  // Simulate sending calibration command
+  // Send calibration command
   sendCommand('calibrate_step', calibWizardStep + 1).catch(() => {});
   
   setTimeout(() => {
@@ -115,7 +115,7 @@ function resetCalibrationWizard() {
   const steps = document.querySelectorAll('.calib-step');
   statuses.forEach(s => { s.textContent = 'Pending'; s.style.color = 'var(--text-muted)'; });
   steps.forEach(s => { s.style.borderColor = 'rgba(255,255,255,0.04)'; s.style.background = 'rgba(255,255,255,0.02)'; });
-  UI.toast('Calibration wizard reset', 'info');
+  showToast('Calibration wizard reset', 'info');
 }
 
 // ===== SETTINGS SAVE HELPER =====

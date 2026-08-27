@@ -52,7 +52,6 @@ async function sendCommand(command, value) {
   const reqId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   try {
     const headers = { 'Content-Type': 'application/json' };
-    if (state.authToken) headers['Authorization'] = 'Bearer ' + state.authToken;
     const resp = await fetch(CFG.apiBase + '/commands', {
       method: 'POST',
       headers,
@@ -64,10 +63,6 @@ async function sendCommand(command, value) {
     showToast('Command sent: ' + command, 'success');
     return data;
   } catch (e) {
-    if (state.isDemo) {
-      showToast('(Demo) Command: ' + command, 'info');
-      return { ok: true };
-    }
     throw e;
   }
 }
@@ -113,7 +108,7 @@ function renderCommandHistory() {
 }
 
 function exportCommandHistory() {
-  if (commandHistory.length === 0) return UI.toast('No command history to export', 'info');
+  if (commandHistory.length === 0) return showToast('No command history to export', 'info');
   let csv = 'Time,Type,Result\n';
   commandHistory.forEach(c => {
     csv += `"${c.time}","${c.type}","${c.result}"\n`;
@@ -125,13 +120,13 @@ function exportCommandHistory() {
   link.download = `commands_${new Date().toISOString().slice(0,10)}.csv`;
   link.click();
   URL.revokeObjectURL(url);
-  UI.toast('Command history exported', 'success');
+  showToast('Command history exported', 'success');
 }
 
 // ===== API LATENCY BADGE =====
 function updateApiLatencyBadge() {
   const badge = document.getElementById('apiLatencyBadge');
-  const latency = App.telemetry?.apiLatency ?? App.telemetry?.data?.apiLatency ?? null;
+  const latency = state.lastData?.apiLatency ?? null;
   if (!badge) return;
   if (latency != null) {
     badge.textContent = latency + ' ms';
@@ -167,7 +162,7 @@ function scheduleAction(action, delaySec) {
   
   scheduledActions.push(entry);
   renderScheduledActions();
-  UI.toast(`Action "${action}" ${delaySec > 0 ? 'scheduled in ' + delaySec + 's' : 'executing now'}`, 'success');
+  showToast(`Action "${action}" ${delaySec > 0 ? 'scheduled in ' + delaySec + 's' : 'executing now'}`, 'success');
 }
 
 function executeAction(action) {
@@ -202,7 +197,7 @@ function cancelScheduledAction(id) {
     clearTimeout(action.timer);
     scheduledActions = scheduledActions.filter(a => a.id !== id);
     renderScheduledActions();
-    UI.toast('Scheduled action cancelled', 'info');
+    showToast('Scheduled action cancelled', 'info');
   }
 }
 
@@ -257,7 +252,7 @@ function startCalibration() {
       if (status) status.textContent = 'Calibration complete!';
       if (bar) bar.style.background = 'var(--green)';
       logCommand('Calibration', true);
-      UI.toast('Calibration complete', 'success');
+      showToast('Calibration complete', 'success');
       setTimeout(() => {
         if (section) section.style.display = 'none';
         if (bar) { bar.style.width = '0%'; bar.style.background = 'linear-gradient(90deg,var(--blue),var(--green))'; }
@@ -271,5 +266,5 @@ function cancelCalibration() {
   clearInterval(calibrationInterval);
   const section = document.getElementById('calibrationSection');
   if (section) section.style.display = 'none';
-  UI.toast('Calibration cancelled', 'info');
+  showToast('Calibration cancelled', 'info');
 }

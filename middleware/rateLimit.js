@@ -13,19 +13,6 @@ const apiLimiter = rateLimit({
   skipSuccessfulRequests: false
 });
 
-// Strict rate limit for auth endpoints: 5 attempts per 15 minutes
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5,
-  message: {
-    error: 'Too many login attempts. Account temporarily locked.',
-    retryAfter: '15 minutes'
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  skipSuccessfulRequests: true
-});
-
 // ESP32 data ingestion: 60 requests per minute per device
 const deviceLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -59,7 +46,6 @@ const writeLimiter = rateLimit({
 
 module.exports = {
   apiLimiter,
-  authLimiter,
   deviceLimiter,
   aiLimiter,
   writeLimiter
