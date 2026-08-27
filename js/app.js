@@ -122,6 +122,7 @@ function init() {
   startTimers();
   renderAutoMode();
   startFetchLoop();
+  if (typeof startStatusLoop === 'function') startStatusLoop();
 }
 
 document.addEventListener('DOMContentLoaded', init);

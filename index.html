@@ -388,6 +388,40 @@
   <span>&#9888; Battery Vital is an external monitoring system, not a certified BMS. It does not disconnect or protect the battery directly. Always use a proper BMS for safety-critical applications.</span>
 </div>
 
+<!-- System Connections Status -->
+<div class="glass-card" style="padding:16px 18px;margin-top:16px">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+    <h3 style="font-size:14px;font-weight:600;color:var(--text-primary)">System Connections</h3>
+    <button class="chart-action-btn" onclick="refreshStatus()" style="font-size:10px">Refresh</button>
+  </div>
+  <div class="conn-status-grid">
+    <div class="conn-status-card" id="statusMongoCard">
+      <div class="cs-top">
+        <span class="cs-icon">&#128190;</span>
+        <span class="status-pill green" id="statusMongoPill">Checking</span>
+      </div>
+      <div class="cs-name">MongoDB Database</div>
+      <div class="cs-desc" id="statusMongoDesc">Contacting server...</div>
+    </div>
+    <div class="conn-status-card" id="statusGeminiCard">
+      <div class="cs-top">
+        <span class="cs-icon">&#9670;</span>
+        <span class="status-pill green" id="statusGeminiPill">Checking</span>
+      </div>
+      <div class="cs-name">Gemini AI</div>
+      <div class="cs-desc" id="statusGeminiDesc">Checking API key...</div>
+    </div>
+    <div class="conn-status-card" id="statusEsp32Card">
+      <div class="cs-top">
+        <span class="cs-icon">&#9889;</span>
+        <span class="status-pill green" id="statusEsp32Pill">Checking</span>
+      </div>
+      <div class="cs-name">ESP32 Device</div>
+      <div class="cs-desc" id="statusEsp32Desc">Waiting for data...</div>
+    </div>
+  </div>
+</div>
+
 <!-- Dashboard Export Row -->
 <div class="export-row" style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;padding:0 4px">
   <button class="clay-btn" onclick="exportDashboardJSON()" style="font-size:10px;padding:5px 12px">Export JSON</button>
@@ -1407,6 +1441,7 @@ if ('serviceWorker' in navigator) {
 <script src="js/diagnostics.js"></script>
 <script src="js/export.js"></script>
 <script src="js/history.js"></script>
+<script src="js/status.js"></script>
 <script src="js/app.js"></script>
 
 </body>

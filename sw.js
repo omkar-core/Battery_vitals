@@ -17,6 +17,7 @@ const STATIC_ASSETS = [
   '/js/diagnostics.js',
   '/js/export.js',
   '/js/history.js',
+  '/js/status.js',
   '/manifest.json'
 ];
 

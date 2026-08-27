@@ -1998,6 +1998,50 @@ body::before {
 .conf-dot.stuck  { background: var(--orange); box-shadow: 0 0 6px var(--orange); }
 
 /* ================================================================
+   SYSTEM CONNECTIONS STATUS
+   ================================================================ */
+.conn-status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.conn-status-card {
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.05);
+  transition: border-color var(--dur-base), background var(--dur-base);
+}
+
+.conn-status-card.cs-ok     { border-color: hsla(145,100%,55%,0.25); }
+.conn-status-card.cs-warn   { border-color: hsla(52,100%,50%,0.25); }
+.conn-status-card.cs-error  { border-color: hsla(345,100%,60%,0.3);  background: hsla(345,100%,60%,0.03); }
+
+.conn-status-card .cs-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.conn-status-card .cs-icon { font-size: 18px; }
+
+.conn-status-card .cs-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+}
+
+.conn-status-card .cs-desc {
+  font-size: 10px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+/* ================================================================
    RISK LINE
    ================================================================ */
 .risk-line {
