@@ -46,7 +46,8 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', db: dbConnected, uptime: process.uptime(), ts: Date.now() });
 });
 
-app.post('/api/data', async (req, res) => {
+// Handler function for ESP32 sensor data (used by multiple routes)
+async function handleSensorData(req, res) {
   try {
     await ensureDB();
     const d = req.body;
@@ -80,7 +81,13 @@ app.post('/api/data', async (req, res) => {
     console.error('[/api/data]', err.message);
     res.status(500).json({ error: err.message });
   }
-});
+}
+
+// Register data ingestion under ALL possible ESP32 endpoint names
+app.post('/api/data', handleSensorData);
+app.post('/api/battery-data', handleSensorData);
+app.post('/api/live-data', handleSensorData);
+app.post('/api/telemetry-ingest', handleSensorData);
 
 app.get('/api/control', async (req, res) => {
   try {
