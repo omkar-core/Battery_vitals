@@ -1,4 +1,4 @@
-const connectDB = require('./db');
+const connectDB = require('../db');
 const Alert = require('../../models/Alert');
 
 // POST/GET /api/alerts/esp32 - ESP32 alerts endpoint

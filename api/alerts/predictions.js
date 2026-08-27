@@ -1,4 +1,4 @@
-const connectDB = require('./db');
+const connectDB = require('../db');
 const Prediction = require('../../models/Prediction');
 
 // GET /api/alerts/predictions - AI prediction history for the dashboard

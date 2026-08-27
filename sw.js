@@ -39,6 +39,12 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
+  // Only handle http/https requests. Cache.put() (and Cache API in general)
+  // throws for unsupported schemes like chrome-extension://, data:, blob: etc.
+  if (e.request.url.indexOf('http') !== 0) {
+    return;
+  }
+
   const url = new URL(e.request.url);
 
   // API requests: network only (never cache)
@@ -58,7 +64,9 @@ self.addEventListener('fetch', e => {
       fetch(e.request)
         .then(resp => {
           const clone = resp.clone();
-          caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
+          caches.open(CACHE_NAME).then(c => {
+            try { c.put(e.request, clone); } catch (err) { /* ignore */ }
+          });
           return resp;
         })
         .catch(() => caches.match(e.request))
