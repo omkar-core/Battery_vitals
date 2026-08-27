@@ -1,4 +1,10 @@
 {
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "/api/index.js"
+    }
+  ],
   "headers": [
     {
       "source": "/sw.js",
