@@ -8,7 +8,12 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    await connectDB();
+    try {
+      await connectDB();
+    } catch (dbErr) {
+      console.error('[alerts] DB connect failed:', dbErr.message);
+      return res.status(200).json({ success: true, db: 'offline' });
+    }
 
     if (req.method === 'POST') {
       await new Alert({
@@ -36,7 +41,7 @@ module.exports = async function handler(req, res) {
 
     res.status(405).json({ error: 'Method not allowed' });
   } catch (err) {
-    console.error('[alerts-esp32]', err.message);
-    res.status(500).json({ error: err.message });
+    console.error('[alerts] error:', err.message);
+    res.status(200).json({ success: true, error: err.message });
   }
 };

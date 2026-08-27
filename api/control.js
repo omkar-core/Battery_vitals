@@ -7,8 +7,15 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
+  const defaults = { auto_mode: true, red_led: false, yellow_led: false, green_led: true, buzzer: false };
+
   try {
-    await connectDB();
+    try {
+      await connectDB();
+    } catch (dbErr) {
+      console.error('[control] DB connect failed:', dbErr.message);
+      return res.status(200).json(defaults);
+    }
 
     if (req.method === 'GET') {
       let cmd = await Command.findOne({ key: 'default' }).lean();
@@ -34,7 +41,7 @@ module.exports = async function handler(req, res) {
 
     res.status(405).json({ error: 'Method not allowed' });
   } catch (err) {
-    console.error('[control]', err.message);
-    res.status(200).json({ auto_mode: true, red_led: false, yellow_led: false, green_led: true, buzzer: false });
+    console.error('[control] error:', err.message);
+    res.status(200).json(defaults);
   }
 };

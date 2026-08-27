@@ -18,7 +18,10 @@ module.exports = async function handler(req, res) {
   const path = url.pathname;
 
   try {
-    await connectDB();
+    try { await connectDB(); } catch (dbErr) {
+      console.error('[dashboard] DB connect failed:', dbErr.message);
+      return res.status(200).json({ error: 'Database offline', db: 'disconnected' });
+    }
 
     // GET /api/telemetry
     if (path === '/api/telemetry' && req.method === 'GET') {

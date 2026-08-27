@@ -10,8 +10,19 @@ module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
 
   try {
-    await connectDB();
     const d = req.body;
+    if (!d || Object.keys(d).length === 0) {
+      return res.status(400).json({ error: 'Empty body' });
+    }
+
+    try {
+      await connectDB();
+    } catch (dbErr) {
+      console.error('[battery-data] DB connect failed:', dbErr.message);
+      // Return 200 to ESP32 so it doesn't count as failure
+      return res.status(200).json({ success: true, ts: Date.now(), db: 'offline' });
+    }
+
     const batteryId = d.batteryId || 'BAT001';
     const now = new Date();
     const safetyMap = { SAFE: 'SAFE', CAUTION: 'CAUTION', WARNING: 'WARNING', CRITICAL: 'CRITICAL', SENSOR_FAULT: 'SAFE', EMERGENCY: 'EMERGENCY' };
@@ -39,7 +50,8 @@ module.exports = async function handler(req, res) {
 
     res.status(200).json({ success: true, ts: now.getTime() });
   } catch (err) {
-    console.error('[battery-data]', err.message);
-    res.status(500).json({ error: err.message });
+    console.error('[battery-data] error:', err.message);
+    // Still return 200 to ESP32
+    res.status(200).json({ success: true, ts: Date.now(), error: err.message });
   }
 };
