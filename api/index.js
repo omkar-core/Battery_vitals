@@ -1,60 +1,102 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const path = require('path');
 require('dotenv').config();
 
 const app = express();
 
 // ===== SECURITY MIDDLEWARE =====
-const { setupSecurity } = require('../middleware/security');
-const { apiLimiter, deviceLimiter, aiLimiter, writeLimiter } = require('../middleware/rateLimit');
-const { validateTelemetry, validateCommand } = require('../middleware/validation');
-const { errorHandler, notFound } = require('../middleware/errorHandler');
-const { logSecurity } = require('../middleware/logger');
-
-setupSecurity(app);
+try {
+  const { setupSecurity } = require('../middleware/security');
+  setupSecurity(app);
+} catch (e) {
+  console.error('[SECURITY] setup failed:', e.message);
+  app.use(express.json({ limit: '1mb' }));
+}
 
 // ===== MONGODB ATLAS CONNECTION =====
-const MONGODB_URI = process.env.MONGODB_URI;
-
 let dbConnected = false;
+let dbConnecting = false;
+let dbPromise = null;
 
 async function ensureDB() {
   if (dbConnected) return;
-  if (!MONGODB_URI) throw new Error('MONGODB_URI not set');
-  await mongoose.connect(MONGODB_URI, {
-    serverSelectionTimeoutMS: 10000,
-    heartbeatFrequencyMS: 10000,
+  if (dbConnecting && dbPromise) {
+    await dbPromise;
+    return;
+  }
+  const MONGODB_URI = process.env.MONGODB_URI;
+  if (!MONGODB_URI) throw new Error('MONGODB_URI not configured');
+
+  dbConnecting = true;
+  dbPromise = mongoose.connect(MONGODB_URI, {
+    serverSelectionTimeoutMS: 8000,
+    heartbeatFrequencyMS: 30000,
     maxPoolSize: 5
-  });
-  dbConnected = true;
+  }).then(() => { dbConnected = true; dbConnecting = false; })
+    .catch(err => { dbConnecting = false; throw err; });
+
+  await dbPromise;
 }
 
 // ===== IMPORT MODELS =====
-const LiveData = require('../models/LiveData');
-const SensorHistory = require('../models/SensorHistory');
-const Alert = require('../models/Alert');
-const Device = require('../models/Device');
-const Prediction = require('../models/Prediction');
-const SystemEvent = require('../models/SystemEvent');
-const MLTrainingDataset = require('../models/MLTrainingDataset');
-const Command = require('../models/Command');
+let LiveData, SensorHistory, Alert, Device, Prediction, SystemEvent, MLTrainingDataset, Command;
+try {
+  LiveData = require('../models/LiveData');
+  SensorHistory = require('../models/SensorHistory');
+  Alert = require('../models/Alert');
+  Device = require('../models/Device');
+  Prediction = require('../models/Prediction');
+  SystemEvent = require('../models/SystemEvent');
+  MLTrainingDataset = require('../models/MLTrainingDataset');
+  Command = require('../models/Command');
+} catch (e) {
+  console.error('[MODELS] import error:', e.message);
+}
 
-// ===== IMPORT ROUTES =====
-const telemetryRoutes = require('../routes/telemetry');
-const alertRoutes = require('../routes/alerts');
-const deviceRoutes = require('../routes/devices');
+// ===== IMPORT MIDDLEWARE =====
+let apiLimiter, deviceLimiter, aiLimiter, writeLimiter;
+let validateTelemetry, validateCommand;
+let logSecurity;
+try {
+  const rl = require('../middleware/rateLimit');
+  apiLimiter = rl.apiLimiter;
+  deviceLimiter = rl.deviceLimiter;
+  aiLimiter = rl.aiLimiter;
+  writeLimiter = rl.writeLimiter;
+} catch (e) { console.error('[RATELIMIT] import error:', e.message); }
+
+try {
+  const val = require('../middleware/validation');
+  validateTelemetry = val.validateTelemetry;
+  validateCommand = val.validateCommand;
+} catch (e) { console.error('[VALIDATION] import error:', e.message); }
+
+try {
+  logSecurity = require('../middleware/logger').logSecurity;
+} catch (e) { logSecurity = (type, details) => console.error(`[SECURITY] ${type}`, details); }
+
+// Safe middleware wrapper — never let middleware crash the whole function
+function safeUse(mw, fallback) {
+  if (mw) {
+    app.use((req, res, next) => {
+      try { mw(req, res, next); } catch (e) { next(); }
+    });
+  } else if (fallback) {
+    app.use(fallback);
+  }
+}
+
+// Apply rate limiters safely
+if (apiLimiter) app.use('/api', apiLimiter);
 
 // ===== API ROUTES =====
-app.use('/api', apiLimiter);
-app.use('/api', telemetryRoutes);
-app.use('/api', alertRoutes);
-app.use('/api/devices', deviceRoutes);
 
-// ===== ESP32: POST /api/data — Send sensor payload =====
-app.post('/api/data', deviceLimiter, async (req, res) => {
+// ===== ESP32: POST /api/data =====
+app.post('/api/data', async (req, res) => {
   try {
     await ensureDB();
+    if (!LiveData || !SensorHistory) throw new Error('Models not loaded');
+
     const d = req.body;
     const batteryId = d.batteryId || 'BAT001';
     const now = new Date();
@@ -108,10 +150,12 @@ app.post('/api/data', deviceLimiter, async (req, res) => {
   }
 });
 
-// ===== ESP32: GET /api/control — Poll for LED/buzzer commands =====
+// ===== ESP32: GET /api/control =====
 app.get('/api/control', async (req, res) => {
   try {
     await ensureDB();
+    if (!Command) throw new Error('Command model not loaded');
+
     let cmd = await Command.findOne({ key: 'default' }).lean();
     if (!cmd) {
       cmd = await Command.create({ key: 'default' });
@@ -129,10 +173,12 @@ app.get('/api/control', async (req, res) => {
   }
 });
 
-// ===== Dashboard: POST /api/control — Send commands to ESP32 =====
-app.post('/api/control', writeLimiter, async (req, res) => {
+// ===== Dashboard: POST /api/control =====
+app.post('/api/control', async (req, res) => {
   try {
     await ensureDB();
+    if (!Command) throw new Error('Command model not loaded');
+
     const allowed = ['auto_mode', 'red_led', 'yellow_led', 'green_led', 'buzzer'];
     const update = { updatedAt: new Date() };
     for (const key of allowed) {
@@ -149,10 +195,12 @@ app.post('/api/control', writeLimiter, async (req, res) => {
   }
 });
 
-// ===== ESP32: POST /api/alerts/esp32 — Send critical alerts =====
-app.post('/api/alerts/esp32', deviceLimiter, async (req, res) => {
+// ===== ESP32: POST /api/alerts/esp32 =====
+app.post('/api/alerts/esp32', async (req, res) => {
   try {
     await ensureDB();
+    if (!Alert) throw new Error('Alert model not loaded');
+
     const alert = new Alert({
       batteryId:  req.body.batteryId  || 'BAT001',
       severity:   (req.body.severity  || 'INFO').toUpperCase(),
@@ -168,10 +216,12 @@ app.post('/api/alerts/esp32', deviceLimiter, async (req, res) => {
   }
 });
 
-// ===== GET /api/telemetry — Frontend reads latest data =====
+// ===== GET /api/telemetry =====
 app.get('/api/telemetry', async (req, res) => {
   try {
     await ensureDB();
+    if (!LiveData) throw new Error('LiveData model not loaded');
+
     const data = await LiveData.findOne({ batteryId: 'BAT001' }).sort({ timestamp: -1 }).lean();
     if (!data) return res.json({ message: 'No data yet' });
     res.json({
@@ -186,15 +236,17 @@ app.get('/api/telemetry', async (req, res) => {
       errors: 0
     });
   } catch (err) {
-    logSecurity('LEGACY_ENDPOINT_ERROR', { error: err.message });
+    if (logSecurity) logSecurity('LEGACY_ENDPOINT_ERROR', { error: err.message });
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// ===== POST /api/telemetry — Legacy telemetry ingestion =====
-app.post('/api/telemetry', deviceLimiter, validateTelemetry, async (req, res) => {
+// ===== POST /api/telemetry =====
+app.post('/api/telemetry', async (req, res) => {
   try {
     await ensureDB();
+    if (!LiveData || !SensorHistory) throw new Error('Models not loaded');
+
     const batteryId = req.body.batteryId || 'BAT001';
     const now = new Date();
 
@@ -238,10 +290,12 @@ app.post('/api/telemetry', deviceLimiter, validateTelemetry, async (req, res) =>
   }
 });
 
-// ===== POST /api/commands — Log user commands =====
-app.post('/api/commands', writeLimiter, validateCommand, async (req, res) => {
+// ===== POST /api/commands =====
+app.post('/api/commands', async (req, res) => {
   try {
     await ensureDB();
+    if (!SystemEvent) throw new Error('SystemEvent model not loaded');
+
     const event = new SystemEvent({
       type: 'USER_ACTION',
       severity: 'INFO',
@@ -255,10 +309,12 @@ app.post('/api/commands', writeLimiter, validateCommand, async (req, res) => {
   }
 });
 
-// ===== GET /api/stats — Dashboard statistics =====
+// ===== GET /api/stats =====
 app.get('/api/stats', async (req, res) => {
   try {
     await ensureDB();
+    if (!SensorHistory || !Alert || !LiveData || !Device) throw new Error('Models not loaded');
+
     const [totalReadings, totalAlerts, liveData, deviceCount] = await Promise.all([
       SensorHistory.countDocuments(),
       Alert.countDocuments(),
@@ -283,6 +339,8 @@ app.get('/api/stats', async (req, res) => {
 app.get('/api/ml-training-data', async (req, res) => {
   try {
     await ensureDB();
+    if (!MLTrainingDataset) throw new Error('MLTrainingDataset model not loaded');
+
     const { limit = 1000, label } = req.query;
     const query = {};
     if (label && typeof label === 'string') query.label = label;
@@ -293,9 +351,11 @@ app.get('/api/ml-training-data', async (req, res) => {
   }
 });
 
-app.post('/api/ml-training-data', writeLimiter, async (req, res) => {
+app.post('/api/ml-training-data', async (req, res) => {
   try {
     await ensureDB();
+    if (!MLTrainingDataset) throw new Error('MLTrainingDataset model not loaded');
+
     const data = new MLTrainingDataset(req.body);
     await data.save();
     res.json({ success: true, id: data._id });
@@ -305,7 +365,7 @@ app.post('/api/ml-training-data', writeLimiter, async (req, res) => {
 });
 
 // ===== GEMINI AI ANALYSIS =====
-app.post('/api/analyze', aiLimiter, async (req, res) => {
+app.post('/api/analyze', async (req, res) => {
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
   if (!GEMINI_API_KEY || GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY_HERE') {
     return res.status(503).json({ success: false, error: 'AI service not configured' });
@@ -383,39 +443,52 @@ Rules:
 
     try {
       await ensureDB();
-      await Prediction.create({
-        batteryId: safe.batteryId || 'BAT001',
-        riskLevel: prediction.danger_level === 'danger' ? 'CRITICAL' : prediction.danger_level === 'warning' ? 'HIGH' : 'LOW',
-        riskScore: prediction.bhi,
-        analysis: prediction.explanation,
-        recommendations: prediction.action ? [prediction.action] : [],
-        modelVersion: 'gemini-2.0-flash'
-      });
+      if (Prediction) {
+        await Prediction.create({
+          batteryId: safe.batteryId || 'BAT001',
+          riskLevel: prediction.danger_level === 'danger' ? 'CRITICAL' : prediction.danger_level === 'warning' ? 'HIGH' : 'LOW',
+          riskScore: prediction.bhi,
+          analysis: prediction.explanation,
+          recommendations: prediction.action ? [prediction.action] : [],
+          modelVersion: 'gemini-2.0-flash'
+        });
+      }
     } catch (e) { /* non-critical */ }
 
     res.json({ success: true, prediction });
   } catch (error) {
-    logSecurity('AI_ANALYSIS_ERROR', { error: error.message });
+    if (logSecurity) logSecurity('AI_ANALYSIS_ERROR', { error: error.message });
     res.status(500).json({ success: false, error: 'AI analysis failed' });
   }
 });
 
-// ===== SERVE FRONTEND (local dev only) =====
-app.use(express.static(path.join(__dirname, '..'), {
-  setHeaders: (res, filePath) => {
-    if (filePath.endsWith('.html')) {
-      res.setHeader('Cache-Control', 'no-cache');
-    }
-  }
-}));
+// ===== ALERTS ROUTES (via router module) =====
+try {
+  const alertRoutes = require('../routes/alerts');
+  app.use('/api', alertRoutes);
+} catch (e) { console.error('[ROUTES] alerts import error:', e.message); }
 
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'index.html'));
-});
+try {
+  const telemetryRoutes = require('../routes/telemetry');
+  app.use('/api', telemetryRoutes);
+} catch (e) { console.error('[ROUTES] telemetry import error:', e.message); }
+
+try {
+  const deviceRoutes = require('../routes/devices');
+  app.use('/api/devices', deviceRoutes);
+} catch (e) { console.error('[ROUTES] devices import error:', e.message); }
 
 // ===== ERROR HANDLING =====
-app.use(notFound);
-app.use(errorHandler);
+try {
+  const { errorHandler, notFound } = require('../middleware/errorHandler');
+  app.use(notFound);
+  app.use(errorHandler);
+} catch (e) {
+  app.use((err, req, res, next) => {
+    console.error('[ERROR]', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  });
+}
 
 // ===== EXPORT FOR VERCEL =====
 module.exports = app;

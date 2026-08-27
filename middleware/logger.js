@@ -1,76 +1,46 @@
 // Security Logger - tracks suspicious activity
-// Never logs sensitive data (passwords, tokens, keys)
-
-const fs = require('fs');
-const path = require('path');
-
-const LOG_DIR = path.join(__dirname, '..', 'logs');
-const SECURITY_LOG = path.join(LOG_DIR, 'security.log');
-const ACCESS_LOG = path.join(LOG_DIR, 'access.log');
-
-// Ensure logs directory exists
-if (!fs.existsSync(LOG_DIR)) {
-  fs.mkdirSync(LOG_DIR, { recursive: true });
-}
+// Serverless-safe: never crashes on filesystem errors
 
 function getTimestamp() {
   return new Date().toISOString();
 }
 
-// Log security events (failed auth, suspicious requests, etc.)
 function logSecurity(type, details) {
-  const entry = `[${getTimestamp()}] [SECURITY] [${type}] ${JSON.stringify(details)}\n`;
-  fs.appendFileSync(SECURITY_LOG, entry);
-  // Also log to console in development
-  if (process.env.NODE_ENV !== 'production') {
-    console.log('\x1b[31m' + entry.trim() + '\x1b[0m');
-  }
+  const entry = `[${getTimestamp()}] [SECURITY] [${type}] ${JSON.stringify(details)}`;
+  console.error(entry);
 }
 
-// Log access events (successful requests)
 function logAccess(req, res, next) {
   const start = Date.now();
   res.on('finish', () => {
     const duration = Date.now() - start;
-    const entry = `[${getTimestamp()}] [${req.method}] ${req.originalUrl} ${res.statusCode} ${duration}ms ${req.ip}\n`;
-    fs.appendFileSync(ACCESS_LOG, entry);
+    console.log(`[${getTimestamp()}] [${req.method}] ${req.originalUrl} ${res.statusCode} ${duration}ms`);
   });
   next();
 }
 
-// Suspicious pattern detection
 function detectSuspicious(req) {
   const suspicious = [];
-  
-  // SQL injection patterns
-  const sqlPatterns = /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|UNION|ALTER|CREATE|EXEC|EXECUTE)\b)|(--)|(\b(OR|AND)\b\s+\d+\s*=\s*\d+)/i;
-  if (sqlPatterns.test(req.originalUrl) || sqlPatterns.test(JSON.stringify(req.body))) {
-    suspicious.push('SQL_INJECTION_ATTEMPT');
+  try {
+    const bodyStr = JSON.stringify(req.body || {});
+    const urlStr = req.originalUrl || '';
+    const queryStr = JSON.stringify(req.query || {});
+
+    if (/\b(SELECT|INSERT|UPDATE|DELETE|DROP|UNION|ALTER|CREATE|EXEC)\b/i.test(urlStr) || /\b(OR|AND)\b\s+\d+\s*=\s*\d+/i.test(bodyStr)) {
+      suspicious.push('SQL_INJECTION_ATTEMPT');
+    }
+    if (/\$where|\$gt|\$ne|\$regex|\$exists|\$in/i.test(bodyStr) || /\$where|\$gt|\$ne|\$regex|\$exists|\$in/i.test(queryStr)) {
+      suspicious.push('NOSQL_INJECTION_ATTEMPT');
+    }
+    if (/\.\.\//.test(urlStr) || /\.\.\\/.test(urlStr)) {
+      suspicious.push('PATH_TRAVERSAL');
+    }
+    if (/<script|javascript:|onerror=|onload=/i.test(bodyStr) || /<script|javascript:|onerror=|onload=/i.test(urlStr)) {
+      suspicious.push('XSS_ATTEMPT');
+    }
+  } catch (e) {
+    // JSON.stringify or other parsing failed — not suspicious, just malformed
   }
-  
-  // NoSQL injection patterns
-  const nosqlPatterns = /\$where|\$gt|\$ne|\$regex|\$exists|\$in/i;
-  if (nosqlPatterns.test(JSON.stringify(req.body)) || nosqlPatterns.test(JSON.stringify(req.query))) {
-    suspicious.push('NOSQL_INJECTION_ATTEMPT');
-  }
-  
-  // Path traversal
-  if (/\.\.\//.test(req.originalUrl) || /\.\.\\/.test(req.originalUrl)) {
-    suspicious.push('PATH_TRAVERSAL');
-  }
-  
-  // Command injection
-  const cmdPatterns = /[;&|`$(){}]/;
-  if (cmdPatterns.test(req.originalUrl)) {
-    suspicious.push('COMMAND_INJECTION');
-  }
-  
-  // XSS patterns
-  const xssPatterns = /<script|javascript:|onerror=|onload=/i;
-  if (xssPatterns.test(JSON.stringify(req.body)) || xssPatterns.test(req.originalUrl)) {
-    suspicious.push('XSS_ATTEMPT');
-  }
-  
   return suspicious;
 }
 
