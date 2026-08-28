@@ -1,4 +1,3 @@
-import mqtt from 'mqtt'
 import { getDB } from './mongodb'
 
 let mqttClient = null
@@ -27,6 +26,9 @@ export async function initMQTTBridge() {
     mqttClient = null
   }
 
+  // Dynamically load the mqtt client only when the bridge is used at runtime
+  // (avoids evaluating browser-oriented mqtt code during server-side build/prerender).
+  const mqtt = (await import('mqtt')).default
   const url = buildBrokerUrl()
   const client = mqtt.connect(url, {
     username: process.env.MQTT_USERNAME || process.env.NEXT_PUBLIC_MQTT_USERNAME,

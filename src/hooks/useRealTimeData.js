@@ -1,8 +1,16 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMQTT } from './useMQTT'
 
 const POLL_INTERVAL_MS = 3000
+const POLL_TIMEOUT_MS = 5000
+
+function createTimeoutSignal(ms) {
+  // AbortSignal.timeout is not available in every browser; emulate it.
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), ms)
+  return { signal: controller.signal, clear: () => clearTimeout(timer) }
+}
 
 // Real-time data hook: uses MQTT when available, falls back to HTTP polling.
 export function useRealTimeData(batteryId = 'BAT001') {
@@ -18,43 +26,63 @@ export function useRealTimeData(batteryId = 'BAT001') {
     if (mqttConnected && mqttData) {
       setMode('mqtt')
       setConnected(true)
-      setData(mqttData)
-      setHistory((prev) => [...prev, { time: Date.now(), ...mqttData }].slice(-50))
+      setError(null)
+      setHistory((h) => [...h, { time: Date.now(), ...mqttData }].slice(-50))
+      // setData inside updater avoids stale-closure warnings
+      setData((prev) => ({ ...prev, ...mqttData }))
     }
   }, [mqttConnected, mqttData])
 
-  // HTTP polling fallback
+  // HTTP polling fallback (only while MQTT is not delivering data)
   useEffect(() => {
-    let timer
+    if (mqttConnected) return undefined
+
+    let active = true
+    let timer = null
+    let timed = null
+
     async function fetchData() {
+      timed = createTimeoutSignal(POLL_TIMEOUT_MS)
       try {
-        const resp = await fetch(`/api/telemetry?batteryId=${batteryId}&t=${Date.now()}`, { signal: AbortSignal.timeout(5000) })
+        const resp = await fetch(
+          `/api/telemetry?batteryId=${encodeURIComponent(batteryId)}&t=${Date.now()}`,
+          { signal: timed.signal }
+        )
         if (!resp.ok) throw new Error('HTTP ' + resp.status)
         const d = await resp.json()
-        if (d && d.message !== 'No data yet') {
+        if (active && d && d.message !== 'No data yet') {
           setData(d)
           setConnected(true)
-          setMode('poll')
           setError(null)
-          setHistory((prev) => [...prev, { time: Date.now(), ...d }].slice(-50))
+          setMode((m) => (m === 'mqtt' ? m : 'poll'))
+          setHistory((h) => [...h, { time: Date.now(), ...d }].slice(-50))
         }
       } catch (e) {
-        setConnected(false)
-        if (mode !== 'mqtt') setError(e.message)
+        if (active) {
+          setConnected(false)
+          setError(e.name === 'AbortError' ? 'Telemetry request timed out' : e.message)
+        }
+      } finally {
+        if (timed) timed.clear()
       }
     }
 
-    // Don't poll if MQTT is actively delivering data
-    if (!mqttConnected) {
-      fetchData()
-      timer = setInterval(fetchData, POLL_INTERVAL_MS)
+    fetchData()
+    timer = setInterval(fetchData, POLL_INTERVAL_MS)
+
+    return () => {
+      active = false
+      if (timer) clearInterval(timer)
+      if (timed) timed.clear()
     }
+  }, [batteryId, mqttConnected])
 
-    return () => clearInterval(timer)
-  }, [batteryId, mqttConnected, mode])
-
-  const sendControl = (command) => {
-    const payload = { command, value: command.toLowerCase().includes('on') ? true : undefined, requestId: Math.random().toString(16).substr(2, 8) }
+  const sendControl = (command, value) => {
+    const payload = {
+      command,
+      value: value !== undefined ? value : command.toLowerCase().includes('on'),
+      requestId: Math.random().toString(16).slice(2, 10),
+    }
     if (mqttConnected) {
       publish(`batteryvitals/${batteryId}/control`, payload)
     }

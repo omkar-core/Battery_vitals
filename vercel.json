@@ -42,7 +42,7 @@
   },
 
   "functions": {
-    "pages/api/**": {
+    "src/app/api/**/*.js": {
       "memory": 1024,
       "maxDuration": 10
     }

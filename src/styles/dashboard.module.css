@@ -34,6 +34,31 @@
   box-shadow: 0 0 8px #00E8A0;
 }
 
+.liveBadgeOff {
+  background: rgba(255, 45, 85, 0.08);
+  border-color: rgba(255, 45, 85, 0.25);
+  color: #FF2D55;
+}
+
+.liveDotOff {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #FF2D55;
+  box-shadow: 0 0 8px #FF2D55;
+}
+
+.notice {
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  border-radius: 10px;
+  background: rgba(255, 214, 10, 0.06);
+  border: 1px solid rgba(255, 214, 10, 0.25);
+  color: #FFD60A;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .loading {
   display: flex;
   flex-direction: column;

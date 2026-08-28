@@ -1,7 +1,8 @@
-import { useEffect } from 'react'
+'use client'
+
 import Link from 'next/link'
-import { useRouter } from 'next/router'
-import { BatteryCharging, Activity, SlidersHorizontal, Bot, Bell, Clock, Settings, BookOpen, Wrench, Rocket, Home } from 'lucide-react'
+import { usePathname } from 'next/navigation'
+import { BatteryCharging, Activity, SlidersHorizontal, Bot, Bell, Clock, Settings, Home } from 'lucide-react'
 import styles from './components.module.css'
 
 const NAV = [
@@ -15,12 +16,7 @@ const NAV = [
 ]
 
 export default function Header({ connected, uptime }) {
-  const router = useRouter()
-
-  useEffect(() => {
-    const interval = setInterval(() => {}, 1000)
-    return () => clearInterval(interval)
-  }, [])
+  const pathname = usePathname()
 
   return (
     <nav className={styles.shell}>
@@ -35,7 +31,7 @@ export default function Header({ connected, uptime }) {
       <div className={styles.nav}>
         {NAV.map((n) => {
           const Icon = n.icon
-          const active = router.pathname === n.key
+          const active = pathname === n.key
           return (
             <Link key={n.key} href={n.key} className={`${styles.navLink} ${active ? styles.navLinkActive : ''}`}>
               <Icon size={15} />

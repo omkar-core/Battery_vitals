@@ -32,28 +32,33 @@ MQTT broker ──► /api/mqtt-bridge ──► MongoDB
 ## Project Structure
 
 ```
-pages/                 # Next.js pages (_app, _document) and API routes under /api
+pages/                 # Next.js pages and API routes under /api
   index.js             # Dashboard
-  analytics.js         # History / analytics charts
+  analytics.js         # Analytics / charts
   settings.js          # Configuration
   alerts.js            # Alerts feed
   history.js           # Historical telemetry
   controls.js          # Device control panel
   ai.js                # AI insights / predictions
+  _app.js              # Root App (global styles + PWA/SW registration)
+  _document.js         # Custom document (fonts, manifest, favicon)
+  404.js               # Custom not-found page
 src/
   lib/
     mongodb.js         # Mongo client & connection
-    mqtt.js            # MQTT client & subscription
+    mqtt.js            # MQTT bridge client & subscription
     gemini.js          # Gemini API wrapper
     utils.js           # Shared helpers
   hooks/
     useMQTT.js         # Real-time MQTT data hook
-    useRealTimeData.js # Chart data aggregation hook
+    useRealTimeData.js # MQTT + HTTP polling aggregation hook
     useAI.js           # AI insights hook
   components/
-    Header.js, MetricCard.js, LiveChart.js, ControlPanel.js,
-    AIInsights.js, AlertsList.js, Dashboard.js, Layout.js
+    Header.jsx, Layout.jsx, MetricCard.jsx, LiveChart.jsx,
+    ControlPanel.jsx, AIInsights.jsx, AlertsList.jsx
   styles/globals.css   # Global styles
+  styles/*.module.css  # CSS Modules (pages + components)
+public/                # Static assets (manifest, icons, sw.js, robots.txt, sitemap.xml)
 ```
 
 ### API Endpoints (`/api/*`)
@@ -82,7 +87,7 @@ src/
    npm install
    ```
 
-2. Configure environment — copy `.env.example` to `.env` and fill in values:
+2. Configure environment — copy `.env.example` to `.env` and fill in values. See everything used:
 
    ```env
    MONGODB_URI=...

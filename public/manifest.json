@@ -1,17 +1,31 @@
 {
   "name": "Battery Vital - Intelligent Battery Safety System",
   "short_name": "Battery Vital",
-  "description": "Real-time battery health monitoring dashboard with AI-driven predictive analysis",
+  "description": "Real-time battery health monitoring, safety alerts, and AI-driven predictive analysis for EV/ESS battery packs.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#070B15",
   "theme_color": "#070B15",
   "orientation": "any",
   "icons": [
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔋</text></svg>",
-      "sizes": "any",
-      "type": "image/svg+xml"
+      "src": "/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
     }
   ]
 }
