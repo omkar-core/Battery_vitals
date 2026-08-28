@@ -67,6 +67,7 @@ function processTelemetry(d) {
 
   updateVal('vocVal', d.gas?.index_mq135);
   updateVal('qVoc', d.gas?.index_mq135);
+  updateVocStatus(d.gas?.index_mq135);
 
   const temp = d.environment?.temperature;
   const humid = d.environment?.humidity;
@@ -185,6 +186,17 @@ function processTelemetry(d) {
     Diagnostics.pushRawLog();
   }
 
+  // Live re-render of page-specific views when their page is active
+  const currentPage = window.location.hash.replace('#', '');
+  if (currentPage === 'diagnostics' && typeof Diagnostics !== 'undefined' && typeof Diagnostics.updateConnectivity === 'function') {
+    Diagnostics.updateConnectivity();
+  }
+  if (currentPage === 'passport' && typeof Passport !== 'undefined' && typeof Passport.loadData === 'function') {
+    Passport.loadData();
+    if (typeof Passport.initDegradationChart === 'function') Passport.initDegradationChart();
+  }
+  if (currentPage === 'history' && historyChartInstance) { updateHistoryStats(); updateHistoryChart(); }
+
   if (d.events && Array.isArray(d.events)) {
     d.events.forEach(ev => {
       if (!state.alertLog.find(a => a.id === ev.id)) {
@@ -240,6 +252,16 @@ function updateGasBar(v) {
   bar.className = 'progress-fill ' + c;
   const pill = document.getElementById('gasStatus');
   pill.className = 'status-pill ' + sc; pill.textContent = st;
+}
+
+function updateVocStatus(v) {
+  if (v == null) return;
+  let s = 'Normal', c = 'green';
+  if (v > 400) { s = 'Critical'; c = 'red'; }
+  else if (v > 200) { s = 'High'; c = 'orange'; }
+  else if (v > 100) { s = 'Elevated'; c = 'yellow'; }
+  const p = document.getElementById('vocStatus');
+  if (p) { p.className = 'status-pill ' + c; p.textContent = s; }
 }
 
 function updateTempStatus(t) {

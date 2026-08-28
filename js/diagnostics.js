@@ -22,16 +22,17 @@ const Diagnostics = {
   updateConnectivity() {
     const d = state.lastData;
     this.pushRawLog();
+    this.renderRawLog();
     if (!d) return;
     
-    const rssi = d.wifi?.rssi ?? d.rssi ?? null;
+    const rssi = d.network?.rssi ?? d.wifi?.rssi ?? d.rssi ?? null;
     if (rssi != null) {
       setText('diagRssi', rssi + ' dBm');
       const el = document.getElementById('diagRssi');
       if (el) el.style.color = rssi > -50 ? 'var(--green)' : rssi > -70 ? 'var(--yellow)' : 'var(--red)';
     }
     
-    setText('diagPktLoss', (d.dataLoss ?? 0) + '%');
+    setText('diagPktLoss', (d.dataLoss ?? d.network?.packetLoss ?? 0) + '%');
     setText('diagUptime', d.uptime || '--');
     
     setText('diagLastTlm', new Date().toLocaleTimeString());
@@ -40,19 +41,42 @@ const Diagnostics = {
     this.updateSelfTest(d);
   },
 
+  renderRawLog() {
+    const preview = document.getElementById('rawLogPreview');
+    if (!preview) return;
+    if (!this.rawLog.length) {
+      preview.textContent = 'Waiting for telemetry data...';
+      return;
+    }
+    const last = this.rawLog.slice(-12).reverse();
+    preview.innerHTML = last.map(r =>
+      '<div style="display:flex;gap:8px;align-items:center">' +
+      '<span style="color:var(--text-muted);white-space:nowrap">' + r.ts.slice(11, 19) + '</span>' +
+      '<span style="color:var(--cyan)">' + (r.voltage ?? '-') + 'V</span>' +
+      '<span style="color:var(--yellow)">' + (r.current ?? '-') + 'A</span>' +
+      '<span style="color:var(--purple)">' + (r.bhi ?? '-') + ' BHI</span>' +
+      '<span style="color:var(--text-muted)">SOC ' + (r.soc ?? '-') + '%</span>' +
+      '</div>'
+    ).join('');
+  },
+
   updateSelfTest(d) {
     const items = document.querySelectorAll('.self-test-item');
+    const normalize = (s) => (s || '').toString().toLowerCase();
+    const gasSt = normalize(d.gas?.status_mq2);
+    const vocSt = normalize(d.gas?.status_mq135);
     const sensorStatuses = [
       d.sensorStatus?.voltage ?? (d.battery?.voltageSt || 'ok'),
       d.sensorStatus?.temperature ?? (d.environment?.tempSt || 'ok'),
-      d.sensorStatus?.gas ?? (d.gas?.status_mq2 || 'ok'),
-      d.sensorStatus?.voc ?? (d.gas?.status_mq135 || 'ok'),
+      (gasSt === 'normal' || gasSt === 'elevated' || gasSt === 'ok') ? 'ok' : (d.sensorStatus?.gas ?? 'ok'),
+      (vocSt === 'normal' || vocSt === 'elevated' || vocSt === 'ok') ? 'ok' : (d.sensorStatus?.voc ?? 'ok'),
       d.sensorStatus?.bhi ?? (d.risk?.bhiSt || 'ok'),
       'ok' // ESP32 core
     ];
     
     items.forEach((item, i) => {
-      const status = sensorStatuses[i] || 'ok';
+      if (!item) return;
+      const status = (sensorStatuses[i] || 'ok').toString().toLowerCase();
       const icon = item.querySelector('.st-icon');
       const statusEl = item.querySelector('.st-status');
       

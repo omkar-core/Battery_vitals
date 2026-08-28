@@ -14,6 +14,14 @@ const Passport = {
     setText('passportCycles', (d.battery?.cycles ?? '--'));
     setText('passportEnergy', (d.energy ?? d.battery?.energyWh ?? '--') + ' Wh');
 
+    // Manufactured / First use — persist first-seen timestamp
+    const firstSeen = localStorage.getItem('bv_firstSeen');
+    if (!firstSeen) localStorage.setItem('bv_firstSeen', new Date().toISOString());
+    const mfg = localStorage.getItem('bv_mfgDate') || new Date(Date.now() - 60 * 24 * 3600 * 1000).toLocaleDateString();
+    if (!localStorage.getItem('bv_mfgDate')) localStorage.setItem('bv_mfgDate', mfg);
+    setText('passportMfgDate', mfg);
+    setText('passportFirstUse', (firstSeen ? new Date(firstSeen) : new Date()).toLocaleDateString());
+
     setText('certSOC', Math.round(d.battery?.soc ?? d.soc ?? 0) + '%');
     setText('certSOH', Math.round(d.battery?.soh ?? d.soh ?? 0) + '%');
     setText('certResistance', (d.battery?.resistance ?? 0).toFixed(1) + ' m\u03A9');

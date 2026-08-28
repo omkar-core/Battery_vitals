@@ -32,7 +32,7 @@ async function analyzeWithGemini() {
   result.style.display = 'none';
 
   try {
-    const resp = await fetch('/api/analyze', {
+    const resp = await fetch(CFG.apiBase + '/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -149,6 +149,32 @@ function renderAIResult(pred, inputData) {
       </div>
     </div>
   `;
+
+  updateRULCard(pred);
+}
+
+// ===== RUL (Remaining Useful Life) FORECAST CARD =====
+function updateRULCard(pred) {
+  const valueEl = document.getElementById('rulValue');
+  const labelEl = document.getElementById('rulLabel');
+  const barEl = document.getElementById('rulBar');
+  if (!valueEl || !labelEl) return;
+  const cycles = pred.remaining_cycles;
+  const months = pred.remaining_months;
+  if (cycles == null) {
+    valueEl.textContent = '--';
+    labelEl.textContent = 'Analyze battery to get RUL forecast';
+    if (barEl) barEl.style.width = '0%';
+    return;
+  }
+  valueEl.textContent = Number(cycles).toLocaleString() + ' cycles';
+  labelEl.textContent = '~' + (months ?? '--') + ' months remaining';
+  if (barEl) {
+    const pct = Math.min(100, Math.max(0, (cycles / 2000) * 100));
+    barEl.style.width = pct + '%';
+    barEl.style.background = pct > 60 ? 'var(--green)' : pct > 30 ? 'var(--orange)' : 'var(--red)';
+    valueEl.style.color = pct > 60 ? 'var(--green)' : pct > 30 ? 'var(--orange)' : 'var(--red)';
+  }
 }
 
 function fillLiveData() {
@@ -172,12 +198,31 @@ function fillLiveData() {
   }
 }
 
+function autoFillAIFromLive() {
+  if (!state || !state.lastData) return;
+  const voltageInput = document.getElementById('aiVoltage');
+  if (!voltageInput || voltageInput.value !== '') return;
+  const d = state.lastData;
+  if (d.battery?.voltage != null) document.getElementById('aiVoltage').value = d.battery.voltage;
+  if (d.battery?.current != null) document.getElementById('aiCurrent').value = d.battery.current;
+  if (d.environment?.temperature != null) document.getElementById('aiTemp').value = d.environment.temperature;
+  if (d.environment?.humidity != null) document.getElementById('aiHumidity').value = d.environment.humidity;
+  if (d.gas?.index_mq2 != null) document.getElementById('aiGasMq2').value = d.gas.index_mq2;
+  if (d.gas?.index_mq135 != null) document.getElementById('aiGasMq135').value = d.gas.index_mq135;
+  if (d.battery?.soc != null) document.getElementById('aiSoc').value = d.battery.soc;
+  if (d.battery?.safety != null) document.getElementById('aiSafety').value = d.battery.safety;
+  if (d.battery?.resistance != null) document.getElementById('aiResistance').value = d.battery.resistance;
+  if (d.risk?.bhi != null) document.getElementById('aiBhi').value = d.risk.bhi;
+  if (d.battery?.power != null) document.getElementById('aiPower').value = d.battery.power;
+  if (d.battery?.op != null) document.getElementById('aiDirection').value = d.battery.op;
+}
+
 // ===== AI PREDICTION HISTORY =====
 async function fetchAIHistory() {
   const list = document.getElementById('aiHistoryList');
   if (!list) return;
   try {
-    const resp = await fetch('/api/alerts/predictions?limit=10', { signal: AbortSignal.timeout(5000) });
+    const resp = await fetch(CFG.apiBase + '/alerts/predictions?limit=10', { signal: AbortSignal.timeout(5000) });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const preds = await resp.json();
     if (!preds.length) {
@@ -203,19 +248,31 @@ async function fetchAIHistory() {
 
 // Auto-fetch history when AI page is shown
 document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(fetchAIHistory, 2000);
+  const toggle = document.getElementById('autoAnalyzeToggle');
+  if (toggle) {
+    const saved = localStorage.getItem('bvAutoAnalyze') === '1';
+    toggle.checked = saved;
+    if (saved) startAutoAnalyze();
+  }
+  setTimeout(() => { if (location.hash === '#ai') fetchAIHistory(); }, 400);
 });
 
 // ===== AUTO ANALYZE =====
 let autoAnalyzeInterval = null;
 
+function startAutoAnalyze() {
+  if (autoAnalyzeInterval) return;
+  autoAnalyzeInterval = setInterval(async () => {
+    if (location.hash === '#ai' && state.lastData) {
+      await analyzeWithGemini();
+    }
+  }, 5 * 60 * 1000);
+}
+
 function toggleAutoAnalyze(enabled) {
+  localStorage.setItem('bvAutoAnalyze', enabled ? '1' : '0');
   if (enabled) {
-    autoAnalyzeInterval = setInterval(async () => {
-      if (state.lastData) {
-        await analyzeWithGemini();
-      }
-    }, 5 * 60 * 1000);
+    startAutoAnalyze();
     showToast('Auto analysis enabled (every 5 min)', 'info');
   } else {
     clearInterval(autoAnalyzeInterval);

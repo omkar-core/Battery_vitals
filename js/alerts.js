@@ -144,8 +144,10 @@ function clearUnreadAlerts() {
 function updateAlertPieChart(alerts) {
   const stats = { Caution: 0, Warning: 0, Critical: 0, Dismissed: 0 };
   alerts.forEach(a => {
-    const level = (a.level || 'Caution').trim();
-    if (stats.hasOwnProperty(level)) stats[level]++;
+    const sev = (a.severity || a.level || 'SAFE').toString().toUpperCase();
+    if (sev === 'CRITICAL' || sev === 'EMERGENCY' || sev === 'CRIT' || sev === 'DANGER') stats.Critical++;
+    else if (sev === 'WARNING' || sev === 'HIGH') stats.Warning++;
+    else if (sev === 'DISMISSED') stats.Dismissed++;
     else stats.Caution++;
   });
   
@@ -184,6 +186,26 @@ function saveQuietHours() {
   localStorage.setItem('quietHours', JSON.stringify({ enabled, from, to }));
   document.getElementById('quietHoursRow').style.display = enabled ? 'flex' : 'none';
 }
+
+function restoreQuietHoursUI() {
+  const toggle = document.getElementById('quietHoursToggle');
+  if (!toggle) return;
+  const stored = localStorage.getItem('quietHours');
+  let q = null;
+  try { q = stored ? JSON.parse(stored) : null; } catch (e) {}
+  if (q) {
+    toggle.checked = !!q.enabled;
+    if (document.getElementById('quietFrom')) document.getElementById('quietFrom').value = q.from || '22:00';
+    if (document.getElementById('quietTo')) document.getElementById('quietTo').value = q.to || '07:00';
+    const row = document.getElementById('quietHoursRow');
+    if (row) row.style.display = q.enabled ? 'flex' : 'none';
+  } else {
+    const row = document.getElementById('quietHoursRow');
+    if (row) row.style.display = 'none';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', restoreQuietHoursUI);
 
 function isQuietHours() {
   const stored = localStorage.getItem('quietHours');

@@ -702,7 +702,9 @@
         <button class="clay-btn clay-btn-primary" id="aiAnalyzeBtn" onclick="analyzeWithGemini()" style="flex:1;min-width:200px">
           <span id="aiBtnText">Analyze with Gemini AI</span>
         </button>
-
+        <button class="clay-btn" onclick="fillLiveData()" title="Pre-fill the form with the latest live sensor readings">
+          &#8595; Load Live Data
+        </button>
       </div>
     </div>
 
@@ -915,7 +917,7 @@
     <button class="clay-btn" style="margin-top:18px" onclick="applyDateRange()">Apply</button>
     <div style="display:flex;flex-direction:column;gap:4px;margin-left:auto">
       <label style="font-size:9px;text-transform:uppercase;color:var(--text-muted);letter-spacing:0.3px">Aggregation</label>
-      <select id="historyAggregation" class="th-input" style="padding:6px 10px;font-size:12px">
+      <select id="historyAggregation" class="th-input" style="padding:6px 10px;font-size:12px" onchange="applyDateRange()">
         <option value="raw">Raw</option>
         <option value="1min">1-Min Avg</option>
         <option value="5min">5-Min Avg</option>

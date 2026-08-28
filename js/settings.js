@@ -26,6 +26,15 @@ function loadSettings() {
     if (ns.prefLang) document.getElementById('prefLang').value = ns.prefLang;
     if (ns.prefTempUnit) document.getElementById('prefTempUnit').value = ns.prefTempUnit;
     if (ns.prefVoltageFormat) document.getElementById('prefVoltageFormat').value = ns.prefVoltageFormat;
+
+    // Restore chemistry profile + capacity
+    const prof = JSON.parse(localStorage.getItem('bv_profile') || '{}');
+    if (prof.battType && document.getElementById('setBattType')) document.getElementById('setBattType').value = prof.battType;
+    if (prof.nominalVoltage && document.getElementById('setNomVolt')) document.getElementById('setNomVolt').value = prof.nominalVoltage;
+    if (prof.capacityAh) {
+      if (document.getElementById('setCapacity')) document.getElementById('setCapacity').value = prof.capacityAh;
+      state.capacityAh = prof.capacityAh;
+    }
   } catch (e) {}
 }
 
@@ -36,6 +45,16 @@ function saveAllSettings() {
   state.soundEnabled = document.getElementById('setSound')?.checked ?? true;
   const settings = { apiBase: CFG.apiBase, pollInterval: CFG.pollInterval, tempUnit: state.tempUnit, soundEnabled: state.soundEnabled, autoMode: state.autoMode };
   localStorage.setItem('bv_settings', JSON.stringify(settings));
+
+  // Persist chemistry profile + capacity
+  const prof = {
+    battType: document.getElementById('setBattType')?.value || 'LEAD_ACID',
+    nominalVoltage: parseFloat(document.getElementById('setNomVolt')?.value) || 12.6,
+    capacityAh: parseFloat(document.getElementById('setCapacity')?.value) || 100
+  };
+  localStorage.setItem('bv_profile', JSON.stringify(prof));
+  state.capacityAh = prof.capacityAh;
+
   if (state.fetchTimer) { clearInterval(state.fetchTimer); startFetchLoop(); }
   showToast('Settings saved', 'success');
 }

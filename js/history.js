@@ -35,8 +35,42 @@ function initHistoryChart() {
   updateHistoryStats();
 }
 
+function getFilteredData() {
+  let data = state.history;
+  if (!data || !data.length) return data || [];
+  const fromEl = document.getElementById('historyDateFrom');
+  const toEl = document.getElementById('historyDateTo');
+  const aggEl = document.getElementById('historyAggregation');
+  if (fromEl && fromEl.value) {
+    const from = new Date(fromEl.value).getTime();
+    data = data.filter(d => new Date(d.time).getTime() >= from);
+  }
+  if (toEl && toEl.value) {
+    const to = new Date(toEl.value).getTime();
+    data = data.filter(d => new Date(d.time).getTime() <= to);
+  }
+  const agg = aggEl ? aggEl.value : 'raw';
+  if (agg === 'raw' || !data.length) return data;
+  const bucketMs = agg === '1min' ? 60000 : agg === '5min' ? 300000 : agg === 'hourly' ? 3600000 : 86400000;
+  const buckets = new Map();
+  data.forEach(d => {
+    const t = new Date(d.time).getTime();
+    const key = Math.floor(t / bucketMs) * bucketMs;
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(d);
+  });
+  return Array.from(buckets.values()).map(list => {
+    const avg = f => list.reduce((s, d) => s + (d[f] ?? 0), 0) / list.length;
+    return {
+      time: new Date([...buckets.keys()].find(k => buckets.get(k) === list)).toISOString(),
+      volt: avg('volt'), curr: avg('curr'), power: avg('power'), temp: avg('temp'),
+      humid: avg('humid'), bhi: Math.round(avg('bhi')), gas: Math.round(avg('gas')), soc: Math.round(avg('soc'))
+    };
+  });
+}
+
 function updateHistoryStats() {
-  const data = state.history;
+  const data = getFilteredData();
   if (!data.length) {
     setText('histPeakV', '--');
     setText('histAvgT', '--');
@@ -60,7 +94,7 @@ function updateHistoryStats() {
 
 function updateHistoryChart() {
   if (!historyChartInstance) return;
-  const data = state.history;
+  const data = getFilteredData();
   if (!data.length) return;
 
   const labels = data.map(d => {
@@ -79,7 +113,37 @@ function updateHistoryChart() {
 function applyDateRange() {
   updateHistoryStats();
   updateHistoryChart();
+  renderSessionLog();
   showToast('Date range applied', 'info');
+}
+
+function renderSessionLog() {
+  const list = document.getElementById('sessionLogList');
+  if (!list) return;
+  const data = state.history;
+  if (!data.length) {
+    list.innerHTML = '<div class="empty-state" style="padding:20px"><p>No sessions recorded yet</p></div>';
+    return;
+  }
+  // Detect sessions: gaps > 60s split sessions
+  const sessions = [];
+  let cur = { start: null, end: null, count: 0 };
+  for (let i = 0; i < data.length; i++) {
+    const t = new Date(data[i].time).getTime();
+    if (!cur.start) { cur.start = t; cur.end = t; cur.count = 1; continue; }
+    if (t - cur.end > 60000) { sessions.push(cur); cur = { start: t, end: t, count: 1 }; continue; }
+    cur.end = t; cur.count++;
+  }
+  if (cur.start) sessions.push(cur);
+  if (!sessions.length) { list.innerHTML = '<div class="empty-state" style="padding:20px"><p>No sessions recorded yet</p></div>'; return; }
+  list.innerHTML = sessions.map(s => {
+    const durMin = Math.round((s.end - s.start) / 60000);
+    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);font-size:12px">' +
+      '<span style="color:var(--green)">&#9679;</span>' +
+      '<div style="flex:1"><div style="color:var(--text-primary);font-weight:500">' + new Date(s.start).toLocaleString() + ' — ' + new Date(s.end).toLocaleTimeString() + '</div>' +
+      '<div style="font-size:11px;color:var(--text-muted)">' + s.count + ' readings over ' + durMin + ' min</div></div>' +
+      '</div>';
+  }).join('');
 }
 
 function exportHistoryCSV() {

@@ -138,6 +138,15 @@ function updateApiLatencyBadge() {
   }
 }
 
+// Sync the controls page UI to the current auto-mode / LED state when navigated to
+function syncControlStateFromTelemetry() {
+  renderAutoMode();
+  ['green', 'yellow', 'red', 'buzzer'].forEach(k => renderLED(k, !!state.ledStates[k]));
+  updateApiLatencyBadge();
+  renderCommandHistory();
+  renderScheduledActions();
+}
+
 // ===== SCHEDULED ACTIONS =====
 let scheduledActions = [];
 

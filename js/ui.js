@@ -5,7 +5,14 @@ function showToast(msg, type, dur) {
   t.className = 'toast ' + (type || 'success');
   t.textContent = msg;
   c.appendChild(t);
-  setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 300); }, dur || 3000);
+  let timeout = dur;
+  if (timeout == null) {
+    try {
+      const pref = JSON.parse(localStorage.getItem('bvSettings') || '{}').prefToastDuration;
+      timeout = parseInt(pref) * 1000 || 3000;
+    } catch (e) { timeout = 3000; }
+  }
+  setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 300); }, timeout);
 }
 
 // ===== MODAL =====

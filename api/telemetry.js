@@ -92,6 +92,7 @@ module.exports = async function handler(req, res) {
         current: data.current,
         power: data.power,
         soc: data.soc,
+        soh: data.soh,
         safety: data.safety,
         op,
         resistance: data.resistance
@@ -99,10 +100,10 @@ module.exports = async function handler(req, res) {
       risk: { bhi: data.bhi },
       network: { rssi: data.network?.rssi, ip: data.network?.ip, heap: data.network?.heap },
       outputs: data.outputs || {},
-      firmware: '--',
-      uptime: '--',
+      firmware: data.firmware || '--',
+      uptime: data.uptime || '--',
       errors: 0,
-      mac: '--',
+      mac: data.mac || '--',
       ts: data.timestamp ? data.timestamp.getTime() : Date.now()
     });
   } catch (err) {

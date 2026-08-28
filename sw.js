@@ -1,5 +1,5 @@
 // sw.js — Service Worker for offline caching
-const CACHE_NAME = 'bv-cache-v3';
+const CACHE_NAME = 'bv-cache-v4';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -18,6 +18,7 @@ const STATIC_ASSETS = [
   '/js/export.js',
   '/js/history.js',
   '/js/status.js',
+  '/js/coming-soon.js',
   '/manifest.json'
 ];
 
