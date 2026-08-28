@@ -181,6 +181,10 @@ function processTelemetry(d) {
 
   updateCostSustainability(d);
 
+  if (typeof Diagnostics !== 'undefined' && typeof Diagnostics.pushRawLog === 'function') {
+    Diagnostics.pushRawLog();
+  }
+
   if (d.events && Array.isArray(d.events)) {
     d.events.forEach(ev => {
       if (!state.alertLog.find(a => a.id === ev.id)) {

@@ -144,7 +144,7 @@ function renderAIResult(pred, inputData) {
 
         <!-- Timestamp -->
         <div style="margin-top:10px;font-size:10px;color:var(--text-muted);text-align:right">
-          Analyzed at ${new Date().toLocaleTimeString()} via Gemini 2.0 Flash
+          Analyzed at ${new Date().toLocaleTimeString()} via Gemini 3.6 Flash
         </div>
       </div>
     </div>

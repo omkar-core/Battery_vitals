@@ -21,22 +21,25 @@ module.exports = async function handler(req, res) {
 
   try {
     const prompt = `Battery safety expert. Analyze and respond JSON only:\nV:${safe.voltage}V I:${safe.current}A T:${safe.temperature}C H:${safe.humidity}% MQ2:${safe.gasMq2} MQ135:${safe.gasMq135} SOC:${safe.soc}% Safety:${safe.safety} R:${safe.resistance}mOhm BHI:${safe.bhi} P:${safe.power}W\n{"health":"excellent|good|warning|critical|failure","bhi":0-100,"thermal_runaway_risk":bool,"anomaly_detected":bool,"remaining_cycles":num,"remaining_months":num,"danger_level":"safe|warning|danger","explanation":"one sentence","action":"recommendation"}`;
-    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
+    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.1, maxOutputTokens: 500 } })
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.1, maxOutputTokens: 8192 } })
     });
     if (!resp.ok) throw new Error('AI unavailable');
     const result = await resp.json();
     const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) throw new Error('Empty AI response');
-    const prediction = JSON.parse(text.replace(/```json/g, '').replace(/```/g, '').trim());
+    // Robustly extract the JSON object (resilient to code fences / surrounding text)
+    const m = text.match(/\{[\s\S]*\}/);
+    if (!m) throw new Error('No JSON in AI response');
+    const prediction = JSON.parse(m[0]);
     try {
       await connectDB();
       await Prediction.create({
         batteryId: safe.batteryId || 'BAT001',
         riskLevel: prediction.danger_level === 'danger' ? 'CRITICAL' : prediction.danger_level === 'warning' ? 'HIGH' : 'LOW',
         riskScore: prediction.bhi, analysis: prediction.explanation,
-        recommendations: prediction.action ? [prediction.action] : [], modelVersion: 'gemini-2.0-flash'
+        recommendations: prediction.action ? [prediction.action] : [], modelVersion: 'gemini-3.6-flash'
       });
     } catch (e) { /* non-critical */ }
     res.status(200).json({ success: true, prediction });

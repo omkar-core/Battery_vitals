@@ -1,7 +1,27 @@
 // js/diagnostics.js — Self-test, connectivity, raw log
 const Diagnostics = {
+  rawLog: [],
+  maxRawLog: 500,
+
+  pushRawLog() {
+    const d = state.lastData;
+    if (!d) return;
+    const entry = {
+      ts: new Date().toISOString(),
+      voltage: d.battery?.voltage ?? d.voltage ?? null,
+      current: d.battery?.current ?? d.current ?? null,
+      power: d.battery?.power ?? d.power ?? null,
+      soc: d.battery?.soc ?? d.soc ?? null,
+      bhi: d.risk?.bhi ?? d.bhi ?? null,
+      temperature: d.environment?.temperature ?? d.temperature ?? null
+    };
+    this.rawLog.push(entry);
+    if (this.rawLog.length > this.maxRawLog) this.rawLog.shift();
+  },
+
   updateConnectivity() {
     const d = state.lastData;
+    this.pushRawLog();
     if (!d) return;
     
     const rssi = d.wifi?.rssi ?? d.rssi ?? null;

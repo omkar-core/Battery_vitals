@@ -1758,42 +1758,6 @@ body::before {
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
 
 /* ================================================================
-   DEMO BANNER
-   ================================================================ */
-.demo-banner {
-  display: none;
-  margin: 0 0 14px;
-  padding: 12px 18px;
-  border-radius: var(--r-lg);
-  font-size: var(--text-sm);
-  font-weight: 500;
-  align-items: center;
-  gap: 12px;
-  background: hsla(45,100%,52%,0.06);
-  border: 1px solid hsla(45,100%,52%,0.15);
-  color: var(--amber);
-}
-
-.demo-banner.show { display: flex; }
-
-.demo-banner button {
-  margin-left: auto;
-  padding: 6px 16px;
-  border-radius: var(--r-sm);
-  font-size: 11px;
-  font-weight: 700;
-  border: 1px solid var(--amber);
-  background: transparent;
-  color: var(--amber);
-  cursor: pointer;
-  font-family: var(--font);
-  min-height: 34px;
-  transition: all var(--dur-base);
-}
-
-.demo-banner button:hover { background: hsla(45,100%,52%,0.1); }
-
-/* ================================================================
    SKELETON LOADERS
    ================================================================ */
 .skeleton {
@@ -2289,4 +2253,129 @@ body::before {
 ::selection {
   background: var(--brand-dim);
   color: var(--brand);
+}
+
+/* ================================================================
+   DESIGN SYSTEM v4.0 — "Dark Tech + Glassmorphism + Bento Grid" 
+   Enhancement layer. Complements v3.0 without removing any hooks.
+   ================================================================ */
+
+/* ── Bento Grid — dashboard stat cluster, desktop only ── */
+@media (min-width: 1025px) {
+  .stats-grid {
+    display: grid !important;
+    grid-template-columns: 1.4fr 1fr 1fr !important;
+    grid-auto-rows: auto;
+    gap: 16px !important;
+  }
+  .stats-grid .stat-box:first-child {
+    grid-row: span 2;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background:
+      linear-gradient(145deg, hsla(158,100%,45%,0.10), transparent 60%),
+      var(--glass-bg);
+    border: 1px solid hsla(158,100%,45%,0.18);
+    box-shadow: var(--shadow-md), inset 0 1px 0 var(--glass-shine);
+  }
+  .stats-grid .stat-box:first-child .s-lbl { color: var(--brand); }
+  /* charts get a bento feel: taller featured tile left */
+  .charts-grid { grid-template-columns: 1.9fr 1fr !important; }
+  .charts-grid .chart-card-sm { min-height: 300px; }
+}
+
+/* ── Aurora ambient background (replaces static orbs) ── */
+body::before {
+  background:
+    radial-gradient(ellipse 55% 45% at 12% 8%,  hsla(158,100%,55%,0.16) 0%, transparent 60%),
+    radial-gradient(ellipse 45% 40% at 88% 12%, hsla(210,100%,60%,0.13) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 50% at 80% 88%, hsla(270,80%,60%,0.11) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 40% at 15% 85%, hsla(345,100%,55%,0.08) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 40% at 50% 45%, hsla(175,90%,45%,0.06) 0%, transparent 60%);
+  animation: auroraDrift 26s ease-in-out infinite alternate;
+}
+
+@keyframes auroraDrift {
+  0%   { transform: translate3d(0,0,0) scale(1);    filter: hue-rotate(0deg); }
+  50%  { transform: translate3d(-2%, 1.5%, 0) scale(1.06); filter: hue-rotate(12deg); }
+  100% { transform: translate3d(2%, -1.5%, 0) scale(1.02); filter: hue-rotate(24deg); }
+}
+
+[data-theme="light"] body::before {
+  background:
+    radial-gradient(ellipse 55% 45% at 12% 8%,  hsla(158,100%,70%,0.22) 0%, transparent 60%),
+    radial-gradient(ellipse 45% 40% at 88% 12%, hsla(210,100%,75%,0.2) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 50% at 80% 88%, hsla(270,80%,75%,0.18) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 40% at 15% 85%, hsla(345,100%,80%,0.16) 0%, transparent 55%);
+  animation: none;
+}
+
+/* ── Elevated glassmorphism ── */
+.glass-card {
+  backdrop-filter: blur(26px) saturate(1.5);
+  -webkit-backdrop-filter: blur(26px) saturate(1.5);
+  border: 1px solid var(--glass-border-hi);
+  background: linear-gradient(160deg, hsla(220,35%,14%,0.7), hsla(222,35%,8%,0.6));
+}
+
+[data-theme="light"] .glass-card {
+  background: linear-gradient(160deg, hsla(220,30%,100%,0.9), hsla(220,25%,96%,0.82));
+}
+
+.glass-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(160deg, hsla(158,100%,60%,0.35), transparent 35%, hsla(210,100%,60%,0.2));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--dur-slow);
+}
+
+.glass-card:hover::after { opacity: 1; }
+
+/* ── Headers: subtle accent underline on cards ── */
+.card-header { position: relative; }
+.card-header h3 { position: relative; }
+.card-header h3::after {
+  content: '';
+  position: absolute;
+  left: 0; bottom: -6px;
+  height: 2px; width: 28px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--brand), var(--cyan));
+}
+
+/* ── Live telemetry glow badges ── */
+.card-badge.live {
+  background: hsla(158,100%,45%,0.16);
+  border: 1px solid hsla(158,100%,45%,0.4);
+  box-shadow: 0 0 14px hsla(158,100%,45%,0.35);
+  animation: livePulse 2.4s ease-in-out infinite;
+}
+
+@keyframes livePulse {
+  0%, 100% { box-shadow: 0 0 6px hsla(158,100%,45%,0.25); }
+  50%      { box-shadow: 0 0 18px hsla(158,100%,45%,0.5); }
+}
+
+/* ── Value chips glow on hover for a tactile "live" feel ── */
+.stat-box:hover, .sensor-card:hover, .chart-card:hover {
+  border-color: hsla(158,100%,50%,0.35);
+}
+.stat-box div[style*="font-size:20px"],
+.sensor-card .s-val,
+.sensor-card [class*="val"] {
+  text-shadow: 0 0 14px hsla(158,100%,60%,0.18);
+}
+
+/* ── Smooth scroll + subtle page depth already handled; refine focus ── */
+.page-section.active {
+  transition: opacity var(--dur-slow) var(--ease-out);
 }
