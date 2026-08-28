@@ -72,9 +72,6 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['recharts', 'lucide-react', 'mqtt'],
   },
-
-  // Output configuration
-  output: 'standalone',
 }
 
 module.exports = nextConfig
