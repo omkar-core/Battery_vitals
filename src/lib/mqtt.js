@@ -149,7 +149,7 @@ export function publishControlState(state, batteryId) {
   return publishControl(id, state)
 }
 
-export function closeMQTT() {
+function closeMQTT() {
   if (mqttClient) {
     mqttClient.end(true)
     mqttClient = null

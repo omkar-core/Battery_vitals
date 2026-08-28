@@ -4,8 +4,7 @@ const uri = process.env.MONGODB_URI
 
 // Lazy, graceful handling: importing this module never throws.
 // getDB() reports a clear error only when the DB is actually needed,
-// so pages and API routes can degrade cleanly instead of crashing.
-let client
+// so API routes can degrade cleanly instead of crashing.
 let clientPromise = null
 
 if (uri) {
@@ -20,21 +19,13 @@ if (uri) {
 
   if (process.env.NODE_ENV === 'development') {
     if (!global._mongoClientPromise) {
-      client = new MongoClient(uri, options)
-      global._mongoClientPromise = client.connect()
+      global._mongoClientPromise = new MongoClient(uri, options).connect()
     }
     clientPromise = global._mongoClientPromise
   } else {
-    client = new MongoClient(uri, options)
-    clientPromise = client.connect()
+    clientPromise = new MongoClient(uri, options).connect()
   }
 }
-
-export function isMongoConfigured() {
-  return !!uri
-}
-
-export default clientPromise || Promise.reject(new Error('MONGODB_URI not configured'))
 
 export async function getDB() {
   if (!uri) {
@@ -46,17 +37,5 @@ export async function getDB() {
   } catch (error) {
     console.error('MongoDB connection error:', error.message)
     throw error
-  }
-}
-
-export async function getCollection(name) {
-  const db = await getDB()
-  return db.collection(name)
-}
-
-export async function closeConnection() {
-  if (client) {
-    await client.close()
-    console.log('MongoDB connection closed')
   }
 }

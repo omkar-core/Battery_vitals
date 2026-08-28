@@ -8,7 +8,7 @@ import styles from '../../styles/pages.module.css'
 
 export default function AIPage() {
   const { connected, data } = useRealTimeData()
-  const { analysis, prediction, loading, runAnalysis } = useAI()
+  const { analysis, loading, runAnalysis } = useAI()
   const [history, setHistory] = useState([])
 
   useEffect(() => {

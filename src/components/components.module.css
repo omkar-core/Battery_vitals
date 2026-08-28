@@ -92,12 +92,6 @@
   box-shadow: 0 0 8px #FF2D55;
 }
 
-.uptime {
-  color: #64748B;
-  font-family: monospace;
-  margin-left: 4px;
-}
-
 /* ===== MetricCard ===== */
 .metricCard {
   background: rgba(13, 20, 33, 0.7);
@@ -106,13 +100,6 @@
   padding: 16px;
   position: relative;
   overflow: hidden;
-}
-
-.metricIcon {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  opacity: 0.9;
 }
 
 .metricTitle {
@@ -135,12 +122,6 @@
   font-size: 13px;
   font-weight: 500;
   margin-left: 3px;
-}
-
-.metricSub {
-  font-size: 11px;
-  margin-top: 6px;
-  font-weight: 500;
 }
 
 /* ===== Chart ===== */

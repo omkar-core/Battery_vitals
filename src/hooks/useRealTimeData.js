@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMQTT } from './useMQTT'
 
 const POLL_INTERVAL_MS = 3000
@@ -14,7 +14,7 @@ function createTimeoutSignal(ms) {
 
 // Real-time data hook: uses MQTT when available, falls back to HTTP polling.
 export function useRealTimeData(batteryId = 'BAT001') {
-  const { connected: mqttConnected, data: mqttData, publish, error: mqttError } = useMQTT()
+  const { connected: mqttConnected, data: mqttData, publish } = useMQTT()
   const [data, setData] = useState(null)
   const [history, setHistory] = useState([])
   const [connected, setConnected] = useState(false)
@@ -93,5 +93,5 @@ export function useRealTimeData(batteryId = 'BAT001') {
     })
   }
 
-  return { data, history, connected, mode, error, mqttConnected, sendControl }
+  return { data, history, connected, mode, error, sendControl }
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Power, BellOff, Bell, RotateCcw } from 'lucide-react'
+import { BellOff, Bell, RotateCcw } from 'lucide-react'
 import styles from './components.module.css'
 
 export default function ControlPanel({ commands = {}, onCommand }) {

@@ -1,32 +1,6 @@
-export function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value))
-}
-
 export function formatNumber(value, digits = 2) {
   if (value == null || Number.isNaN(Number(value))) return '--'
   return Number(value).toFixed(digits)
-}
-
-export function formatTime(ts) {
-  if (!ts) return '--'
-  const d = new Date(ts)
-  return d.toLocaleTimeString()
-}
-
-export function formatDateTime(ts) {
-  if (!ts) return '--'
-  const d = new Date(ts)
-  return d.toLocaleString()
-}
-
-export function timeAgo(ts) {
-  if (!ts) return '--'
-  const diff = Math.max(0, Math.floor((Date.now() - new Date(ts).getTime()) / 1000))
-  if (diff < 5) return 'just now'
-  if (diff < 60) return diff + 's ago'
-  if (diff < 3600) return Math.floor(diff / 60) + 'm ago'
-  if (diff < 86400) return Math.floor(diff / 3600) + 'h ago'
-  return Math.floor(diff / 86400) + 'd ago'
 }
 
 export function safetyColor(safety) {

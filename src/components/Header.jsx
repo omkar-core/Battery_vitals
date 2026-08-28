@@ -15,7 +15,7 @@ const NAV = [
   { key: '/settings', label: 'Settings', icon: Settings },
 ]
 
-export default function Header({ connected, uptime }) {
+export default function Header({ connected }) {
   const pathname = usePathname()
 
   return (
@@ -44,7 +44,6 @@ export default function Header({ connected, uptime }) {
       <div className={styles.status}>
         <span className={`${styles.dot} ${connected ? styles.dotOn : styles.dotOff}`} />
         <span>{connected ? 'LIVE' : 'OFFLINE'}</span>
-        {uptime ? <span className={styles.uptime}>{uptime}</span> : null}
       </div>
     </nav>
   )

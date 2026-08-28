@@ -29,7 +29,7 @@ export async function GET(request) {
   }
 }
 
-export function serialize(d) {
+function serialize(d) {
   return {
     ...d,
     _id: String(d._id),

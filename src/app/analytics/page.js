@@ -1,5 +1,4 @@
 'use client'
-import { useEffect, useState } from 'react'
 import Layout from '../../components/Layout'
 import LiveChart from '../../components/LiveChart'
 import MetricCard from '../../components/MetricCard'
@@ -9,7 +8,6 @@ import styles from '../../styles/pages.module.css'
 
 export default function Analytics() {
   const { data, history, connected } = useRealTimeData()
-  const [minutes, setMinutes] = useState(30)
 
   const bhi = data?.risk?.bhi ?? data?.bhi
   const bhiState = bhiStatus(bhi)
