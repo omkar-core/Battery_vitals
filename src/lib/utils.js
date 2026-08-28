@@ -8,20 +8,131 @@ export function safetyColor(safety) {
   if (s === 'EMERGENCY' || s === 'CRITICAL') return '#FF2D55'
   if (s === 'WARNING') return '#FF6B35'
   if (s === 'CAUTION') return '#FFD60A'
+  if (s === 'SENSOR_FAULT') return '#FF6B35'
   return '#00E8A0'
 }
 
 export function safetyLabel(safety) {
-  const s = (safety || 'SAFE')
+  const s = (safety || 'SAFE').toUpperCase()
+  if (s === 'SENSOR_FAULT') return 'Sensor Fault'
   return s.charAt(0) + s.slice(1).toLowerCase()
 }
 
 export function bhiStatus(bhi) {
-  if (bhi == null) return { label: 'Unknown', color: '#94A3B8' }
-  if (bhi > 75) return { label: 'Critical', color: '#FF2D55' }
-  if (bhi > 55) return { label: 'Warning', color: '#FF6B35' }
-  if (bhi > 30) return { label: 'Caution', color: '#FFD60A' }
-  return { label: 'Good', color: '#00E8A0' }
+  if (bhi == null) return { label: 'Unknown', color: '#94A3B8', zone: 'UNKNOWN' }
+  if (bhi >= 70) return { label: 'Critical Risk', color: '#FF2D55', zone: 'CRITICAL', desc: 'Dominant risk: High thermal/chemical hazard' }
+  if (bhi >= 50) return { label: 'High Warning', color: '#FF6B35', zone: 'WARNING', desc: 'Dominant risk: Elevated degradation/stress' }
+  if (bhi >= 20) return { label: 'Moderate Caution', color: '#FFD60A', zone: 'CAUTION', desc: 'Dominant risk: Mild voltage/temp drift' }
+  return { label: 'Optimal / Safe', color: '#00E8A0', zone: 'SAFE', desc: 'Normal parameters across all sensors' }
+}
+
+export function getConnectionState(timestamp) {
+  if (!timestamp) return { state: 'CONNECTING', label: 'Connecting...', color: '#38BDF8', ageSec: null }
+  const time = typeof timestamp === 'number' ? timestamp : new Date(timestamp).getTime()
+  const ageSec = Math.max(0, Math.floor((Date.now() - time) / 1000))
+  if (ageSec < 30) {
+    return { state: 'LIVE', label: `Live (${ageSec}s ago)`, color: '#00E8A0', ageSec }
+  } else if (ageSec < 120) {
+    return { state: 'STALE', label: `Stale (${Math.floor(ageSec)}s ago)`, color: '#FFD60A', ageSec }
+  } else {
+    const mins = Math.floor(ageSec / 60)
+    return { state: 'OFFLINE', label: `Offline (${mins}m ago)`, color: '#FF2D55', ageSec }
+  }
+}
+
+export function formatUptime(seconds) {
+  if (seconds == null || isNaN(seconds)) return '--'
+  const sec = Math.floor(Number(seconds))
+  const days = Math.floor(sec / 86400)
+  const hours = Math.floor((sec % 86400) / 3600)
+  const minutes = Math.floor((sec % 3600) / 60)
+  const s = sec % 60
+  if (days > 0) return `${days}d ${hours}h ${minutes}m`
+  if (hours > 0) return `${hours}h ${minutes}m ${s}s`
+  if (minutes > 0) return `${minutes}m ${s}s`
+  return `${s}s`
+}
+
+export function rssiToBars(rssi) {
+  if (rssi == null || isNaN(rssi)) return { bars: 0, label: 'N/A', pct: 0 }
+  const r = Number(rssi)
+  if (r >= -55) return { bars: 4, label: 'Excellent', pct: 100, color: '#00E8A0' }
+  if (r >= -67) return { bars: 3, label: 'Good', pct: 75, color: '#38BDF8' }
+  if (r >= -80) return { bars: 2, label: 'Fair', pct: 50, color: '#FFD60A' }
+  return { bars: 1, label: 'Weak', pct: 25, color: '#FF2D55' }
+}
+
+export function playAlertChime(severity = 'WARNING') {
+  if (typeof window === 'undefined') return
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext
+    if (!AudioContext) return
+    const ctx = new AudioContext()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+
+    const isCritical = String(severity).toUpperCase() === 'CRITICAL' || String(severity).toUpperCase() === 'EMERGENCY'
+    const now = ctx.currentTime
+
+    if (isCritical) {
+      // Urgent double high-frequency beep
+      osc.type = 'sawtooth'
+      osc.frequency.setValueAtTime(880, now)
+      osc.frequency.setValueAtTime(1174.66, now + 0.12)
+      gain.gain.setValueAtTime(0.15, now)
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35)
+      osc.start(now)
+      osc.stop(now + 0.35)
+    } else {
+      // Gentle notification tone
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(587.33, now) // D5
+      osc.frequency.setValueAtTime(880, now + 0.08) // A5
+      gain.gain.setValueAtTime(0.12, now)
+      gain.gain.exponentialRampToValueAtTime(0.005, now + 0.25)
+      osc.start(now)
+      osc.stop(now + 0.25)
+    }
+  } catch (e) {
+    // AudioContext permission or browser restriction
+  }
+}
+
+export function exportToCSV(data, filename = 'battery_telemetry.csv') {
+  if (!Array.isArray(data) || data.length === 0) return false
+  const keys = Object.keys(data[0]).filter((k) => !k.startsWith('_'))
+  const header = keys.join(',')
+  const rows = data.map((row) =>
+    keys
+      .map((k) => {
+        const val = row[k]
+        if (val === null || val === undefined) return ''
+        if (typeof val === 'string' && val.includes(',')) return `"${val}"`
+        return val
+      })
+      .join(',')
+  )
+  const csvContent = 'data:text/csv;charset=utf-8,' + encodeURIComponent([header, ...rows].join('\n'))
+  const link = document.createElement('a')
+  link.setAttribute('href', csvContent)
+  link.setAttribute('download', filename)
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  return true
+}
+
+export function exportToJSON(data, filename = 'battery_telemetry.json') {
+  const jsonContent = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(data, null, 2))
+  const link = document.createElement('a')
+  link.setAttribute('href', jsonContent)
+  link.setAttribute('download', filename)
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  return true
 }
 
 // Resolve a possibly-nested path (e.g. 'battery.voltage' or 'voltage') from a telemetry object.

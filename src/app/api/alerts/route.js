@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getDB } from '../../../lib/mongodb'
 
+export const dynamic = 'force-dynamic'
+
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204 })
 }

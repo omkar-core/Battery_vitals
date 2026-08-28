@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { getDB } from '../../../lib/mongodb'
 import { telemetryShape } from '../data/route'
 
+export const dynamic = 'force-dynamic'
+
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204 })
 }

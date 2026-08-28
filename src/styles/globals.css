@@ -1,8 +1,12 @@
-:root {
+:root,
+html[data-theme="dark"] {
   --bg: #06080f;
   --bg-2: #0a0e1c;
+  --bg-card: rgba(18, 24, 40, 0.65);
+  --bg-card-solid: #0d1222;
+  --bg-card-hover: rgba(28, 38, 64, 0.85);
   --bg-glass: rgba(18, 24, 40, 0.55);
-  --bg-glass-strong: rgba(18, 24, 40, 0.82);
+  --bg-glass-strong: rgba(18, 24, 40, 0.88);
   --border: rgba(255, 255, 255, 0.08);
   --border-strong: rgba(255, 255, 255, 0.16);
 
@@ -28,12 +32,48 @@
 
   --shadow: 0 10px 40px -12px rgba(0, 0, 0, 0.6);
   --glow-green: 0 0 24px rgba(0, 232, 160, 0.35);
+  --glow-blue: 0 0 24px rgba(56, 189, 248, 0.3);
+  --input-bg: rgba(0, 0, 0, 0.3);
+  --card-gradient: linear-gradient(160deg, rgba(30, 40, 70, 0.38), rgba(18, 24, 40, 0.6));
+}
+
+html[data-theme="light"] {
+  --bg: #F0F4F9;
+  --bg-2: #E3E9F3;
+  --bg-card: rgba(255, 255, 255, 0.88);
+  --bg-card-solid: #ffffff;
+  --bg-card-hover: #ffffff;
+  --bg-glass: rgba(255, 255, 255, 0.8);
+  --bg-glass-strong: rgba(255, 255, 255, 0.95);
+  --border: rgba(15, 23, 42, 0.1);
+  --border-strong: rgba(15, 23, 42, 0.2);
+
+  --green: #00A86B;
+  --green-dim: #008F5A;
+  --emerald: #059669;
+  --yellow: #D97706;
+  --orange: #EA580C;
+  --red: #E11D48;
+  --blue: #0284C7;
+  --purple: #7C3AED;
+  --pink: #DB2777;
+
+  --text-primary: #0F172A;
+  --text-secondary: #334155;
+  --text-muted: #64748B;
+
+  --shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.04);
+  --glow-green: 0 0 18px rgba(0, 168, 107, 0.2);
+  --glow-blue: 0 0 18px rgba(2, 132, 199, 0.2);
+  --input-bg: rgba(255, 255, 255, 0.9);
+  --card-gradient: linear-gradient(160deg, rgba(255, 255, 255, 0.95), rgba(244, 248, 255, 0.85));
 }
 
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.15s ease;
 }
 
 html {
@@ -47,6 +87,7 @@ body {
   color: var(--text-primary);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
 }
 
 a {
@@ -96,6 +137,11 @@ textarea {
   animation: blobFloat 22s ease-in-out infinite alternate;
 }
 
+html[data-theme="light"] .blob {
+  opacity: 0.22;
+  filter: blur(110px);
+}
+
 .blob1 {
   width: 560px;
   height: 560px;
@@ -143,6 +189,12 @@ textarea {
   mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, #000 40%, transparent 100%);
 }
 
+html[data-theme="light"] .gridOverlay {
+  background-image:
+    linear-gradient(rgba(15, 23, 42, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.03) 1px, transparent 1px);
+}
+
 @keyframes blobFloat {
   0% {
     transform: translate(0, 0) scale(1);
@@ -158,8 +210,8 @@ textarea {
 /* ===== Glass panel ===== */
 .glass {
   background: var(--bg-glass);
-  backdrop-filter: blur(14px) saturate(140%);
-  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow);
@@ -172,7 +224,7 @@ textarea {
   position: absolute;
   inset: 0 0 auto 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+  background: linear-gradient(90deg, transparent, var(--border-strong), transparent);
   pointer-events: none;
 }
 
@@ -198,6 +250,10 @@ textarea {
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.04);
   color: var(--text-secondary);
+}
+
+html[data-theme="light"] .btn {
+  background: rgba(15, 23, 42, 0.04);
 }
 
 .btn:hover {
@@ -243,7 +299,7 @@ textarea {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 10px;
+  padding: 4px 10px;
   border-radius: 100px;
   font-size: 11px;
   font-weight: 600;
@@ -251,6 +307,10 @@ textarea {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--border);
   color: var(--text-secondary);
+}
+
+html[data-theme="light"] .chip {
+  background: rgba(15, 23, 42, 0.04);
 }
 
 /* Mobile bottom nav */
@@ -261,7 +321,7 @@ textarea {
   right: 0;
   z-index: 60;
   display: none;
-  background: rgba(10, 13, 26, 0.85);
+  background: var(--bg-glass-strong);
   backdrop-filter: blur(16px) saturate(150%);
   border-top: 1px solid var(--border);
 }

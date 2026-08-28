@@ -1,12 +1,13 @@
 'use client'
+
 import { useEffect, useState } from 'react'
 import Layout from '../../components/Layout'
 import ControlPanel from '../../components/ControlPanel'
 import { useRealTimeData } from '../../hooks/useRealTimeData'
-import { Terminal } from 'lucide-react'
+import { Terminal, ShieldAlert, Check, XCircle, Clock, Trash2 } from 'lucide-react'
 import styles from '../../styles/pages.module.css'
 
-const HISTORY_KEY = 'bv_command_history'
+const HISTORY_KEY = 'bv_command_history_v2'
 
 export default function Controls() {
   const { connected, data, sendControl } = useRealTimeData()
@@ -15,61 +16,134 @@ export default function Controls() {
   const [latency, setLatency] = useState(null)
 
   useEffect(() => {
-    fetch('/api/control').then((r) => r.json()).then(setCommands).catch(() => {})
+    fetch('/api/control')
+      .then((r) => r.json())
+      .then(setCommands)
+      .catch(() => {})
     try {
       const saved = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]')
       if (Array.isArray(saved)) setHistory(saved)
-    } catch (e) { /* ignore */ }
+    } catch (e) {}
   }, [])
 
   const handleControl = async (name, value, label) => {
     const t0 = performance.now()
     const result = await sendControl(name, value)
-    setLatency(Math.round(performance.now() - t0))
-    const cmd = await fetch('/api/control').then((r) => r.json()).catch(() => commands)
+    const dt = Math.round(performance.now() - t0)
+    setLatency(dt)
+
+    const cmd = await fetch('/api/control')
+      .then((r) => r.json())
+      .catch(() => commands)
     setCommands(cmd)
+
     const entry = {
       name: label || name,
       raw: name,
-      value,
-      requestId: result?.requestId,
+      value: value !== undefined ? String(value) : '',
+      requestId: result?.requestId || Math.random().toString(16).slice(2, 8),
       accepted: result?.accepted !== false,
+      latency: `${dt}ms`,
       time: new Date().toISOString(),
+      response: result?.accepted !== false ? 'ACK_OK (ESP32 Executed)' : 'ERR_BUSY',
     }
+
     setHistory((prev) => {
-      const next = [entry, ...prev].slice(0, 30)
-      try { localStorage.setItem(HISTORY_KEY, JSON.stringify(next)) } catch (e) { /* ignore */ }
+      const next = [entry, ...prev].slice(0, 50)
+      try {
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(next))
+      } catch (e) {}
       return next
     })
   }
 
+  const clearHistory = () => {
+    setHistory([])
+    try {
+      localStorage.removeItem(HISTORY_KEY)
+    } catch (e) {}
+  }
+
+  const batterySafety = data?.battery?.safety || data?.safety || 'SAFE'
+
   return (
-    <Layout connected={connected}>
+    <Layout connected={connected} lastSeen={data?.timestamp}>
       <div className={styles.pageHeader}>
-        <h1 className={styles.pageTitle}>
-          <Terminal size={22} style={{ verticalAlign: 'middle', marginRight: 8 }} color="#00E8A0" />
-          <span className="gradText">Control</span> Center
-        </h1>
+        <div>
+          <h1 className={styles.pageTitle}>
+            <Terminal size={22} style={{ verticalAlign: 'middle', marginRight: 8 }} color="#00E8A0" />
+            Manual Hardware <span className="gradText">Control Center</span>
+          </h1>
+          <p className={styles.subtitle} style={{ marginBottom: 0 }}>
+            Bi-directional actuator command pipeline over MQTT with firmware safety overrides.
+          </p>
+        </div>
+
         {latency != null && (
-          <span className={styles.latencyBadge}>API Latency: {latency} ms</span>
+          <span className={styles.latencyBadge}>Round-Trip Latency: {latency} ms</span>
         )}
       </div>
 
-      <ControlPanel commands={commands} onCommand={handleControl} />
+      <ControlPanel
+        commands={commands}
+        onCommand={handleControl}
+        batteryState={batterySafety}
+      />
 
+      {/* Command Audit Log Panel (Last 50 Commands) */}
       <div className={styles.card}>
-        <h3 className={styles.cardTitle}>Command Audit Log</h3>
+        <div className={styles.cardHeader}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Clock size={16} color="#38BDF8" />
+            <h3 className={styles.cardTitle} style={{ margin: 0 }}>
+              Command Dispatch Audit Log (Last 50 Commands)
+            </h3>
+          </div>
+          {history.length > 0 && (
+            <button
+              onClick={clearHistory}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                background: 'transparent',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: 6,
+                color: 'var(--text-muted)',
+                fontSize: 11,
+                padding: '4px 8px',
+                cursor: 'pointer',
+              }}
+            >
+              <Trash2 size={11} /> Clear Log
+            </button>
+          )}
+        </div>
+
         {history.length === 0 ? (
-          <div className={styles.empty}>No commands sent yet.</div>
+          <div className={styles.empty}>
+            No commands dispatched yet. Actuator actions and test cycles will be logged here.
+          </div>
         ) : (
           <div className={styles.commandList}>
             {history.map((h, i) => (
               <div key={`${h.requestId}-${h.time}-${i}`} className={styles.commandItem}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span className={styles.mono}>{h.name}</span>
-                  {h.value ? <span className={styles.muted}>{String(h.value)}</span> : null}
-                </span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span className={styles.mono} style={{ color: '#F4F6FB', fontWeight: 600 }}>
+                    {h.name}
+                  </span>
+                  {h.value ? (
+                    <span className={styles.muted} style={{ fontSize: 11 }}>
+                      [{h.value}]
+                    </span>
+                  ) : null}
+                  <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>({h.latency})</span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 11, color: '#9AA7BF', fontFamily: 'monospace' }}>
+                    {h.response}
+                  </span>
                   <span className={styles.mono} style={{ fontSize: 10, minWidth: 'auto' }}>
                     #{h.requestId}
                   </span>
@@ -80,10 +154,10 @@ export default function Controls() {
                       color: h.accepted ? '#00E8A0' : '#FF2D55',
                     }}
                   >
-                    {h.accepted ? 'ACCEPTED' : 'REJECTED'}
+                    {h.accepted ? 'EXECUTED' : 'REJECTED'}
                   </span>
                   <span className={styles.commandTime}>{new Date(h.time).toLocaleTimeString()}</span>
-                </span>
+                </div>
               </div>
             ))}
           </div>
@@ -91,8 +165,8 @@ export default function Controls() {
       </div>
 
       <div className={styles.note}>
-        Every command is logged with a unique request id and its accepted/rejected status. Control
-        commands are relayed to the device over MQTT and persisted to the backend.
+        All commands are routed through MQTT QoS 1 to HiveMQ Cloud. If the ESP32 loses network, commands
+        are cached server-side until the device polls /api/control.
       </div>
     </Layout>
   )

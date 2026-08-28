@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { getDB } from '../../../lib/mongodb'
 import { initMQTTBridge, publishControl } from '../../../lib/mqtt'
 
+export const dynamic = 'force-dynamic'
+
 const DEFAULT = { auto_mode: true, red_led: false, yellow_led: false, green_led: true, buzzer: false }
 
 export async function OPTIONS() {
