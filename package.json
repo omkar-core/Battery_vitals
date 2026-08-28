@@ -1,5 +1,5 @@
 {
-  "name": "battery-vitals",
+  "name": "battery-vitals-nextjs",
   "version": "2.0.0",
   "private": true,
   "description": "Battery Vital - Intelligent Battery Safety System (Next.js + MongoDB + MQTT + Gemini AI)",
@@ -7,7 +7,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "analyze": "ANALYZE=true next build"
   },
   "dependencies": {
     "next": "14.0.4",
@@ -19,5 +20,12 @@
     "date-fns": "3.3.1",
     "lucide-react": "0.294.0"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@next/bundle-analyzer": "14.0.4",
+    "autoprefixer": "10.4.16",
+    "postcss": "8.4.32",
+    "tailwindcss": "3.3.6",
+    "eslint": "8.56.0",
+    "eslint-config-next": "14.0.4"
+  }
 }

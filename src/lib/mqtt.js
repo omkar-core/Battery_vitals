@@ -2,6 +2,9 @@ import mqtt from 'mqtt'
 import { getDB } from './mongodb'
 
 let mqttClient = null
+let isInitialized = false
+let reconnectAttempts = 0
+const MAX_RECONNECT_ATTEMPTS = 5
 
 function buildBrokerUrl() {
   const broker = process.env.MQTT_BROKER || process.env.NEXT_PUBLIC_MQTT_BROKER || 'localhost'
@@ -13,23 +16,35 @@ function buildBrokerUrl() {
 }
 
 export async function initMQTTBridge() {
-  if (mqttClient) return mqttClient
+  // Prevent multiple initializations
+  if (isInitialized && mqttClient?.connected) {
+    return mqttClient
+  }
+
+  // Close existing connection if any
+  if (mqttClient) {
+    mqttClient.end(true)
+    mqttClient = null
+  }
 
   const url = buildBrokerUrl()
   const client = mqtt.connect(url, {
     username: process.env.MQTT_USERNAME || process.env.NEXT_PUBLIC_MQTT_USERNAME,
     password: process.env.MQTT_PASSWORD || process.env.NEXT_PUBLIC_MQTT_PASSWORD,
     clientId: 'vercel_bridge_' + Math.random().toString(16).substr(2, 8),
-    reconnectPeriod: 3000,
+    clean: true,
+    reconnectPeriod: 5000,
     connectTimeout: 10000,
+    keepalive: 60,
   })
 
   client.on('connect', () => {
     console.log('MQTT Bridge connected:', url)
-    client.subscribe('batteryvitals/+/data', (err) => {
+    reconnectAttempts = 0
+    client.subscribe('batteryvitals/+/data', { qos: 1 }, (err) => {
       if (err) console.error('MQTT subscribe error (data):', err)
     })
-    client.subscribe('batteryvitals/+/alerts', (err) => {
+    client.subscribe('batteryvitals/+/alerts', { qos: 1 }, (err) => {
       if (err) console.error('MQTT subscribe error (alerts):', err)
     })
   })
@@ -56,24 +71,25 @@ export async function initMQTTBridge() {
         return
       }
 
-      // Data topic: persist reading + update live data
+      // Data topic: persist reading + update live data in parallel
       const document = {
         ...normalizeReading(data),
         receivedAt: new Date(),
         timestamp: Date.now(),
       }
 
-      await db.collection('readings').insertOne(document)
-
-      await db.collection('live_data').updateOne(
-        { batteryId: document.batteryId },
-        { $set: document },
-        { upsert: true }
-      )
+      await Promise.all([
+        db.collection('readings').insertOne(document),
+        db.collection('live_data').updateOne(
+          { batteryId: document.batteryId },
+          { $set: document },
+          { upsert: true }
+        ),
+      ])
 
       console.log('MQTT saved:', document.batteryId, 'V=' + document.voltage + 'V')
     } catch (error) {
-      console.error('MQTT message error:', error)
+      console.error('MQTT message error:', error.message)
     }
   })
 
@@ -81,11 +97,26 @@ export async function initMQTTBridge() {
     console.error('MQTT bridge error:', err.message)
   })
 
+  client.on('offline', () => {
+    console.log('MQTT offline')
+  })
+
+  client.on('reconnect', () => {
+    reconnectAttempts++
+    if (reconnectAttempts <= MAX_RECONNECT_ATTEMPTS) {
+      console.log(`MQTT reconnecting (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`)
+    } else {
+      console.error('Max MQTT reconnection attempts reached')
+      client.end(true)
+    }
+  })
+
   client.on('close', () => {
     console.log('MQTT bridge disconnected')
   })
 
   mqttClient = client
+  isInitialized = true
   return client
 }
 
@@ -114,6 +145,23 @@ export function publishControl(batteryId, command) {
 export function publishControlState(state, batteryId) {
   const id = batteryId || 'BAT001'
   return publishControl(id, state)
+}
+
+export function closeMQTT() {
+  if (mqttClient) {
+    mqttClient.end(true)
+    mqttClient = null
+    isInitialized = false
+    reconnectAttempts = 0
+    console.log('MQTT Bridge closed')
+  }
+}
+
+// Auto-cleanup on process exit (Vercel serverless)
+if (typeof process !== 'undefined') {
+  process.on('beforeExit', closeMQTT)
+  process.on('SIGTERM', closeMQTT)
+  process.on('SIGINT', closeMQTT)
 }
 
 function normalizeReading(d) {

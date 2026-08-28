@@ -1,5 +1,10 @@
 {
   "version": 2,
+  "buildCommand": "next build",
+  "devCommand": "next dev",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+
   "headers": [
     {
       "source": "/sw.js",
@@ -15,6 +20,38 @@
         { "key": "Access-Control-Allow-Methods", "value": "GET, POST, PUT, OPTIONS" },
         { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }
       ]
+    }
+  ],
+
+  "env": {
+    "MONGODB_URI": "@mongodb-uri",
+    "MQTT_BROKER": "@mqtt-broker",
+    "MQTT_PORT": "@mqtt-port",
+    "MQTT_USERNAME": "@mqtt-username",
+    "MQTT_PASSWORD": "@mqtt-password",
+    "GEMINI_API_KEY": "@gemini-api-key",
+    "NEXT_PUBLIC_MQTT_BROKER": "@next-public-mqtt-broker",
+    "NEXT_PUBLIC_MQTT_USERNAME": "@next-public-mqtt-username",
+    "NEXT_PUBLIC_MQTT_PASSWORD": "@next-public-mqtt-password"
+  },
+
+  "build": {
+    "env": {
+      "NODE_ENV": "production"
+    }
+  },
+
+  "functions": {
+    "pages/api/**": {
+      "memory": 1024,
+      "maxDuration": 10
+    }
+  },
+
+  "crons": [
+    {
+      "path": "/api/mqtt-bridge",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

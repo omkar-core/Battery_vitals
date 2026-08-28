@@ -1,0 +1,9 @@
+# .vercelignore
+node_modules
+.next
+.git
+.env.local
+.DS_Store
+*.log
+.vscode
+.idea
