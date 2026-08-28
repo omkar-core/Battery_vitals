@@ -77,20 +77,28 @@ export function useRealTimeData(batteryId = 'BAT001') {
     }
   }, [batteryId, mqttConnected])
 
-  const sendControl = (command, value) => {
+  const sendControl = async (command, value) => {
+    const requestId = Math.random().toString(16).slice(2, 10)
     const payload = {
       command,
       value: value !== undefined ? value : command.toLowerCase().includes('on'),
-      requestId: Math.random().toString(16).slice(2, 10),
+      requestId,
     }
     if (mqttConnected) {
       publish(`batteryvitals/${batteryId}/control`, payload)
     }
-    return fetch('/api/commands', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
+    try {
+      const response = await fetch('/api/commands', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      let body = null
+      try { body = await response.json() } catch (e) { /* ignore */ }
+      return { requestId, accepted: response.ok, body }
+    } catch (e) {
+      return { requestId, accepted: false, error: e.message }
+    }
   }
 
   return { data, history, connected, mode, error, sendControl }

@@ -35,17 +35,18 @@ export default function HistoryPage() {
 
   return (
     <Layout connected={connected}>
-      <h1 className={styles.pageTitle}>History</h1>
-
-      <div className={styles.toolbar}>
-        <select className={styles.select} value={minutes} onChange={(e) => setMinutes(Number(e.target.value))}>
-          <option value={15}>Last 15 min</option>
-          <option value={60}>Last hour</option>
-          <option value={120}>Last 2 hours</option>
-          <option value={360}>Last 6 hours</option>
-          <option value={1440}>Last 24 hours</option>
-        </select>
-        <span className={styles.muted}>{rows.length} reading{rows.length === 1 ? '' : 's'}</span>
+      <div className={styles.pageHeader}>
+        <h1 className={styles.pageTitle}><span className="gradText">History</span> &amp; Stored Readings</h1>
+        <div className={styles.toolbar}>
+          <select className={styles.select} value={minutes} onChange={(e) => setMinutes(Number(e.target.value))}>
+            <option value={15}>Last 15 min</option>
+            <option value={60}>Last hour</option>
+            <option value={120}>Last 2 hours</option>
+            <option value={360}>Last 6 hours</option>
+            <option value={1440}>Last 24 hours</option>
+          </select>
+          <span className={styles.muted}>{rows.length} reading{rows.length === 1 ? '' : 's'}</span>
+        </div>
       </div>
 
       <div className={styles.metricsGrid}>

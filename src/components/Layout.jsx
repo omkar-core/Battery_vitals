@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import Header from './Header'
+import MobileNav from './MobileNav'
 import styles from './layout.module.css'
 
 export default function Layout({ children, connected, mode }) {
@@ -14,14 +15,35 @@ export default function Layout({ children, connected, mode }) {
   return (
     <div className={styles.layout}>
       <Header connected={connected} />
+
       <main className={styles.main}>
         {mode === 'mqtt' ? (
           <div className={styles.banner}>
             <span className={styles.bannerDot} /> Real-time MQTT stream active
           </div>
         ) : null}
+
+        {!connected && (
+          <div className={styles.offlineBanner} role="status">
+            <span className={styles.offlineDot} />
+            {mode === 'poll'
+              ? 'Backend unreachable — showing last cached state. Retrying automatically...'
+              : 'Device offline — no live telemetry. Showing last known reading.'}
+          </div>
+        )}
+
         {children}
       </main>
+
+      <footer className={styles.footer}>
+        <div className={styles.disclaimer}>
+          <strong>Battery Vital</strong> is an external monitoring &amp; analytics system — it is{' '}
+          <em>not</em> a certified full battery management system (BMS). Always rely on your
+          installed BMS and follow manufacturer safety guidance.
+        </div>
+      </footer>
+
+      <MobileNav />
     </div>
   )
 }

@@ -21,6 +21,13 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={inter.variable}>
       <body>
+        <div className="auroraBg">
+          <div className="blob blob1" />
+          <div className="blob blob2" />
+          <div className="blob blob3" />
+          <div className="blob blob4" />
+          <div className="gridOverlay" />
+        </div>
         {children}
       </body>
     </html>

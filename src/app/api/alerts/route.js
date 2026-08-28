@@ -42,6 +42,17 @@ export async function POST(request) {
   try {
     const db = await getDB()
     const body = await request.json().catch(() => ({}))
+
+    // acknowledge / toggle ack for an existing alert
+    if (body.id && body.acknowledged !== undefined) {
+      const { ObjectId } = await import('mongodb')
+      const result = await db.collection('alerts').updateOne(
+        { _id: new ObjectId(String(body.id)) },
+        { $set: { acknowledged: !!body.acknowledged } }
+      )
+      return NextResponse.json({ success: true, modified: result.modifiedCount })
+    }
+
     const now = new Date()
     const result = await db.collection('alerts').insertOne({
       batteryId: body.batteryId || 'BAT001',

@@ -36,8 +36,12 @@ export default function AIPage() {
 
   return (
     <Layout connected={connected}>
-      <h1 className={styles.pageTitle}>AI Vital Analyst</h1>
-      <p className={styles.subtitle}>Powered by Google Gemini AI - Predictive Battery Intelligence</p>
+      <div className={styles.pageHeader}>
+        <div>
+          <h1 className={styles.pageTitle}>AI <span className="gradText">Vital Analyst</span></h1>
+          <p className={styles.subtitle} style={{ marginBottom: 0 }}>Powered by Google Gemini — predictive battery intelligence</p>
+        </div>
+      </div>
       <AIInsights analysis={analysis} loading={loading} onAnalyze={handleAnalyze} />
 
       <div className={styles.card}>

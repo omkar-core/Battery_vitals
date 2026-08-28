@@ -1,26 +1,26 @@
 .pageTitle {
-  font-size: 20px;
-  font-weight: 700;
-  color: #fff;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
 }
 
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 18px;
+  margin-bottom: 20px;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
 }
 
 .liveBadge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
+  gap: 7px;
+  padding: 7px 14px;
   border-radius: 100px;
   background: rgba(0, 232, 160, 0.08);
-  border: 1px solid rgba(0, 232, 160, 0.2);
+  border: 1px solid rgba(0, 232, 160, 0.25);
   color: #00E8A0;
   font-size: 11px;
   font-weight: 600;
@@ -32,12 +32,13 @@
   border-radius: 50%;
   background: #00E8A0;
   box-shadow: 0 0 8px #00E8A0;
+  animation: pulse 2s ease-in-out infinite;
 }
 
 .liveBadgeOff {
   background: rgba(255, 45, 85, 0.08);
-  border-color: rgba(255, 45, 85, 0.25);
-  color: #FF2D55;
+  border-color: rgba(255, 45, 85, 0.3);
+  color: #ff7d94;
 }
 
 .liveDotOff {
@@ -49,19 +50,20 @@
 }
 
 .notice {
-  padding: 10px 14px;
+  padding: 11px 16px;
   margin-bottom: 16px;
-  border-radius: 10px;
-  background: rgba(255, 214, 10, 0.06);
-  border: 1px solid rgba(255, 214, 10, 0.25);
+  border-radius: 12px;
+  background: rgba(255, 214, 10, 0.07);
+  border: 1px solid rgba(255, 214, 10, 0.3);
   color: #FFD60A;
-  font-size: 12px;
+  font-size: 12.5px;
   line-height: 1.5;
 }
 
+/* ===== Hero gauges row ===== */
 .hero {
   display: grid;
-  grid-template-columns: 280px 1fr;
+  grid-template-columns: 380px 1fr;
   gap: 16px;
   margin-bottom: 16px;
 }
@@ -69,25 +71,28 @@
 .gauges {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 12px;
   align-content: start;
   position: relative;
 }
 
 .gaugeCard {
-  background: rgba(13, 20, 33, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
-  padding: 10px;
+  background: linear-gradient(160deg, rgba(30, 40, 70, 0.35), rgba(18, 24, 40, 0.55));
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: var(--shadow);
 }
 
 .gaugeWrap {
   position: relative;
-  width: 130px;
-  height: 130px;
+  width: 140px;
+  height: 140px;
 }
 
 .gauge {
@@ -99,14 +104,15 @@
 .gaugeBg {
   fill: none;
   stroke: rgba(255, 255, 255, 0.06);
-  stroke-width: 10;
+  stroke-width: 11;
 }
 
 .gaugeArc {
   fill: none;
-  stroke-width: 10;
+  stroke-width: 11;
   stroke-linecap: round;
   transition: stroke-dashoffset 0.8s ease, stroke 0.4s ease;
+  filter: drop-shadow(0 0 6px currentColor);
 }
 
 .gaugeCenter {
@@ -121,12 +127,12 @@
 .gaugeScore {
   font-size: 30px;
   font-weight: 800;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--mono);
 }
 
 .gaugeLabel {
   font-size: 10px;
-  color: #64748B;
+  color: var(--text-muted);
   letter-spacing: 0.5px;
   text-transform: uppercase;
 }
@@ -140,13 +146,14 @@
 .safetyBadge {
   grid-column: 1 / -1;
   justify-self: center;
-  padding: 6px 18px;
+  padding: 7px 20px;
   border-radius: 100px;
   border: 1px solid;
   background: rgba(0, 0, 0, 0.3);
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 1px;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
 }
 
 .heroCards {
@@ -155,17 +162,32 @@
 
 .metricsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(164px, 1fr));
+  gap: 12px;
   height: 100%;
 }
 
-.grid3 {
+/* ===== Profile + net stats strip ===== */
+.profileStrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+  align-items: center;
+}
+
+/* ===== Bentos ===== */
+.bento {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
   margin-bottom: 16px;
 }
 
-.chartSpan {
-  grid-column: 1 / -1;
+.bentoRight {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .grid2 {
@@ -180,14 +202,61 @@
   grid-template-columns: 1fr;
 }
 
-@media (max-width: 820px) {
+.lockBanner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 16px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  background: linear-gradient(120deg, rgba(167, 139, 250, 0.14), rgba(244, 114, 182, 0.1));
+  border: 1px solid rgba(167, 139, 250, 0.4);
+  color: #d8c7ff;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.mqBanner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 16px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  background: rgba(255, 214, 10, 0.08);
+  border: 1px solid rgba(255, 214, 10, 0.3);
+  color: #FFD60A;
+  font-size: 12.5px;
+}
+
+/* ===== Wireframe/skeleton for charts ===== */
+.debug {
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+}
+
+@media (max-width: 1080px) {
   .hero {
     grid-template-columns: 1fr;
   }
+  .bento {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 820px) {
   .gauges {
     grid-template-columns: 1fr 1fr;
   }
   .grid2 {
     grid-template-columns: 1fr;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
   }
 }

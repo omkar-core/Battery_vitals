@@ -21,7 +21,9 @@ export default function SettingsPage() {
 
   return (
     <Layout connected={connected}>
-      <h1 className={styles.pageTitle}>Settings</h1>
+      <div className={styles.pageHeader}>
+        <h1 className={styles.pageTitle}><span className="gradText">Settings</span></h1>
+      </div>
 
       <div className={styles.card}>
         <h3 className={styles.cardTitle}>Chemistry Profile</h3>
