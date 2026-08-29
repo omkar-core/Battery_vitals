@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getDB } from '../../../lib/mongodb'
 import { getLatestTelemetry } from '../../../lib/firebaseAdmin'
 import { checkRateLimit, getClientIp } from '../../../lib/rateLimit'
-import { sanitizeString, secureErrorResponse } from '../../../lib/security'
+import { sanitizeString } from '../../../lib/security'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,15 +26,19 @@ export async function GET(request) {
 
     // Fall back to MongoDB if Firebase is empty
     if (!data) {
-      const db = await getDB()
-      data = await db.collection('live_data').findOne({ batteryId })
+      try {
+        const db = await getDB()
+        data = await db.collection('live_data').findOne({ batteryId })
+      } catch (dbErr) {
+        console.warn('MongoDB fallback query failed in latest GET:', dbErr.message)
+      }
     }
 
     if (!data) {
       return NextResponse.json(
         {
           error: 'No data available',
-          message: 'ESP32 has not sent data to Firebase yet',
+          message: 'ESP32 has not sent telemetry data yet',
         },
         {
           status: 404,
@@ -60,7 +64,10 @@ export async function GET(request) {
     )
   } catch (error) {
     console.error('latest error:', error)
-    return secureErrorResponse(error.message)
+    return NextResponse.json(
+      { error: 'No data available', message: 'Telemetry offline' },
+      { status: 404 }
+    )
   }
 }
 
