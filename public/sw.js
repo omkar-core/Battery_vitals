@@ -1,24 +1,15 @@
-// sw.js — Service Worker for the Next.js Battery Vital app
-// Strategy: navigation → network-first w/ offline fallback
-//           _next/assets → stale-while-revalidate
-//           everything else (non-API) → cache-first
-const CACHE_NAME = 'bv-cache-v5';
-const PRECACHE = ['/', '/manifest.json', '/favicon.svg'];
+// sw.js — Bulletproof Service Worker for Next.js Battery Vital app
+const CACHE_NAME = 'bv-cache-v6';
 
-self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches
-      .open(CACHE_NAME)
-      .then((cache) => cache.addAll(PRECACHE))
-      .then(() => self.skipWaiting())
-  );
+self.addEventListener('install', () => {
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -26,58 +17,44 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const { request } = e;
 
-  // Only handle http(s) requests (avoids chrome-extension://, data:, blob:).
-  if (request.url.indexOf('http') !== 0) return;
+  // 1. Ignore non-HTTP requests (chrome-extension://, data:, blob:)
+  if (!request.url.startsWith('http')) return;
 
   const url = new URL(request.url);
 
-  // API requests: network only, never cached.
-  if (url.pathname.startsWith('/api/')) {
-    e.respondWith(fetch(request));
-    return;
-  }
+  // 2. Bypass API requests completely — let browser handle natively
+  if (url.pathname.startsWith('/api/')) return;
 
-  // Page navigations: network-first, fall back to cached shell for offline.
+  // 3. Navigation requests (e.g. /settings, /analytics)
   if (request.mode === 'navigate') {
     e.respondWith(
-      fetch(request)
-        .then((resp) => {
-          const clone = resp.clone();
-          caches.open(CACHE_NAME).then((c) => c.put('/offline-shell', clone)).catch(() => {});
-          return resp;
-        })
-        .catch(() => caches.match('/offline-shell').then((hit) => hit || caches.match('/')))
-    );
-    return;
-  }
-
-  // Hashed Next.js build assets & fonts: stale-while-revalidate.
-  if (url.pathname.startsWith('/_next/')) {
-    e.respondWith(
-      caches.open(CACHE_NAME).then(async (cache) => {
+      fetch(request).catch(async () => {
+        const cache = await caches.open(CACHE_NAME);
         const cached = await cache.match(request);
-        const network = fetch(request)
-          .then((resp) => {
-            if (resp.ok) cache.put(request, resp.clone());
-            return resp;
-          })
-          .catch(() => cached);
-        return cached || network;
+        if (cached) return cached;
+        return new Response(
+          '<html><body><h2>Battery Vital - Connection Timeout</h2><p>Server is waking up. Please refresh in a few seconds.</p><script>setTimeout(()=>location.reload(), 3000)</script></body></html>',
+          { headers: { 'Content-Type': 'text/html' } }
+        );
       })
     );
     return;
   }
 
-  // Everything else (images, manifest, favicon): cache-first.
+  // 4. Static assets & Next.js bundles
   e.respondWith(
-    caches.open(CACHE_NAME).then((cache) =>
-      cache.match(request).then((hit) => {
-        if (hit) return hit;
-        return fetch(request).then((resp) => {
-          if (resp.ok) cache.put(request, resp.clone());
-          return resp;
-        });
-      })
-    )
+    caches.open(CACHE_NAME).then(async (cache) => {
+      const cached = await cache.match(request);
+      if (cached) return cached;
+      try {
+        const resp = await fetch(request);
+        if (resp && resp.ok && resp.type === 'basic') {
+          cache.put(request, resp.clone()).catch(() => {});
+        }
+        return resp;
+      } catch (err) {
+        return cached || new Response('', { status: 408, statusText: 'Request Timeout' });
+      }
+    })
   );
 });

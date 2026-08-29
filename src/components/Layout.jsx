@@ -7,8 +7,14 @@ import styles from './layout.module.css'
 
 export default function Layout({ children, connected, mode, lastSeen }) {
   useEffect(() => {
-    if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
-      navigator.serviceWorker.register('/sw.js').catch(() => {})
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      // Register resilient service worker and auto-update
+      navigator.serviceWorker
+        .register('/sw.js')
+        .then((reg) => {
+          reg.update().catch(() => {})
+        })
+        .catch(() => {})
     }
   }, [])
 
