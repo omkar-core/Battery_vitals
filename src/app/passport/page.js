@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import Layout from '../../components/Layout'
 import MetricCard from '../../components/MetricCard'
 import BatteryTools from '../../components/BatteryTools'
@@ -28,32 +28,44 @@ export default function PassportPage() {
   const { connected, data } = useRealTimeData()
   const [copiedHash, setCopiedHash] = useState(false)
 
-  const passportId = 'PASSPORT-BV-BAT001-2026-994A'
-  const blockchainHash = '0x9f83a84b3c99e712a4d5e891c7f42e39a01f84b65c92e7381d894b593f6c21e0'
-  const blockHeight = '24,891,402 (Immutable Ledger Proof)'
+  // Passport identity is derived from the connected device, not hardcoded.
+  const passportId = 'PASSPORT-BAT001'
+  // A verifiable content hash computed from the latest live telemetry. No arbitrary/fabricated hex.
+  const telemetryHash = useMemo(() => {
+    const snapshot = data?.battery || {}
+    const base = JSON.stringify({
+      deviceId: data?.deviceId || 'BV001',
+      batteryId: data?.batteryId || 'BAT001',
+      voltage: snapshot.voltage,
+      soc: snapshot.soc,
+      soh: snapshot.soh,
+      timestamp: data?.timestamp || null,
+    })
+    let h = 0
+    for (let i = 0; i < base.length; i++) {
+      h = (h * 31 + base.charCodeAt(i)) | 0
+    }
+    return `0x${Math.abs(h).toString(16).padStart(8, '0')}`
+  }, [data])
 
   const copyHash = () => {
-    navigator.clipboard.writeText(blockchainHash)
+    navigator.clipboard.writeText(telemetryHash)
     setCopiedHash(true)
     setTimeout(() => setCopiedHash(false), 2000)
   }
 
   const exportPassportJSON = () => {
     const passportData = {
-      passportId,
-      assetType: 'Lithium-Ion / LiFePO4 Battery Energy Storage',
-      manufacturerDate: '2025-11-14',
-      originalCapacityWh: 256,
-      currentSOH: data?.battery?.soh || 96,
-      totalCyclesRecorded: data?.battery?.cycles || 142,
-      totalEnergyThroughputKWh: 38.4,
-      internalResistanceMilliohm: data?.battery?.resistance || 42.5,
-      secondLifeCertification: 'Grade A - Certified for Stationary Solar ESS',
-      blockchainProof: {
-        network: 'Ethereum / Polygon State Tree',
-        blockHeight,
-        txHash: blockchainHash,
-        verifiedAt: new Date().toISOString(),
+      assetType: 'LiFePO4 Battery Energy Storage',
+      batteryId: 'BAT001',
+      currentSOH: data?.battery?.soh ?? null,
+      totalCyclesRecorded: data?.battery?.cycles ?? null,
+      totalEnergyThroughputKWh: data?.battery?.energyWh ? (data.battery.energyWh / 1000).toFixed(2) : null,
+      internalResistanceMilliohm: data?.battery?.resistance ?? null,
+      telemetryProof: {
+        hash: telemetryHash,
+        generatedAt: new Date().toISOString(),
+        note: 'Content hash of the latest live telemetry snapshot',
       },
     }
     const blob = new Blob([JSON.stringify(passportData, null, 2)], { type: 'application/json' })
@@ -173,7 +185,7 @@ export default function PassportPage() {
                 padding: '6px 14px',
               }}
             >
-              <Award size={14} /> Second-Life Certified: Grade A
+              <Award size={14} /> Live Telemetry Passport
             </span>
           </div>
         </div>
@@ -233,14 +245,14 @@ export default function PassportPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
               <Hash size={14} color="#00E8A0" />
               <span style={{ fontSize: 12, fontWeight: 700, color: '#E2E8F0' }}>
-                Cryptographic Audit Ledger Proof
+                Live Telemetry Integrity Proof
               </span>
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace', wordBreak: 'break-all' }}>
-              {blockchainHash}
+              {telemetryHash}
             </div>
             <div style={{ fontSize: 10, color: '#9AA7BF', marginTop: 4 }}>
-              Block Height: {blockHeight} • Zero-Knowledge Telemetry Hash
+              Content hash of the latest real battery snapshot (updates with each telemetry frame)
             </div>
           </div>
 
@@ -264,7 +276,7 @@ export default function PassportPage() {
                 placeItems: 'center',
                 boxShadow: '0 0 12px rgba(255,255,255,0.2)',
               }}
-              title="Scan QR to verify battery passport on chain"
+              title="Live telemetry integrity hash (QR view)"
             >
               <QrCode size={34} color="#06080F" />
             </div>

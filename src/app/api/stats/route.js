@@ -34,25 +34,27 @@ export async function GET(request) {
       console.warn('MongoDB stats lookup fallback:', dbErr.message)
     }
 
+    // Only report values that actually exist in GitHub real telemetry.
+    // Never fabricate SOC/Safety/BHI when no reading is available.
     return NextResponse.json({
       totalReadings: r,
       totalAlerts: a,
       deviceCount: d,
-      lastReading: l?.timestamp || Date.now(),
-      currentSoc: l?.soc ?? 100,
-      currentSafety: l?.safety || 'SAFE',
-      currentBhi: l?.bhi ?? 0,
+      lastReading: l?.timestamp || null,
+      currentSoc: l?.soc ?? null,
+      currentSafety: l?.safety || null,
+      currentBhi: l?.bhi ?? null,
     })
   } catch (error) {
     console.error('stats error:', error)
     return NextResponse.json({
       totalReadings: 0,
       totalAlerts: 0,
-      deviceCount: 1,
-      lastReading: Date.now(),
-      currentSoc: 100,
-      currentSafety: 'SAFE',
-      currentBhi: 0,
+      deviceCount: 0,
+      lastReading: null,
+      currentSoc: null,
+      currentSafety: null,
+      currentBhi: null,
     })
   }
 }

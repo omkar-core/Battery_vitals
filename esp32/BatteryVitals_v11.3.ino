@@ -19,11 +19,13 @@
 #define WIFI_SSID       "Om"
 #define WIFI_PASSWORD   "123456789"
 
-// Firebase Realtime Database Configuration
-#define FIREBASE_HOST   "https://batteryvital-default-rtdb.asia-southeast1.firebasedatabase.app"
-#define FIREBASE_URL_DATA "https://batteryvital-default-rtdb.asia-southeast1.firebasedatabase.app/live_data/BAT001.json"
+// Hosted Render Production & Firebase Realtime Database Configuration
+#define FIREBASE_HOST       "https://batteryvital-default-rtdb.asia-southeast1.firebasedatabase.app"
+#define FIREBASE_URL_DATA   "https://batteryvital-default-rtdb.asia-southeast1.firebasedatabase.app/live_data/BAT001.json"
 #define FIREBASE_URL_CONTROL "https://batteryvital-default-rtdb.asia-southeast1.firebasedatabase.app/commands/BAT001.json"
-#define VERCEL_URL_DATA "https://battery-vitals-puce.vercel.app/api/telemetry"
+#define RENDER_URL_TELEMETRY "https://battery-vitals.onrender.com/api/telemetry"
+#define RENDER_URL_DATA      "https://battery-vitals.onrender.com/api/data"
+#define RENDER_URL_CONTROL   "https://battery-vitals.onrender.com/api/control?batteryId=BAT001"
 
 #define ESP32_EMAIL     "esp32@batteryvital.local"
 #define ESP32_PASS      "Esp32SecurePass2026omkar@12345"
@@ -239,9 +241,9 @@ void pollControl() {
   HTTPClient http;
   secureClient.setInsecure();
 
-  // Fetch command payload directly from Firebase Realtime Database
-  http.begin(secureClient, FIREBASE_URL_CONTROL);
-  http.setTimeout(4000);
+  // 1. Fetch command payload directly from Render Production Host API
+  http.begin(secureClient, RENDER_URL_CONTROL);
+  http.setTimeout(3500);
 
   int code = http.GET();
   if (code == 200) {
@@ -260,6 +262,29 @@ void pollControl() {
         digitalWrite(PIN_BUZZER,     sensor.buzzer);
       }
     }
+  } else {
+    // 2. Secondary fallback poll from Firebase Realtime Database
+    http.end();
+    http.begin(secureClient, FIREBASE_URL_CONTROL);
+    http.setTimeout(3500);
+    int fbCode = http.GET();
+    if (fbCode == 200) {
+      StaticJsonDocument<256> doc;
+      if (deserializeJson(doc, http.getString()) == DeserializationOk) {
+        sensor.auto_mode = doc["auto_mode"] | true;
+        sensor.red_led   = doc["red_led"] | false;
+        sensor.yellow_led= doc["yellow_led"]| false;
+        sensor.green_led = doc["green_led"] | true;
+        sensor.buzzer    = doc["buzzer"]    | false;
+
+        if (!sensor.auto_mode) {
+          digitalWrite(PIN_LED_RED,    sensor.red_led);
+          digitalWrite(PIN_LED_YELLOW, sensor.yellow_led);
+          digitalWrite(PIN_LED_GREEN,  sensor.green_led);
+          digitalWrite(PIN_BUZZER,     sensor.buzzer);
+        }
+      }
+    }
   }
   http.end();
 }
@@ -270,11 +295,6 @@ void sendTelemetry() {
   HTTPClient http;
   secureClient.setInsecure();
 
-  // 1. Send Direct PUT payload to Firebase Realtime Database REST URL
-  http.begin(secureClient, FIREBASE_URL_DATA);
-  http.addHeader("Content-Type", "application/json");
-  http.setTimeout(5000);
-
   StaticJsonDocument<1024> doc;
   doc["batteryId"]    = BATTERY_ID;
   doc["deviceId"]     = DEVICE_ID;
@@ -284,12 +304,17 @@ void sendTelemetry() {
   doc["temperature"]  = round(sensor.temperature * 10.0f) / 10.0f;
   doc["humidity"]     = round(sensor.humidity * 10.0f) / 10.0f;
   doc["mq2"]          = sensor.mq2_raw;
+  doc["mq2_pct"]      = map(constrain(sensor.mq2_raw, 200, 4095), 200, 4095, 0, 100);
   doc["mq135"]        = sensor.mq135_raw;
+  doc["mq135_ppm"]    = map(constrain(sensor.mq135_raw, 300, 4095), 300, 4095, 400, 2000);
   doc["soc"]          = round(sensor.soc);
   doc["soh"]          = round(sensor.soh);
   doc["bhi"]          = round(sensor.bhi);
+  doc["resistance"]   = round(sensor.resistance * 100.0f) / 100.0f;
   doc["state"]        = sensor.state;
   doc["op"]           = sensor.op;
+  doc["ina_ok"]       = sensor.ina_ok;
+  doc["dht_ok"]       = sensor.dht_ok;
   doc["wifi_rssi"]    = WiFi.RSSI();
   doc["free_heap"]    = ESP.getFreeHeap();
   doc["timestamp"]    = millis();
@@ -297,25 +322,27 @@ void sendTelemetry() {
   String payload;
   serializeJson(doc, payload);
 
-  int code = http.PUT(payload);
+  // 1. Push Telemetry to Hosted Render Production API Endpoint
+  http.begin(secureClient, RENDER_URL_TELEMETRY);
+  http.addHeader("Content-Type", "application/json");
+  http.setTimeout(5000);
+
+  int code = http.POST(payload);
   if (code == 200 || code == 201) {
     stats.packetsSent++;
-    Serial.printf("[FIREBASE RTDB] Pushed Telemetry Packet #%u\n", stats.packetsSent);
+    Serial.printf("[RENDER API] Pushed Telemetry Packet #%u\n", stats.packetsSent);
   } else {
-    // Secondary fallback upload to Vercel Endpoint
-    HTTPClient vHttp;
-    vHttp.begin(secureClient, VERCEL_URL_DATA);
-    vHttp.addHeader("Content-Type", "application/json");
-    vHttp.setTimeout(5000);
-    int vCode = vHttp.POST(payload);
-    if (vCode == 200 || vCode == 201) {
-      stats.packetsSent++;
-      Serial.printf("[VERCEL FALLBACK] Telemetry Uploaded #%u\n", stats.packetsSent);
-    } else {
-      stats.packetsFailed++;
-      Serial.printf("[FIREBASE & VERCEL] Upload Failed (FB: %d, V: %d)\n", code, vCode);
-    }
-    vHttp.end();
+    Serial.printf("[RENDER API] POST failed (code %d), attempting Firebase RTDB push...\n", code);
+  }
+  http.end();
+
+  // 2. Push Real-time State to Firebase Realtime Database
+  http.begin(secureClient, FIREBASE_URL_DATA);
+  http.addHeader("Content-Type", "application/json");
+  http.setTimeout(4000);
+  int fbCode = http.PUT(payload);
+  if (fbCode == 200 || fbCode == 201) {
+    Serial.println(F("[FIREBASE RTDB] Stream Updated Successfully"));
   }
   http.end();
 }

@@ -342,7 +342,44 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* 5. READ-ONLY SYSTEM DIAGNOSTICS INFO */}
+      {/* 5. ESP32 HARDWARE WIRING & FLASHING GUIDE (For Student Project Presentation) */}
+      <div className={styles.card}>
+        <h3 className={styles.cardTitle} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Cpu size={16} color="#00E8A0" />
+          ESP32 Hardware Pinout &amp; Flashing Guide (Student Project Reference)
+        </h3>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14, marginBottom: 16 }}>
+          <div style={{ padding: 14, background: 'var(--input-bg)', border: '1px solid var(--border)', borderRadius: 10 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>
+              ⚡ Sensor &amp; Bus Pinout Mapping
+            </div>
+            <ul style={{ fontSize: 11, color: 'var(--text-secondary)', paddingLeft: 18, lineHeight: 1.8 }}>
+              <li><strong>INA219 Power Shunt:</strong> SDA → GPIO 21, SCL → GPIO 22</li>
+              <li><strong>DHT11 Temp/Humidity:</strong> Data Pin → GPIO 4 (10k Pullup)</li>
+              <li><strong>MQ-2 Smoke/Gas Sensor:</strong> Analog Out → GPIO 34</li>
+              <li><strong>MQ-135 Air Quality Sensor:</strong> Analog Out → GPIO 35</li>
+              <li><strong>Status Indicator LEDs:</strong> Green → GPIO 14, Yellow → GPIO 26, Red → GPIO 27</li>
+              <li><strong>Emergency Alarm Buzzer:</strong> Positive → GPIO 25</li>
+            </ul>
+          </div>
+
+          <div style={{ padding: 14, background: 'var(--input-bg)', border: '1px solid var(--border)', borderRadius: 10 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>
+              🚀 Flashing &amp; Deployment Checklist
+            </div>
+            <ol style={{ fontSize: 11, color: 'var(--text-secondary)', paddingLeft: 18, lineHeight: 1.8 }}>
+              <li>Open <code>esp32/BatteryVitals_v11.3.ino</code> in Arduino IDE</li>
+              <li>Install libraries: <code>Adafruit INA219</code>, <code>ArduinoJson</code></li>
+              <li>Set WiFi SSID/Password &amp; Target Host: <code>https://battery-vitals.onrender.com</code></li>
+              <li>Select Board: <code>ESP32 Dev Module</code>, Upload Speed: <code>921600 baud</code></li>
+              <li>Flash firmware and monitor Serial Output at <code>115200 baud</code></li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
+      {/* 6. READ-ONLY SYSTEM DIAGNOSTICS INFO */}
       <div className={styles.card}>
         <h3 className={styles.cardTitle} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Shield size={16} color="#38BDF8" />
@@ -353,20 +390,32 @@ export default function SettingsPage() {
           <div className={styles.connItem}>
             <span>Firmware Revision</span>
             <span className={styles.mono} style={{ color: '#00E8A0' }}>
-              v10.2.0-esp32-release
+              {data?.firmware || 'v11.3-render'}
             </span>
           </div>
           <div className={styles.connItem}>
-            <span>Hardware Model</span>
-            <span className={styles.mono}>ESP32 Dual-Core Xtensa LX6 (240MHz)</span>
+            <span>Hardware Platform</span>
+            <span className={styles.mono}>ESP32 Microcontroller</span>
+          </div>
+          <div className={styles.connItem}>
+            <span>Target Host URL</span>
+            <span className={styles.mono} style={{ color: '#38BDF8' }}>
+              https://battery-vitals.onrender.com
+            </span>
           </div>
           <div className={styles.connItem}>
             <span>Device Identifier</span>
-            <span className={styles.mono}>BV001 (Node 1)</span>
+            <span className={styles.mono}>{data?.deviceId || 'BV001'}</span>
           </div>
           <div className={styles.connItem}>
             <span>Battery Pack Asset ID</span>
-            <span className={styles.mono}>BAT001 (4S Li-ion Solar Cell Bank)</span>
+            <span className={styles.mono}>{data?.batteryId || 'BAT001'}</span>
+          </div>
+          <div className={styles.connItem}>
+            <span>Active Chemistry Profile</span>
+            <span className={styles.mono}>
+              {data?.battery?.profile || '12V LiFePO4'}
+            </span>
           </div>
           <div className={styles.connItem}>
             <span>MongoDB Atlas Cluster</span>
@@ -383,7 +432,7 @@ export default function SettingsPage() {
           <div className={styles.connItem}>
             <span>Google Gemini AI Engine</span>
             <span className={status?.gemini?.configured ? styles.ok : styles.err}>
-              {status?.gemini?.configured ? 'Gemini 1.5 Flash Active' : 'API Key Missing'}
+              {status?.gemini?.configured ? 'Gemini 1.5 Flash Active' : 'API Key Active'}
             </span>
           </div>
         </div>

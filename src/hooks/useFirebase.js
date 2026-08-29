@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { db } from '../lib/firebase'
-import { ref, onValue, set } from 'firebase/database'
+import { ref, onValue, get, set } from 'firebase/database'
+import { normalizeEsp32Packet } from '../lib/esp32'
 
 export function useFirebase(batteryId = 'BAT001') {
   const [data, setData] = useState(null)
@@ -11,28 +12,37 @@ export function useFirebase(batteryId = 'BAT001') {
 
   useEffect(() => {
     let unsubscribe = null
+    let disposed = false
 
     try {
       const dataRef = ref(db, `live_data/${batteryId}`)
-      
+
       unsubscribe = onValue(
         dataRef,
         (snapshot) => {
           if (snapshot.exists()) {
-            const val = snapshot.val()
-            setData(val)
+            setData(normalizeEsp32Packet(snapshot.val()))
             setConnected(true)
             setError(null)
           } else {
-            // Check fallback path /live_data if single object format
-            const rootRef = ref(db, 'live_data')
-            onValue(rootRef, (rootSnap) => {
-              if (rootSnap.exists()) {
-                setData(rootSnap.val())
+            // Fallback path: check /live_data with a one-time read (get()).
+            // Uses `get` instead of stacking nested onValue listeners so we
+            // do not register a new listener every time the path is empty.
+            get(ref(db, 'live_data'))
+              .then((rootSnap) => {
+                if (disposed || !rootSnap.exists()) return
+                const rootVal = rootSnap.val()
+                const val =
+                  rootVal && typeof rootVal === 'object' && rootVal[batteryId]
+                    ? rootVal[batteryId]
+                    : rootVal
+                setData(normalizeEsp32Packet(val))
                 setConnected(true)
                 setError(null)
-              }
-            }, { onlyOnce: true })
+              })
+              .catch((err) => {
+                console.error('Firebase live_data fallback read error:', err)
+              })
           }
         },
         (err) => {
@@ -48,6 +58,7 @@ export function useFirebase(batteryId = 'BAT001') {
     }
 
     return () => {
+      disposed = true
       if (typeof unsubscribe === 'function') {
         unsubscribe()
       }

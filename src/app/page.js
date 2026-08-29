@@ -8,6 +8,7 @@ import Sparkline from '../components/Sparkline'
 import ControlPanel from '../components/ControlPanel'
 import AIInsights from '../components/AIInsights'
 import AlertsList from '../components/AlertsList'
+import SkeletonLoader, { SkeletonMetric, SkeletonChart, SkeletonControl, SkeletonAI } from '../components/SkeletonLoader'
 import { useRealTimeData } from '../hooks/useRealTimeData'
 import { useAI } from '../hooks/useAI'
 import {
@@ -38,16 +39,18 @@ import {
   Minus,
   HardDrive,
   Clock,
-  Radio,
+  Play,
+  Square,
   Volume2,
   VolumeX,
+  AlertTriangle,
 } from 'lucide-react'
 import styles from '../styles/dashboard.module.css'
 
 const CIRC = 2 * Math.PI * 82
 
 export default function Dashboard() {
-  const { data, history, connected, mode, error, sendControl } = useRealTimeData()
+  const { data, history, connected, mode, error, sendControl, simulating, toggleSimulation } = useRealTimeData()
   const { analysis, loading, runAnalysis } = useAI()
   const [commands, setCommands] = useState({ auto_mode: true })
   const [alerts, setAlerts] = useState([])
@@ -213,11 +216,35 @@ export default function Dashboard() {
             Live Battery <span className="gradText">Telemetry &amp; Vitals</span>
           </h1>
           <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-            Real-time telemetry stream from ESP32 • HiveMQ Cloud • AI Predictive Safety
+            Real-time telemetry stream from ESP32 • Firebase Realtime Database • AI Predictive Safety
           </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          {/* Demo Simulation Mode Toggle */}
+          <button
+            onClick={toggleSimulation}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '6px 14px',
+              borderRadius: 100,
+              background: simulating ? 'linear-gradient(120deg, rgba(167, 139, 250, 0.2), rgba(56, 189, 248, 0.15))' : 'var(--input-bg)',
+              border: `1px solid ${simulating ? 'rgba(167, 139, 250, 0.5)' : 'var(--border)'}`,
+              color: simulating ? '#A78BFA' : 'var(--text-secondary)',
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: simulating ? '0 0 14px rgba(167, 139, 250, 0.3)' : 'none',
+              transition: 'all 0.25s ease',
+            }}
+            title="Toggle Demo Simulation Mode for offline presentations"
+          >
+            {simulating ? <Square size={13} fill="#A78BFA" /> : <Play size={13} />}
+            <span>Demo Mode: {simulating ? 'ACTIVE' : 'OFF'}</span>
+          </button>
+
           <button
             onClick={() => {
               setSoundEnabled(!soundEnabled)
@@ -229,7 +256,7 @@ export default function Dashboard() {
               gap: 6,
               padding: '6px 12px',
               borderRadius: 100,
-              background: soundEnabled ? 'rgba(0, 232, 160, 0.12)' : 'rgba(255, 255, 255, 0.04)',
+              background: soundEnabled ? 'rgba(0, 232, 160, 0.12)' : 'var(--input-bg)',
               border: `1px solid ${soundEnabled ? 'rgba(0, 232, 160, 0.3)' : 'var(--border)'}`,
               color: soundEnabled ? '#00E8A0' : 'var(--text-muted)',
               fontSize: 11,
@@ -271,9 +298,19 @@ export default function Dashboard() {
       </div>
 
       {!connected && data == null && (
-        <div className={styles.notice}>
-          Initializing connection — the live dashboard will populate automatically as soon as the
-          ESP32 hardware or MQTT stream publishes a data frame.
+        <div style={{ margin: '20px 0' }}>
+          <div className={styles.notice} style={{ marginBottom: 20 }}>
+            Initializing connection — rendering lazy skeleton placeholders while awaiting telemetry stream...
+          </div>
+          <div className={styles.metricsGrid} style={{ marginBottom: 20 }}>
+            {Array.from({ length: 8 }).map((_, i) => (
+              <SkeletonMetric key={i} />
+            ))}
+          </div>
+          <div className={styles.bento}>
+            <SkeletonChart height={300} />
+            <SkeletonControl />
+          </div>
         </div>
       )}
       {!connected && data != null && (
@@ -354,186 +391,187 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Hero Section: Gauges + Safety Badge + Metrics Grid */}
-      <div className={styles.hero}>
-        <div className={styles.gauges}>
-          {/* BHI Score Gauge */}
-          <div className={styles.gaugeCard}>
-            <div className={styles.gaugeWrap}>
-              <svg viewBox="0 0 200 200" className={styles.gauge}>
-                <circle className={styles.gaugeBg} cx="100" cy="100" r="82" />
-                <circle
-                  className={styles.gaugeArc}
-                  cx="100"
-                  cy="100"
-                  r="82"
-                  stroke={bhiLocal.color}
-                  strokeDasharray={CIRC}
-                  strokeDashoffset={bhiOffset}
-                />
-              </svg>
-              <div className={styles.gaugeCenter}>
-                <div className={styles.gaugeScore} style={{ color: bhiLocal.color }}>
-                  {bhi == null ? '--' : Math.round(bhi)}
+      {/* Row 1: Weighted Bento Hero Row */}
+      <div className={styles.heroBento}>
+        {/* Hero Card 1: Dominant Safety State Anchor (4 cols) */}
+        <div className={`${styles.heroSafetyCard} ${safetyClass}`}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-tertiary)' }}>
+              System Safety Status
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12 }}>
+              {safety === 'CRITICAL' || safety === 'EMERGENCY' ? (
+                <ShieldAlert size={36} color="var(--state-critical)" />
+              ) : (
+                <ShieldCheck size={36} color="var(--state-safe)" />
+              )}
+              <div>
+                <div style={{ fontSize: 24, fontWeight: 700, fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}>
+                  {safetyLabel(safety)}
                 </div>
-                <div className={styles.gaugeLabel}>BHI Index</div>
-                <div className={styles.gaugeSub} style={{ color: bhiLocal.color }}>
-                  {bhiLocal.label}
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
+                  BHI Index: {bhi == null ? '--' : Math.round(bhi)} / 100 ({bhiLocal.label})
                 </div>
               </div>
             </div>
           </div>
 
-          {/* SOH Score Gauge */}
-          <div className={styles.gaugeCard}>
-            <div className={styles.gaugeWrap}>
-              <svg viewBox="0 0 200 200" className={styles.gauge}>
-                <circle className={styles.gaugeBg} cx="100" cy="100" r="82" />
-                <circle
-                  className={styles.gaugeArc}
-                  cx="100"
-                  cy="100"
-                  r="82"
-                  stroke="#38BDF8"
-                  strokeDasharray={CIRC}
-                  strokeDashoffset={sohOffset}
-                />
-              </svg>
-              <div className={styles.gaugeCenter}>
-                <div className={styles.gaugeScore} style={{ color: '#38BDF8' }}>
-                  {soh == null ? '--' : Math.round(soh)}%
-                </div>
-                <div className={styles.gaugeLabel}>Battery SOH</div>
-                <div className={styles.gaugeSub} style={{ color: '#38BDF8' }}>
-                  Health State
-                </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyBetween: 'space-between', marginTop: 20 }}>
+            <span className={`${styles.opMode} ${op === 'CHARGING' ? styles.opCharging : op === 'DISCHARGING' ? styles.opDischarging : styles.opIdle}`}>
+              {op === 'CHARGING' ? <ArrowUpRight size={14} /> : op === 'DISCHARGING' ? <ArrowDownRight size={14} /> : <Minus size={14} />}
+              Mode: {op}
+            </span>
+            {profile && <span className="chip"><Cpu size={12} /> {profile}</span>}
+          </div>
+        </div>
+
+        {/* Hero Card 2: Battery SOH % Gauge (4 cols) */}
+        <div className={styles.heroSohCard}>
+          <div className={styles.gaugeWrap}>
+            <svg viewBox="0 0 200 200" className={styles.gauge}>
+              <circle className={styles.gaugeBg} cx="100" cy="100" r="82" />
+              <circle
+                className={styles.gaugeArc}
+                cx="100"
+                cy="100"
+                r="82"
+                stroke="var(--state-info)"
+                strokeDasharray={CIRC}
+                strokeDashoffset={sohOffset}
+              />
+            </svg>
+            <div className={styles.gaugeCenter}>
+              <div className={styles.gaugeScore} style={{ color: 'var(--state-info)' }}>
+                {soh == null ? '--' : Math.round(soh)}%
               </div>
+              <div className={styles.gaugeLabel}>Battery SOH</div>
             </div>
           </div>
-
-          {/* Safety State Badge with color coding & pulse */}
-          <div className={`${styles.safetyBadge} ${safetyClass}`}>
-            {safety === 'CRITICAL' || safety === 'EMERGENCY' ? (
-              <ShieldAlert size={16} />
-            ) : (
-              <ShieldCheck size={16} />
-            )}
-            <span>Safety State: {safetyLabel(safety)}</span>
-          </div>
         </div>
 
-        {/* 10+ Real-Time Metric Cards Grid with Sensor Health Chips */}
-        <div className={styles.heroCards}>
-          <div className={styles.metricsGrid}>
-            <MetricCard
-              title="Voltage"
-              value={formatNumber(voltage)}
-              unit="V"
-              color="#FFD60A"
-              icon={Gauge}
-              chip={voltageChip}
-              subtext="Nominal 12.0V - 14.4V"
-            />
-            <MetricCard
-              title="Current"
-              value={formatNumber(current)}
-              unit="A"
-              color={current < 0 ? '#FF6B35' : '#00E8A0'}
-              icon={Zap}
-              chip={currentChip}
-              subtext={current < 0 ? 'Discharging' : current > 0 ? 'Charging' : 'Idle'}
-            />
-            <MetricCard
-              title="Power"
-              value={formatNumber(power)}
-              unit="W"
-              color="#38BDF8"
-              icon={Zap}
-              subtext={power != null ? `${(power * 1000).toFixed(0)} mW` : '--'}
-            />
-            <MetricCard
-              title="Temperature"
-              value={formatNumber(temperature, 1)}
-              unit="°C"
-              color="#FF2D55"
-              icon={Flame}
-              chip={tempChip}
-              subtext="Limit < 50°C"
-            />
-            <MetricCard
-              title="Humidity"
-              value={formatNumber(humidity, 1)}
-              unit="%"
-              color="#00E8A0"
-              icon={Droplets}
-              chip={humChip}
-              subtext="Ambient RH"
-            />
-            <MetricCard
-              title="SOC (Charge)"
-              value={formatNumber(soc, 0)}
-              unit="%"
-              color="#00E8A0"
-              icon={Battery}
-              delta={
-                soc == null
-                  ? null
-                  : Number(soc) - (sparkRows[sparkRows.length - 2]?.soc ?? soc)
-              }
-              subtext="State of Charge"
-            />
-            <MetricCard
-              title="Gas (MQ-2)"
-              value={formatNumber(gasMq2, 0)}
-              unit="ADC"
-              color="#FF6B35"
-              icon={Flame}
-              chip={gasMq2Chip}
-              subtext="Combustible Gases"
-            />
-            <MetricCard
-              title="Gas (MQ-135)"
-              value={formatNumber(gasMq135, 0)}
-              unit="ADC"
-              color="#A78BFA"
-              icon={Flame}
-              chip={gasMq135Chip}
-              subtext="Air Quality &amp; VOC"
-            />
-            <MetricCard
-              title="Internal Res."
-              value={formatNumber(resistance, 2)}
-              unit="mΩ"
-              color="#A78BFA"
-              icon={Gauge}
-              subtext="Cell Degradation"
-            />
-            <MetricCard
-              title="Efficiency"
-              value={formatNumber(efficiency, 0)}
-              unit="%"
-              color="#FFD60A"
-              icon={Activity}
-              subtext="Coulombic Return"
-            />
-            <MetricCard
-              title="Cycles"
-              value={formatNumber(cycles, 0)}
-              unit="cyc"
-              color="#F472B6"
-              icon={RefreshCw}
-              subtext="Equivalent Full Cycles"
-            />
-            <MetricCard
-              title="Est. RUL"
-              value={rul != null ? formatNumber(rul, 0) : '--'}
-              unit="days"
-              color="#00E8A0"
-              icon={Activity}
-              subtext="Remaining Useful Life"
-            />
+        {/* Hero Card 3: Live Sparkline Mini-Chart (4 cols) */}
+        <div className={styles.heroSparklineCard}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-tertiary)' }}>
+              Voltage Stream
+            </span>
+            <span style={{ fontSize: 16, fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--state-caution)' }}>
+              {formatNumber(voltage)} V
+            </span>
           </div>
+          <Sparkline data={sparkData} dataKey="voltage" color="var(--state-caution)" height={120} />
         </div>
+      </div>
+
+      {/* Row 2: Primary Telemetry Metric Strip (6 equal cols) */}
+      <div className={styles.metricStrip6}>
+        <MetricCard
+          title="Voltage"
+          value={formatNumber(voltage)}
+          unit="V"
+          color="var(--state-caution)"
+          icon={Gauge}
+          chip={voltageChip}
+          subtext="Nominal 10.5V–14.4V"
+        />
+        <MetricCard
+          title="Current"
+          value={formatNumber(current)}
+          unit="A"
+          color={current < 0 ? 'var(--state-critical)' : 'var(--state-safe)'}
+          icon={Zap}
+          chip={currentChip}
+          subtext={current < 0 ? 'Discharging' : current > 0 ? 'Charging' : 'Idle'}
+        />
+        <MetricCard
+          title="Power"
+          value={formatNumber(power)}
+          unit="W"
+          color="var(--state-info)"
+          icon={Zap}
+          subtext={power != null ? `${(power * 1000).toFixed(0)} mW` : '--'}
+        />
+        <MetricCard
+          title="Temperature"
+          value={formatNumber(temperature, 1)}
+          unit="°C"
+          color="var(--state-critical)"
+          icon={Flame}
+          chip={tempChip}
+          subtext="Limit < 50°C"
+        />
+        <MetricCard
+          title="Humidity"
+          value={formatNumber(humidity, 1)}
+          unit="%"
+          color="var(--state-safe)"
+          icon={Droplets}
+          chip={humChip}
+          subtext="Ambient RH"
+        />
+        <MetricCard
+          title="SOC (Charge)"
+          value={formatNumber(soc, 0)}
+          unit="%"
+          color="var(--state-safe)"
+          icon={Battery}
+          delta={soc == null ? null : Number(soc) - (sparkRows[sparkRows.length - 2]?.soc ?? soc)}
+          subtext="State of Charge"
+        />
+      </div>
+
+      {/* Row 3: Secondary Telemetry Metric Strip (6 equal cols) */}
+      <div className={styles.metricStrip6}>
+        <MetricCard
+          title="Gas (MQ-2)"
+          value={formatNumber(gasMq2, 0)}
+          unit="ADC"
+          color="var(--state-caution)"
+          icon={Flame}
+          chip={gasMq2Chip}
+          subtext="Combustible Gases"
+        />
+        <MetricCard
+          title="Gas (MQ-135)"
+          value={formatNumber(gasMq135, 0)}
+          unit="ADC"
+          color="var(--purple)"
+          icon={Flame}
+          chip={gasMq135Chip}
+          subtext="Air Quality & VOC"
+        />
+        <MetricCard
+          title="Internal Res."
+          value={formatNumber(resistance, 2)}
+          unit="mΩ"
+          color="var(--purple)"
+          icon={Gauge}
+          subtext="Cell Degradation"
+        />
+        <MetricCard
+          title="Efficiency"
+          value={formatNumber(efficiency, 0)}
+          unit="%"
+          color="var(--state-caution)"
+          icon={Activity}
+          subtext="Coulombic Return"
+        />
+        <MetricCard
+          title="Cycles"
+          value={formatNumber(cycles, 0)}
+          unit="cyc"
+          color="var(--purple)"
+          icon={RefreshCw}
+          subtext="Equivalent Full Cycles"
+        />
+        <MetricCard
+          title="Est. RUL"
+          value={rul != null ? formatNumber(rul, 0) : '--'}
+          unit="days"
+          color="var(--state-safe)"
+          icon={Activity}
+          subtext="Remaining Useful Life"
+        />
       </div>
 
       {/* Sparkline Strip */}

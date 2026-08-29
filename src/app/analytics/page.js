@@ -5,7 +5,8 @@ import Layout from '../../components/Layout'
 import MetricCard from '../../components/MetricCard'
 import RealtimeGraphs from '../../components/RealtimeGraphs'
 import { useRealTimeData } from '../../hooks/useRealTimeData'
-import { normalizeTelemetry, formatNumber, safetyColor, safetyLabel, bhiStatus } from '../../lib/utils'
+import { normalizeTelemetry, formatNumber, safetyColor, safetyLabel, bhiStatus, exportToCSV } from '../../lib/utils'
+import { FileSpreadsheet } from 'lucide-react'
 import styles from '../../styles/pages.module.css'
 
 export default function Analytics() {
@@ -20,6 +21,14 @@ export default function Analytics() {
   const soc = live?.battery?.soc ?? live?.soc
   const soh = live?.battery?.soh ?? live?.soh
   const ir = live?.battery?.resistance ?? live?.resistance
+
+  const normalizedHistory = useMemo(() => {
+    return normalizeTelemetry(history)
+  }, [history])
+
+  const handleExportCSV = () => {
+    exportToCSV(normalizedHistory, `telemetry_analytics_${Date.now()}.csv`)
+  }
 
   const stats = [
     {
@@ -80,10 +89,6 @@ export default function Analytics() {
     },
   ]
 
-  const normalizedHistory = useMemo(() => {
-    return normalizeTelemetry(history)
-  }, [history])
-
   return (
     <Layout connected={connected} lastSeen={data?.timestamp || data?.receivedAt}>
       <div className={styles.pageHeader}>
@@ -96,6 +101,15 @@ export default function Analytics() {
             degradation tracking.
           </p>
         </div>
+
+        <button
+          onClick={handleExportCSV}
+          className={styles.filterBtn}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px' }}
+        >
+          <FileSpreadsheet size={15} color="#00E8A0" />
+          <span>Export Graph CSV</span>
+        </button>
       </div>
 
       {/* Snapshot Vitals Grid */}
@@ -116,7 +130,7 @@ export default function Analytics() {
       <RealtimeGraphs rawData={normalizedHistory} liveState={live} />
 
       <div className={styles.note} style={{ marginTop: 20 }}>
-        Graphs update in real-time as samples arrive over MQTT. Min/Max safety thresholds are
+        Graphs update in real-time as samples arrive from the ESP32 via Firebase. Min/Max safety thresholds are
         calculated dynamically according to the active battery chemistry profile.
       </div>
     </Layout>

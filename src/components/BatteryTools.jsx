@@ -3,24 +3,20 @@
 import { useState, useMemo } from 'react'
 import {
   DollarSign,
-  Zap,
-  Leaf,
   TrendingUp,
   Cpu,
-  Sliders,
   Award,
-  CheckCircle,
-  HelpCircle,
-  BarChart3,
-  Flame,
-  Clock,
-  RotateCcw,
+  Sliders,
 } from 'lucide-react'
-import { formatNumber } from '../lib/utils'
 import styles from '../styles/pages.module.css'
 
 export default function BatteryTools({ currentVitals = {} }) {
   const [toolTab, setToolTab] = useState('cost') // 'cost', 'sim', 'chem', 'bench'
+
+  // Real telemetry values for the benchmark tab
+  const soh = currentVitals?.battery?.soh != null ? currentVitals.battery.soh : null
+  const ir = currentVitals?.battery?.resistance != null ? currentVitals.battery.resistance : null
+  const bhi = currentVitals?.risk?.bhi != null ? currentVitals.risk.bhi : null
 
   // Tool 1: Cost & ROI Calculator State
   const [tariff, setTariff] = useState(0.15) // $/kWh
@@ -381,8 +377,8 @@ export default function BatteryTools({ currentVitals = {} }) {
           <div
             style={{
               padding: 18,
-              background: 'linear-gradient(120deg, rgba(0, 232, 160, 0.12), rgba(56, 189, 248, 0.08))',
-              border: '1px solid rgba(0, 232, 160, 0.3)',
+              background: 'linear-gradient(120deg, rgba(0, 232, 160, 0.10), rgba(56, 189, 248, 0.06))',
+              border: '1px solid rgba(0, 232, 160, 0.25)',
               borderRadius: 12,
               display: 'flex',
               justifyContent: 'space-between',
@@ -395,12 +391,11 @@ export default function BatteryTools({ currentVitals = {} }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Award size={20} color="#00E8A0" />
                 <span style={{ fontSize: 16, fontWeight: 800, color: '#fff' }}>
-                  Fleet Percentile Ranking: 88th Percentile
+                  Live Health Benchmark
                 </span>
               </div>
               <div style={{ fontSize: 12, color: '#CBD5E1', marginTop: 4 }}>
-                Your battery cell pack is currently healthier and running cooler than <strong>88% of monitored packs</strong> of
-                identical age and chemistry.
+                Metrics below are derived exclusively from your device telemetry stream.
               </div>
             </div>
 
@@ -408,33 +403,41 @@ export default function BatteryTools({ currentVitals = {} }) {
               style={{
                 padding: '8px 16px',
                 borderRadius: 100,
-                background: 'rgba(0, 232, 160, 0.2)',
+                background: 'rgba(0, 232, 160, 0.12)',
                 color: '#00E8A0',
                 fontSize: 13,
                 fontWeight: 800,
               }}
             >
-              Grade A+ Benchmark
+              {soh
+                ? `${soh}% SOH`
+                : 'Awaiting Live Telemetry'}
             </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
             <div style={{ padding: 12, background: 'rgba(0,0,0,0.3)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.05)' }}>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Capacity Retention vs Benchmark</div>
-              <div style={{ fontSize: 18, fontWeight: 800, color: '#00E8A0', marginTop: 4 }}>+4.2% Above Average</div>
-              <div style={{ fontSize: 10, color: '#9AA7BF' }}>SOH 96% vs Industry standard 91.8% at cycle 140</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>State of Health</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: '#00E8A0', marginTop: 4 }}>
+                {soh != null ? `${soh}%` : '--'}
+              </div>
+              <div style={{ fontSize: 10, color: '#9AA7BF' }}>Reported by device calibration</div>
             </div>
 
             <div style={{ padding: 12, background: 'rgba(0,0,0,0.3)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.05)' }}>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Thermal Variance Under Load</div>
-              <div style={{ fontSize: 18, fontWeight: 800, color: '#38BDF8', marginTop: 4 }}>2.8°C Delta (Superior)</div>
-              <div style={{ fontSize: 10, color: '#9AA7BF' }}>Benchmark packs experience 6.4°C rise under equivalent C-rate</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Internal Resistance</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: '#FFD60A', marginTop: 4 }}>
+                {ir != null ? `${ir} mΩ` : '--'}
+              </div>
+              <div style={{ fontSize: 10, color: '#9AA7BF' }}>INA219 coulomb-counter measurement</div>
             </div>
 
             <div style={{ padding: 12, background: 'rgba(0,0,0,0.3)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.05)' }}>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Internal Resistance Degradation</div>
-              <div style={{ fontSize: 18, fontWeight: 800, color: '#FFD60A', marginTop: 4 }}>42.5 mΩ (Nominal)</div>
-              <div style={{ fontSize: 10, color: '#9AA7BF' }}>Threshold limit for second-life retirement is 65.0 mΩ</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Battery Health Index (BHI)</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: '#38BDF8', marginTop: 4 }}>
+                {bhi != null ? `${bhi} / 100` : '--'}
+              </div>
+              <div style={{ fontSize: 10, color: '#9AA7BF' }}>Risk score from live multisensor fusion</div>
             </div>
           </div>
         </div>

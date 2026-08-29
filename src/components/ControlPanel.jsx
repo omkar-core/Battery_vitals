@@ -4,15 +4,11 @@ import { useState, useEffect } from 'react'
 import {
   Bell,
   RotateCcw,
-  Volume2,
   VolumeX,
-  Play,
   Power,
   Lightbulb,
-  ShieldAlert,
   Clock,
   Info,
-  CheckCircle,
 } from 'lucide-react'
 import styles from './components.module.css'
 
@@ -61,53 +57,44 @@ export default function ControlPanel({ commands = {}, onCommand, batteryState = 
 
   const outRow = (label, key, cmdOn, cmdOff, colorHex) => {
     const isOn = !!commands[key]
+    const isDisabled = isAuto || pending != null || (key === 'buzzer' && isCritical && isOn)
+
     return (
-      <div className={styles.controlRow}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div className={styles.controlRow} key={key}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <Lightbulb
-            size={15}
+            size={16}
             style={{
-              color: isOn ? colorHex : 'var(--text-muted)',
-              filter: isOn ? `drop-shadow(0 0 6px ${colorHex})` : 'none',
+              color: isOn ? colorHex : 'var(--text-tertiary)',
             }}
           />
-          <span style={{ fontWeight: 600, color: '#E2E8F0' }}>{label}</span>
+          <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '13px' }}>{label}</span>
         </span>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span
             className={styles.controlValue}
             style={{
-              color: isOn ? colorHex : 'var(--text-muted)',
-              fontSize: 11,
-              letterSpacing: 0.5,
+              color: isOn ? colorHex : 'var(--text-tertiary)',
+              fontSize: '11px',
+              fontWeight: 700,
+              letterSpacing: '0.5px',
             }}
           >
             {isOn ? 'ENGAGED' : 'OFF'}
           </span>
 
+          {/* iOS Style Toggle Switch */}
           <button
-            disabled={isAuto || pending != null || (key === 'buzzer' && isCritical && isOn)}
+            type="button"
+            role="switch"
+            aria-checked={isOn}
+            disabled={isDisabled}
             onClick={() => act(isOn ? cmdOff : cmdOn, !isOn, label)}
-            style={{
-              cursor: isAuto ? 'not-allowed' : 'pointer',
-              background: isAuto
-                ? 'rgba(255,255,255,0.02)'
-                : isOn
-                ? 'rgba(255,45,85,0.12)'
-                : 'rgba(0,232,160,0.12)',
-              border: `1px solid ${
-                isAuto ? 'var(--border)' : isOn ? 'rgba(255,45,85,0.3)' : 'rgba(0,232,160,0.3)'
-              }`,
-              color: isAuto ? 'var(--text-muted)' : isOn ? '#FF2D55' : '#00E8A0',
-              borderRadius: 6,
-              padding: '4px 10px',
-              fontSize: 11,
-              fontWeight: 700,
-              transition: 'all 0.2s',
-            }}
+            className={`${styles.toggleSwitch} ${isOn ? styles.toggleActive : ''}`}
+            title={`${isOn ? 'Disable' : 'Enable'} ${label}`}
           >
-            {isOn ? 'Turn Off' : 'Turn On'}
+            <span className={styles.toggleThumb} />
           </button>
         </div>
       </div>
@@ -128,23 +115,23 @@ export default function ControlPanel({ commands = {}, onCommand, batteryState = 
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          padding: '14px 18px',
+          padding: '16px 20px',
           background: isAuto
-            ? 'linear-gradient(120deg, rgba(0, 232, 160, 0.14), rgba(56, 189, 248, 0.08))'
-            : 'linear-gradient(120deg, rgba(255, 107, 53, 0.16), rgba(255, 214, 10, 0.08))',
-          border: `1.5px solid ${isAuto ? 'rgba(0, 232, 160, 0.4)' : 'rgba(255, 107, 53, 0.4)'}`,
-          borderRadius: 12,
-          marginBottom: 16,
+            ? 'rgba(61, 220, 151, 0.08)'
+            : 'rgba(245, 185, 66, 0.12)',
+          border: `1px solid ${isAuto ? 'var(--state-safe)' : 'var(--state-warning)'}`,
+          borderRadius: '12px',
+          marginBottom: '16px',
         }}
       >
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Power size={18} color={isAuto ? '#00E8A0' : '#FF6B35'} />
-            <span style={{ fontSize: 15, fontWeight: 800, color: '#fff' }}>
+            <Power size={18} color={isAuto ? 'var(--state-safe)' : 'var(--state-warning)'} />
+            <span style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
               Control Mode: {isAuto ? 'AUTOMATIC (Safe)' : 'MANUAL OVERRIDE'}
             </span>
           </div>
-          <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginTop: 4 }}>
+          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
             {isAuto
               ? 'ESP32 firmware autonomously dictates LED and Buzzer triggers according to real-time risk scores.'
               : `Manual test override active. Auto-reverts in ${formatCountdown(manualTimeRemaining)} for hardware safety.`}
@@ -156,14 +143,13 @@ export default function ControlPanel({ commands = {}, onCommand, batteryState = 
           onClick={toggleAutoMode}
           style={{
             padding: '10px 18px',
-            borderRadius: 10,
+            borderRadius: '8px',
             border: 'none',
-            background: isAuto ? 'linear-gradient(90deg, #FF6B35, #FF9800)' : 'linear-gradient(90deg, #00E8A0, #00C07A)',
-            color: '#06121B',
-            fontSize: 12,
-            fontWeight: 800,
+            background: isAuto ? 'var(--state-warning)' : 'var(--state-safe)',
+            color: '#0B0E12',
+            fontSize: '12px',
+            fontWeight: 700,
             cursor: isCritical && isAuto ? 'not-allowed' : 'pointer',
-            boxShadow: isAuto ? '0 0 16px rgba(255, 107, 53, 0.3)' : '0 0 16px rgba(0, 232, 160, 0.3)',
             whiteSpace: 'nowrap',
           }}
         >
@@ -175,19 +161,19 @@ export default function ControlPanel({ commands = {}, onCommand, batteryState = 
       {isAuto ? (
         <div
           style={{
-            padding: '10px 14px',
-            background: 'rgba(0, 232, 160, 0.05)',
-            border: '1px solid rgba(0, 232, 160, 0.2)',
-            borderRadius: 8,
-            fontSize: 11.5,
-            color: '#CBD5E1',
-            marginBottom: 14,
+            padding: '12px 16px',
+            background: 'var(--bg-surface-raised)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: '8px',
+            fontSize: '12px',
+            color: 'var(--text-secondary)',
+            marginBottom: '16px',
             display: 'flex',
             alignItems: 'center',
-            gap: 8,
+            gap: 10,
           }}
         >
-          <Info size={15} color="#00E8A0" flexShrink={0} />
+          <Info size={16} color="var(--state-safe)" flexShrink={0} />
           <span>
             <strong>Active Safety Logic:</strong> Green LED active (BHI &lt; 30, SAFE). Yellow LED
             triggers at BHI &gt; 30 (Caution). Red LED &amp; Buzzer trigger at BHI &gt; 55 or voltage
@@ -197,35 +183,34 @@ export default function ControlPanel({ commands = {}, onCommand, batteryState = 
       ) : (
         <div
           style={{
-            padding: '10px 14px',
-            background: 'rgba(255, 107, 53, 0.08)',
-            border: '1px solid rgba(255, 107, 53, 0.25)',
-            borderRadius: 8,
-            fontSize: 11.5,
-            color: '#FFD60A',
-            marginBottom: 14,
+            padding: '12px 16px',
+            background: 'rgba(245, 185, 66, 0.08)',
+            border: '1px solid var(--state-warning)',
+            borderRadius: '8px',
+            fontSize: '12px',
+            color: 'var(--state-warning)',
+            marginBottom: '16px',
             display: 'flex',
             alignItems: 'center',
-            gap: 8,
+            gap: 10,
           }}
         >
-          <Clock size={15} color="#FFD60A" flexShrink={0} />
+          <Clock size={16} color="var(--state-warning)" flexShrink={0} />
           <span>
-            <strong>Manual Override Engaged:</strong> Actuator buttons below send immediate commands
-            over Firebase Realtime Database. Note: Safety interlocks will override if a CRITICAL state occurs.
+            <strong>Manual Override Engaged:</strong> Use the iOS toggle switches below to send immediate command frames to ESP32 listeners.
           </span>
         </div>
       )}
 
-      {/* Actuator Status Rows */}
+      {/* Actuator Status Rows with iOS Switches */}
       <div className={styles.controlStatus}>
-        {outRow('Green Safety Indicator LED', 'green_led', 'GREEN_ON', 'GREEN_OFF', '#00E8A0')}
-        {outRow('Yellow Caution Indicator LED', 'yellow_led', 'YELLOW_ON', 'YELLOW_OFF', '#FFD60A')}
-        {outRow('Red Critical Hazard Warning LED', 'red_led', 'RED_ON', 'RED_OFF', '#FF2D55')}
-        {outRow('Audible Piezo Alarm Buzzer', 'buzzer', 'BUZZER_ON', 'BUZZER_OFF', '#FF2D55')}
+        {outRow('Green Safety Indicator LED', 'green_led', 'GREEN_ON', 'GREEN_OFF', 'var(--state-safe)')}
+        {outRow('Yellow Caution Indicator LED', 'yellow_led', 'YELLOW_ON', 'YELLOW_OFF', 'var(--state-caution)')}
+        {outRow('Red Critical Hazard Warning LED', 'red_led', 'RED_ON', 'RED_OFF', 'var(--state-critical)')}
+        {outRow('Audible Piezo Alarm Buzzer', 'buzzer', 'BUZZER_ON', 'BUZZER_OFF', 'var(--state-critical)')}
       </div>
 
-      {/* Manual Action Buttons (Test Buzzer, Demo Cycle, Reset to Auto, Silence All) */}
+      {/* Manual Action Buttons (Test Buzzer, Reset to Auto, Silence All) */}
       <div className={styles.controlButtons}>
         <button
           disabled={isAuto || pending != null}
@@ -233,18 +218,8 @@ export default function ControlPanel({ commands = {}, onCommand, batteryState = 
           onClick={() => act('TEST_BUZZER', 'TEST_BUZZER', '3-Sec Buzzer Test')}
           title="Pulse buzzer for 3 seconds"
         >
-          <Bell size={14} color="#FFD60A" />
+          <Bell size={14} color="var(--state-caution)" />
           <span>Test Buzzer (3s)</span>
-        </button>
-
-        <button
-          disabled={isAuto || pending != null}
-          className={styles.controlButton}
-          onClick={() => act('DEMO_CYCLE', 'DEMO_CYCLE', 'LED Sequence Demo')}
-          title="Run LED cycling sequence"
-        >
-          <Play size={14} color="#38BDF8" />
-          <span>Demo Cycle</span>
         </button>
 
         <button
@@ -253,7 +228,7 @@ export default function ControlPanel({ commands = {}, onCommand, batteryState = 
           onClick={() => act('LED_MODE', 'auto', 'Reset to Auto')}
           title="Return to autonomous monitoring"
         >
-          <RotateCcw size={14} color="#00E8A0" />
+          <RotateCcw size={14} color="var(--state-safe)" />
           <span>Reset to Auto</span>
         </button>
 
@@ -269,8 +244,8 @@ export default function ControlPanel({ commands = {}, onCommand, batteryState = 
       </div>
 
       {pending && (
-        <div style={{ fontSize: 11, color: '#38BDF8', marginTop: 10, fontFamily: 'monospace' }}>
-          Transmitting Firebase command: {pending}...
+        <div style={{ fontSize: '11px', color: 'var(--state-info)', marginTop: '12px', fontFamily: 'var(--font-mono)' }}>
+          Transmitting Firebase command frame: {pending}...
         </div>
       )}
     </div>

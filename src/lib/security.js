@@ -38,6 +38,7 @@ const ALLOWED_COMMANDS = new Set([
   'SILENCE_ALL',
   'BUZZER_ON',
   'BUZZER_OFF',
+  'MUTE_BUZZER',
   'RESET_ALARM',
   'RED_ON',
   'RED_OFF',
@@ -46,12 +47,15 @@ const ALLOWED_COMMANDS = new Set([
   'GREEN_ON',
   'GREEN_OFF',
   'TEST_BUZZER',
-  'DEMO_CYCLE',
   'SET_PROFILE',
   'SET_SAMPLE_INTERVAL',
+  'SET_FIREBASE_INTERVAL',
+  'START_MONITORING',
+  'STOP_MONITORING',
   'REBOOT',
   'START_CALIBRATION',
   'RUN_SELF_TEST',
+  'GET_SELFTEST',
 ])
 
 export function isValidCommand(cmd) {

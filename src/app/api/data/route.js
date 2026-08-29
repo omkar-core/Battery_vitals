@@ -21,7 +21,7 @@ export async function POST(request) {
     const now = new Date()
 
     const safetyMap = { SAFE: 'SAFE', CAUTION: 'CAUTION', WARNING: 'WARNING', CRITICAL: 'CRITICAL', SENSOR_FAULT: 'SAFE', EMERGENCY: 'EMERGENCY' }
-    const safety = safetyMap[d.state] || 'SAFE'
+    const safety = d.state ? safetyMap[String(d.state).toUpperCase()] || 'SAFE' : null
 
     const document = {
       batteryId,
@@ -36,25 +36,25 @@ export async function POST(request) {
       gasIndex: {
         mq2: sanitizeNumber(d.mq2, 0, 10000),
         mq135: sanitizeNumber(d.mq135, 0, 10000),
-        warm: Boolean(d.warm ?? true),
+        warm: d.warm != null ? Boolean(d.warm) : null,
       },
       safety,
       bhi: sanitizeNumber(d.bhi, 0, 100),
-      opDirection: sanitizeString((d.op || d.opDirection || 'IDLE').toUpperCase(), 20),
+      opDirection: sanitizeString((d.op || d.opDirection || '').toUpperCase(), 20),
       resistance: sanitizeNumber(d.resistance, 0, 1000),
-      profile: sanitizeString(d.profile || 'LI_ION', 20),
+      profile: sanitizeString(d.profile, 20),
       outputs: {
-        auto: Boolean(d.auto_mode ?? true),
-        red: Boolean(d.red_led),
-        yellow: Boolean(d.yellow_led),
-        green: Boolean(d.green_led ?? true),
-        buzzer: Boolean(d.buzzer),
+        auto: d.auto_mode != null ? Boolean(d.auto_mode) : null,
+        red: d.red_led != null ? Boolean(d.red_led) : null,
+        yellow: d.yellow_led != null ? Boolean(d.yellow_led) : null,
+        green: d.green_led != null ? Boolean(d.green_led) : null,
+        buzzer: d.buzzer != null ? Boolean(d.buzzer) : null,
       },
       network: {
         rssi: sanitizeNumber(d.wifi_rssi, -150, 0),
         heap: sanitizeNumber(d.free_heap, 0, 10000000),
       },
-      firmware: sanitizeString(d.firmware || 'v11.3', 20),
+      firmware: sanitizeString(d.firmware, 20),
       uptime: sanitizeNumber(d.uptime, 0, 100000000),
       timestamp: now.getTime(),
       receivedAt: now.toISOString(),
@@ -111,9 +111,9 @@ export async function GET(request) {
 }
 
 export function telemetryShape(d) {
-  const op = (d.opDirection || 'IDLE').toLowerCase()
+  const op = (d.opDirection || '').toLowerCase()
   return {
-    gas: { index_mq2: d.gasIndex?.mq2, status_mq2: d.safety === 'SAFE' ? 'Normal' : 'Elevated', index_mq135: d.gasIndex?.mq135, warm: d.gasIndex?.warm ?? true },
+    gas: { index_mq2: d.gasIndex?.mq2 ?? d.mq2, status_mq2: d.safety === 'SAFE' ? 'Normal' : 'Elevated', index_mq135: d.gasIndex?.mq135 ?? d.mq135, warm: d.gasIndex?.warm ?? false },
     environment: { temperature: d.temperature, humidity: d.humidity },
     battery: {
       voltage: d.voltage, current: d.current, power: d.power,
@@ -126,9 +126,9 @@ export function telemetryShape(d) {
     outputs: d.outputs || {},
     firmware: d.firmware || d.mac || '--',
     uptime: d.uptime || '--',
-    errors: d.errors || 0,
+    errors: d.errors ?? '--',
     mac: d.mac || '--',
-    dataLoss: d.network?.packetLoss ?? d.dataLoss ?? 0,
+    dataLoss: d.network?.packetLoss ?? d.dataLoss ?? '--',
     cpu: d.cpu,
     temp: d.temp,
     ts: d.timestamp ? new Date(d.timestamp).getTime() : Date.now(),

@@ -65,8 +65,8 @@ export async function POST(request) {
     const now = new Date()
 
     const safetyMap = { SAFE: 'SAFE', CAUTION: 'CAUTION', WARNING: 'WARNING', CRITICAL: 'CRITICAL', SENSOR_FAULT: 'SAFE', EMERGENCY: 'EMERGENCY' }
-    const rawSafety = b.safety ? String(b.safety).toUpperCase() : (body.state || 'SAFE')
-    const safety = safetyMap[rawSafety] || 'SAFE'
+    const rawSafety = b.safety ? String(b.safety).toUpperCase() : (body.state || '')
+    const safety = rawSafety ? safetyMap[rawSafety] || 'SAFE' : null
 
     // Validate numeric bounds
     const voltage = sanitizeNumber(b.voltage, 0, 100)
@@ -90,18 +90,18 @@ export async function POST(request) {
       soh,
       temperature,
       humidity,
-      gasIndex: { mq2, mq135, warm: Boolean(g.warm ?? body.warm ?? true) },
+      gasIndex: { mq2, mq135, warm: g.warm != null ? Boolean(g.warm) : body.warm != null ? Boolean(body.warm) : null },
       safety,
       bhi,
-      opDirection: sanitizeString((b.op || body.opDirection || 'IDLE').toUpperCase(), 20),
+      opDirection: sanitizeString((b.op || body.opDirection || '').toUpperCase(), 20),
       resistance: sanitizeNumber(b.resistance, 0, 1000),
-      profile: sanitizeString(b.profile || 'LI_ION', 20),
+      profile: sanitizeString(b.profile, 20),
       outputs: {
-        auto: Boolean(body.outputs?.auto ?? body.auto_mode ?? true),
-        red: Boolean(body.outputs?.red ?? body.red_led),
-        yellow: Boolean(body.outputs?.yellow ?? body.yellow_led),
-        green: Boolean(body.outputs?.green ?? body.green_led ?? true),
-        buzzer: Boolean(body.outputs?.buzzer ?? body.buzzer),
+        auto: body.outputs?.auto != null ? Boolean(body.outputs.auto) : body.auto_mode != null ? Boolean(body.auto_mode) : null,
+        red: body.outputs?.red != null ? Boolean(body.outputs.red) : body.red_led != null ? Boolean(body.red_led) : null,
+        yellow: body.outputs?.yellow != null ? Boolean(body.outputs.yellow) : body.yellow_led != null ? Boolean(body.yellow_led) : null,
+        green: body.outputs?.green != null ? Boolean(body.outputs.green) : body.green_led != null ? Boolean(body.green_led) : null,
+        buzzer: body.outputs?.buzzer != null ? Boolean(body.outputs.buzzer) : body.buzzer != null ? Boolean(body.buzzer) : null,
       },
       network: {
         rssi: sanitizeNumber(n.rssi ?? body.wifi_rssi, -150, 0),

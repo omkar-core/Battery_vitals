@@ -14,7 +14,6 @@ import {
   Home,
   Cpu,
   ShieldCheck,
-  Sparkles,
   Sun,
   Moon,
 } from 'lucide-react'
@@ -24,14 +23,13 @@ import styles from './components.module.css'
 
 export const NAV = [
   { key: '/', label: 'Dashboard', icon: Home },
-  { key: '/analytics', label: 'Graphs & Trends', icon: Activity },
   { key: '/controls', label: 'Controls', icon: SlidersHorizontal },
-  { key: '/diagnostics', label: 'Diagnostics', icon: Cpu },
+  { key: '/analytics', label: 'Graphs & Trends', icon: Activity },
   { key: '/ai', label: 'AI Analyst', icon: Bot },
-  { key: '/passport', label: 'Passport', icon: ShieldCheck },
   { key: '/alerts', label: 'Alerts', icon: Bell },
-  { key: '/history', label: 'History', icon: Clock },
-  { key: '/coming-soon', label: 'Coming Soon', icon: Sparkles },
+  { key: '/diagnostics', label: 'Diagnostics', icon: Cpu },
+  { key: '/passport', label: 'Passport', icon: ShieldCheck },
+  { key: '/history', label: 'History & Export', icon: Clock },
   { key: '/settings', label: 'Settings', icon: Settings },
 ]
 
@@ -76,13 +74,13 @@ export default function Header({ connected, lastSeen }) {
     <nav className={styles.shell}>
       <Link href="/" className={styles.brand}>
         <div className={styles.brandLogo}>
-          <BatteryCharging size={20} color="#00E8A0" />
+          <BatteryCharging size={18} color="var(--accent-primary)" />
         </div>
         <div>
           <div className={styles.brandTitle}>
             Battery <span className={styles.brandAccent}>Vital</span>
           </div>
-          <div className={styles.brandSub}>Intelligent Safety System</div>
+          <div className={styles.brandSub}>Signal Room Safety Console</div>
         </div>
       </Link>
 
@@ -115,10 +113,10 @@ export default function Header({ connected, lastSeen }) {
           title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
           aria-label="Toggle Theme"
         >
-          {isDark ? <Sun size={17} color="#FFD60A" /> : <Moon size={17} color="#0284C7" />}
+          {isDark ? <Sun size={16} color="var(--state-caution)" /> : <Moon size={16} color="var(--state-info)" />}
         </button>
 
-        {/* Real-Time Connection Indicator */}
+        {/* Real-Time Connection Indicator Pill */}
         <div
           className={`${styles.status} ${styles['status_' + stateKey] || ''}`}
           title={`Status: ${connInfo.state} (Last seen: ${connInfo.ageSec != null ? `${connInfo.ageSec}s ago` : 'never'})`}
@@ -127,7 +125,7 @@ export default function Header({ connected, lastSeen }) {
             className={`${styles.dot} ${styles['dot_' + stateKey] || ''}`}
             style={{ background: connInfo.color }}
           />
-          <span style={{ color: connInfo.color }}>{connInfo.state}</span>
+          <span style={{ color: connInfo.color, fontWeight: 700 }}>{connInfo.state}</span>
         </div>
       </div>
     </nav>

@@ -36,31 +36,19 @@
 }
 
 .metricCard {
-  background: var(--card-gradient);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  padding: 16px 18px;
+  padding: 18px 20px;
   position: relative;
   overflow: hidden;
   box-shadow: var(--shadow);
   transition: transform 0.2s ease, border-color 0.2s, box-shadow 0.2s;
 }
 
-.metricCard::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--glow, var(--green)), transparent);
-  opacity: 0.8;
-}
-
 .metricCard:hover {
-  transform: translateY(-3px);
+  transform: translateY(-2px);
   border-color: var(--border-strong);
-  box-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.4);
 }
 
 .metricTop {
@@ -87,18 +75,20 @@ html[data-theme="light"] .metricIcon {
 .metricTitle {
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.6px;
-  color: var(--text-muted);
-  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+  font-weight: 600;
+  font-family: var(--font-body);
 }
 
 .metricValue {
-  font-size: 30px;
-  font-weight: 800;
+  font-size: 32px;
+  font-weight: 600;
   color: var(--text-primary);
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   line-height: 1.1;
   letter-spacing: -0.5px;
+  margin: 6px 0;
 }
 
 .metricUnit {
@@ -333,7 +323,7 @@ html[data-theme="light"] .metricIcon {
 .brandTitle {
   font-size: 15px;
   font-weight: 700;
-  color: #fff;
+  color: var(--text-primary);
   letter-spacing: 0.2px;
 }
 
@@ -553,7 +543,7 @@ html[data-theme="light"] .metricIcon {
 .metricValue {
   font-size: 30px;
   font-weight: 700;
-  color: #fff;
+  color: var(--text-primary);
   font-family: var(--mono);
   line-height: 1.1;
   letter-spacing: -0.5px;
@@ -599,14 +589,14 @@ html[data-theme="light"] .metricIcon {
 }
 
 .chartTitle {
-  font-size: 13px;
-  font-weight: 600;
-  color: #E2E8F0;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-primary);
 }
 
 /* ===== ControlPanel ===== */
 .controlPanel {
-  background: linear-gradient(160deg, rgba(30, 40, 70, 0.35), rgba(18, 24, 40, 0.55));
+  background: var(--card-gradient);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid var(--border);
@@ -616,9 +606,9 @@ html[data-theme="light"] .metricIcon {
 }
 
 .panelTitle {
-  font-size: 13px;
-  font-weight: 600;
-  color: #E2E8F0;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-primary);
   margin-bottom: 12px;
 }
 
@@ -633,17 +623,54 @@ html[data-theme="light"] .metricIcon {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  border-radius: 8px;
-  font-size: 12px;
-  color: #94A3B8;
+  padding: 12px 16px;
+  background: var(--bg-surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* iOS Style Toggle Switch */
+.toggleSwitch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--border-strong);
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  outline: none;
+}
+
+.toggleSwitch.toggleActive {
+  background: var(--state-safe);
+}
+
+.toggleSwitch:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.toggleThumb {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.toggleSwitch.toggleActive .toggleThumb {
+  transform: translateX(20px);
 }
 
 .controlValue {
   font-weight: 700;
-  color: #00E8A0;
+  color: var(--green);
   font-family: monospace;
   font-size: 12px;
 }
@@ -660,11 +687,11 @@ html[data-theme="light"] .metricIcon {
   gap: 6px;
   padding: 9px 14px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(0, 0, 0, 0.3);
-  color: #E2E8F0;
+  border: 1px solid var(--border);
+  background: var(--input-bg);
+  color: var(--text-primary);
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   transition: background 0.2s, border 0.2s;
 }
@@ -944,4 +971,65 @@ html[data-theme="light"] .metricIcon {
   background: rgba(0, 232, 160, 0.12);
   color: #00E8A0;
   flex-shrink: 0;
+}
+
+/* ===== Skeleton Loaders & Shimmer Animation ===== */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.05) 25%,
+    rgba(255, 255, 255, 0.14) 37%,
+    rgba(255, 255, 255, 0.05) 63%
+  );
+  background-size: 400% 100%;
+  animation: skeletonShimmer 1.5s ease-in-out infinite;
+}
+
+html[data-theme="light"] .skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(15, 23, 42, 0.06) 25%,
+    rgba(15, 23, 42, 0.14) 37%,
+    rgba(15, 23, 42, 0.06) 63%
+  );
+  background-size: 400% 100%;
+}
+
+@keyframes skeletonShimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.skeletonMetricCard {
+  background: var(--card-gradient);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  position: relative;
+  overflow: hidden;
+}
+
+.skeletonCard {
+  background: var(--card-gradient);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 18px;
+}
+
+.skeletonTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.skeletonHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
 }

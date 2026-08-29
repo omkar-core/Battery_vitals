@@ -1,6 +1,7 @@
 import { initializeApp, getApps, cert } from 'firebase-admin/app'
 import { getDatabase } from 'firebase-admin/database'
 import { getAuth } from 'firebase-admin/auth'
+import { normalizeEsp32Packet } from './esp32'
 
 function getAdminApp() {
   try {
@@ -50,18 +51,26 @@ export const adminDb = adminApp ? getDatabase(adminApp) : null
 export const adminAuth = adminApp ? getAuth(adminApp) : null
 
 /**
- * Fetch latest telemetry for a battery from Firebase RTDB safely
+ * Fetch latest telemetry for a battery from Firebase RTDB safely.
+ * Raw ESP32 packets (mA/mW + millis()-uptime timestamp) are normalized here
+ * so every API route receives consistent units and real epoch timestamps.
  */
 export async function getLatestTelemetry(batteryId = 'BAT001') {
   if (!adminDb) return null
   try {
     const snapshot = await adminDb.ref(`live_data/${batteryId}`).once('value')
     if (snapshot.exists()) {
-      return snapshot.val()
+      return normalizeEsp32Packet(snapshot.val())
     }
     const rootSnapshot = await adminDb.ref('live_data').once('value')
     if (rootSnapshot.exists()) {
-      return rootSnapshot.val()
+      const rootVal = rootSnapshot.val()
+      const val = rootVal && typeof rootVal === 'object' && rootVal[batteryId]
+        ? rootVal[batteryId]
+        : rootVal
+      return val && typeof val === 'object'
+        ? normalizeEsp32Packet({ ...val, batteryId })
+        : null
     }
     return null
   } catch (err) {

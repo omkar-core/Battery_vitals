@@ -9,11 +9,8 @@ import {
   BellRing,
   Volume2,
   VolumeX,
-  Send,
-  ShieldAlert,
   Bell,
   Smartphone,
-  CheckCircle,
 } from 'lucide-react'
 import styles from '../../styles/pages.module.css'
 
@@ -55,40 +52,6 @@ export default function AlertsPage() {
         icon: '/favicon.svg',
       })
     }
-  }
-
-  const triggerTestAlert = async (severity = 'WARNING') => {
-    playAlertChime(severity)
-    const isCrit = severity === 'CRITICAL'
-    const msg = isCrit
-      ? 'Thermal Runaway Warning: DHT11 cell temperature 56.4°C exceeded 50.0°C safety ceiling.'
-      : 'Voltage Anomaly: INA219 measured 14.65V approaching upper charge cutoff.'
-
-    await fetch('/api/alerts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        batteryId: 'BAT001',
-        severity,
-        type: isCrit ? 'THERMAL_OVERHEAT' : 'OVER_VOLTAGE',
-        message: msg,
-        bhi: isCrit ? 82 : 45,
-        sensorData: {
-          voltage: isCrit ? 13.9 : 14.65,
-          temperature: isCrit ? 56.4 : 32.1,
-          current: isCrit ? 4.2 : 3.8,
-        },
-      }),
-    })
-
-    if (pushEnabled && typeof window !== 'undefined' && 'Notification' in window) {
-      new Notification(`Battery Vital [${severity}]`, {
-        body: msg,
-        icon: '/favicon.svg',
-      })
-    }
-
-    load()
   }
 
   const counts = alerts.reduce((acc, a) => {
@@ -136,21 +99,6 @@ export default function AlertsPage() {
           >
             <Smartphone size={13} color={pushEnabled ? '#00E8A0' : '#94A3B8'} />
             <span>{pushEnabled ? 'Push Enabled' : 'Enable Push'}</span>
-          </button>
-
-          <button
-            onClick={() => triggerTestAlert('CRITICAL')}
-            className={styles.filterBtn}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              borderColor: 'rgba(255, 45, 85, 0.4)',
-              color: '#FF2D55',
-            }}
-          >
-            <ShieldAlert size={13} />
-            <span>Test Critical Alert</span>
           </button>
         </div>
       </div>

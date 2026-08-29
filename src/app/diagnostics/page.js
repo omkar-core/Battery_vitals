@@ -73,11 +73,11 @@ export default function DiagnosticsPage() {
   }
   const wifiBars = rssiToBars(net.rssi)
 
-  // Sensor status assessments
-  const inaStatus = data?.ina_ok === false ? 'FAULT' : 'OK'
-  const dhtStatus = data?.dht_ok === false ? 'FAULT' : 'OK'
-  const mq2Status = data?.gas?.warm ? 'WARM' : 'OK'
-  const mq135Status = data?.gas?.warm ? 'WARM' : 'OK'
+  // Sensor status assessments (only claim a status when real data exists)
+  const inaStatus = data?.ina_ok == null ? '--' : data.ina_ok ? 'OK' : 'FAULT'
+  const dhtStatus = data?.dht_ok == null ? '--' : data.dht_ok ? 'OK' : 'FAULT'
+  const mq2Status = data?.gas?.warm ? 'WARM' : data?.gas?.index_mq2 != null ? 'OK' : '--'
+  const mq135Status = data?.gas?.warm ? 'WARM' : data?.gas?.index_mq135 != null ? 'OK' : '--'
 
   const copyJson = () => {
     if (!data) return
@@ -326,7 +326,7 @@ export default function DiagnosticsPage() {
             <div style={{ marginTop: 8, fontSize: 12, fontFamily: 'var(--mono)' }}>
               Raw ADC: <strong>{data?.gas?.index_mq2 != null ? `${Math.round(data.gas.index_mq2)} ADC` : data?.mq2 != null ? `${Math.round(data.mq2)} ADC` : '--'}</strong>
               <br />
-              Status: <strong>{data?.gas?.warm ? 'Heater Warming' : data?.gas?.status_mq2 || 'Active'}</strong>
+              Status: <strong>{data?.gas?.warm ? 'Heater Warming' : data?.gas?.status_mq2 || '--'}</strong>
             </div>
           </div>
 
@@ -353,7 +353,7 @@ export default function DiagnosticsPage() {
             <div style={{ marginTop: 8, fontSize: 12, fontFamily: 'var(--mono)' }}>
               Raw ADC: <strong>{data?.gas?.index_mq135 != null ? `${Math.round(data.gas.index_mq135)} ADC` : data?.mq135 != null ? `${Math.round(data.mq135)} ADC` : '--'}</strong>
               <br />
-              Status: <strong>{data?.gas?.warm ? 'Heater Warming' : data?.gas?.status_mq135 || 'Active'}</strong>
+              Status: <strong>{data?.gas?.warm ? 'Heater Warming' : data?.gas?.status_mq135 || '--'}</strong>
             </div>
           </div>
         </div>
@@ -391,7 +391,7 @@ export default function DiagnosticsPage() {
           unit=""
           color="#A78BFA"
           icon={Cpu}
-          subtext="ESP32-WROOM-32D"
+          subtext="ESP32 Microcontroller"
         />
       </div>
 

@@ -1,25 +1,30 @@
-import { Inter } from 'next/font/google'
+import { Space_Grotesk, Inter, JetBrains_Mono } from 'next/font/google'
 import '../styles/globals.css'
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
+const spaceGrotesk = Space_Grotesk({ subsets: ['latin'], variable: '--font-display' })
+const inter = Inter({ subsets: ['latin'], variable: '--font-body' })
+const jetbrainsMono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono' })
 
 export const metadata = {
-  title: 'Battery Vital - Intelligent Battery Safety System',
+  title: 'Battery Vital — Mission Control Battery Telemetry & Safety System',
   description:
-    'Real-time battery monitoring with Firebase Realtime Database, MongoDB Atlas, and Gemini AI analysis.',
+    'Industrial-grade real-time battery vital monitoring, hardware controls, edge safety interlocks, and AI analytics.',
   manifest: '/manifest.json',
   icons: { icon: '/favicon.svg' },
 }
 
 export const viewport = {
-  themeColor: '#070B15',
+  themeColor: '#0B0E12',
   width: 'device-width',
   initialScale: 1,
 }
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html
+      lang="en"
+      className={`${spaceGrotesk.variable} ${inter.variable} ${jetbrainsMono.variable}`}
+    >
       <body>
         <div className="auroraBg">
           <div className="blob blob1" />

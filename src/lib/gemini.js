@@ -1,5 +1,9 @@
 // Gemini AI integration for battery analysis, predictive maintenance, and conversational chatbot.
 
+// Never fabricate telemetry. Values that are missing from the live packet are
+// reported honestly as "not reported" instead of substituted with placeholders.
+const orNotReported = (v) => (v == null || v === '' ? 'not reported' : v)
+
 export async function askBatteryAssistant(question, data = {}) {
   if (!process.env.GEMINI_API_KEY) {
     return generateSmartFallback(question, data)
@@ -9,22 +13,22 @@ export async function askBatteryAssistant(question, data = {}) {
 Answer the user's question about their battery system in clear, plain language with zero unnecessary jargon.
 
 Current Live Telemetry from the Battery System:
-- Voltage: ${data.voltage ?? 12.3}V
-- Current: ${data.current ?? 0}A (Direction: ${data.opDirection ?? 'IDLE'})
-- Cell Temperature: ${data.temperature ?? 27.5}°C
-- Ambient Humidity: ${data.humidity ?? 55}%
-- Combustible Gas (MQ-2): ${data.gasIndex?.mq2 ?? 1150} ADC
-- Air Quality / VOC (MQ-135): ${data.gasIndex?.mq135 ?? 480} ADC
-- State of Charge (SOC): ${data.soc ?? 85}%
-- State of Health (SOH): ${data.soh ?? 96}%
-- Battery Health Index (BHI): ${data.bhi ?? 14} / 100
-- Safety State: ${data.safety ?? 'SAFE'}
-- Internal Resistance: ${data.resistance ?? 42.5} mOhm
+- Voltage: ${orNotReported(data.voltage)}V
+- Current: ${orNotReported(data.current)}A (Direction: ${orNotReported(data.opDirection)})
+- Cell Temperature: ${orNotReported(data.temperature)}°C
+- Ambient Humidity: ${orNotReported(data.humidity)}%
+- Combustible Gas (MQ-2): ${orNotReported(data.gasIndex?.mq2)} ADC
+- Air Quality / VOC (MQ-135): ${orNotReported(data.gasIndex?.mq135)} ADC
+- State of Charge (SOC): ${orNotReported(data.soc)}%
+- State of Health (SOH): ${orNotReported(data.soh)}%
+- Battery Health Index (BHI): ${orNotReported(data.bhi)} / 100
+- Safety State: ${orNotReported(data.safety)}
+- Internal Resistance: ${orNotReported(data.resistance)} mOhm
 
 User Question: "${question}"
 
 Instructions:
-1. Provide a direct, reassuring, and context-aware answer referencing the actual live values where applicable.
+1. Provide a direct, reassuring, and context-aware answer referencing the actual live values where available. If a telemetry value is "not reported", do not invent a number for it.
 2. If BHI is elevated (>30), explain which parameters are causing drift (e.g. temperature rise or voltage sag).
 3. If asked about replacement, reference the 80% SOH industry threshold and current cycle life.
 4. Keep the tone helpful, professional, and safety-oriented.`
@@ -73,11 +77,7 @@ Keep response concise and actionable.`
 
 export async function predictFailure(historicalData) {
   if (!process.env.GEMINI_API_KEY) {
-    return `### Predictive Failure Risk Assessment
-- **24-Hour Failure Probability:** < 1.2% (Low)
-- **Primary Trend:** Cell voltage and temperature curves remain well within nominal operating envelopes.
-- **Monitoring Guidance:** Keep ambient cell operating temperatures below 40°C during full continuous discharge.
-- **Action Required:** None at this time. Scheduled automatic calibration due in 28 days.`
+    return generatePredictionFallback(historicalData)
   }
 
   const dataPoints = historicalData.slice(-20).map((d) => ({
@@ -100,8 +100,7 @@ Keep response concise and actionable.`
   try {
     return await generateContent(prompt)
   } catch (e) {
-    return `### Failure Prediction Summary
-Failure likelihood over the next 24 hours is negligible (<2%). Stable internal resistance indicates no active internal dendritic formation.`
+    return generatePredictionFallback(historicalData)
   }
 }
 
@@ -129,43 +128,77 @@ async function generateContent(prompt) {
 
 function generateSmartFallback(question, data) {
   const q = question.toLowerCase()
-  const v = data.voltage ?? 12.3
-  const t = data.temperature ?? 27.5
-  const bhi = data.bhi ?? 14
-  const soh = data.soh ?? 96
+  const v = data.voltage
+  const t = data.temperature
+  const bhi = data.bhi
+  const soh = data.soh
+  const r = data.resistance
 
   if (q.includes('bhi') || q.includes('high') || q.includes('score')) {
+    if (bhi == null) {
+      return 'Your Battery Health Index (BHI) has not been reported by the device yet, so a risk assessment cannot be computed. Please try again once live telemetry is flowing.'
+    }
     return `Your current Battery Health Index (BHI) is **${bhi} / 100**, which falls in the **${
       bhi < 20 ? 'Optimal (Safe)' : bhi < 50 ? 'Moderate Caution' : 'Elevated Risk'
-    }** zone. BHI aggregates voltage sag, internal resistance (${data.resistance ?? 42.5} mΩ), temperature (${t}°C), and gas levels. Currently, all sensor feeds indicate balanced cell chemistry without imminent thermal runaway risk.`
+    }** zone. BHI aggregates voltage sag, internal resistance (${
+      r != null ? `${r} mΩ` : 'not reported'
+    }), temperature (${t != null ? `${t}°C` : 'not reported'}), and gas levels.`
   }
 
   if (q.includes('replace') || q.includes('when') || q.includes('life')) {
-    return `Based on your battery's current State of Health (**${soh}% SOH**) and low internal resistance, this pack is in excellent condition. Batteries typically warrant replacement or second-life reassignment once SOH drops below **80%**. At your current usage rate of ~7 cycles per week, this pack is projected to operate reliably for another **3.5 to 5 years**.`
+    if (soh == null) {
+      return 'Your battery State of Health (SOH) has not been reported by the device yet, so a replacement timeline cannot be estimated. Please try again once live telemetry is flowing.'
+    }
+    return `Based on your battery's current State of Health (**${soh}% SOH**), replacement or second-life reassignment is typically warranted once SOH drops below **80%**.`
   }
 
   if (q.includes('gas') || q.includes('mq') || q.includes('smoke')) {
-    return `Your MQ-2 reading is **${data.gasIndex?.mq2 ?? 1150} ADC** and MQ-135 is **${
-      data.gasIndex?.mq135 ?? 480
-    } ADC**. Both values are well below the 2,200 ADC warning threshold. This confirms there is zero active electrolyte outgassing, venting, or burning insulation in the battery compartment.`
+    const mq2 = data.gasIndex?.mq2
+    const mq135 = data.gasIndex?.mq135
+    if (mq2 == null && mq135 == null) {
+      return 'Gas sensor readings (MQ-2 / MQ-135) have not been reported by the device yet. Please try again once live telemetry is flowing.'
+    }
+    return `Your MQ-2 reading is **${mq2 != null ? `${mq2} ADC` : 'not reported'}** and MQ-135 is **${
+      mq135 != null ? `${mq135} ADC` : 'not reported'
+    }**. 2,200 ADC is the configured warning threshold.`
   }
 
-  return `Based on your live vitals (Voltage: ${v}V, Temp: ${t}°C, SOH: ${soh}%), your battery system is operating stably. To maximize battery lifespan, keep the discharge rate below 1C and prevent temperatures from exceeding 35°C during hot ambient conditions.`
+  const parts = []
+  if (v != null) parts.push(`Voltage ${v}V`)
+  if (t != null) parts.push(`Temp ${t}°C`)
+  if (soh != null) parts.push(`SOH ${soh}%`)
+  const summary = parts.length ? `Your live vitals (${parts.join(', ')})` : 'Telemetry has not been reported by the device yet'
+  return `Based on ${summary}, the battery system remains under nominal observation. Keep the discharge rate below 1C and prevent temperatures from exceeding 35°C during hot ambient conditions.`
 }
 
 function generateStructuredFallback(data) {
+  const fmt = (v, suffix) => (v != null ? `${v}${suffix}` : 'not reported')
   return `### Comprehensive Battery Health Assessment
 
 1. **Current Health State:**
-   - Operating State: **${data.safety || 'SAFE'}** (BHI: ${data.bhi || 14}/100)
-   - Voltage (${data.voltage || 12.3}V) is nominal for current SOC (${data.soc || 85}%).
-   - Internal resistance (${data.resistance || 42.5} mΩ) shows minimal chemical degradation.
+   - Operating State: **${data.safety || 'not reported'}** (BHI: ${fmt(data.bhi, '/100')})
+   - Voltage (${fmt(data.voltage, 'V')}) relative to current SOC (${fmt(data.soc, '%')}).
+   - Internal resistance ${fmt(data.resistance, ' mΩ')}.
 
 2. **Thermal & Gas Safety:**
-   - Cell temperature is **${data.temperature || 27.5}°C** — well below the 50°C warning boundary.
-   - Gas sensors (MQ-2 & MQ-135) show clean baseline readings without active off-gassing.
+   - Cell temperature: **${fmt(data.temperature, '°C')}**.
+   - Gas sensors (MQ-2 & MQ-135): ${data.gasIndex ? `raw readings ${fmt(data.gasIndex.mq2, ' ADC')} and ${fmt(data.gasIndex.mq135, ' ADC')}` : 'not reported'}.
 
 3. **Recommendations:**
-   - Continue regular float charging between 13.6V and 14.4V.
-   - Avoid deep discharges below 20% SOC to double overall cycle endurance.`
+   - Continue monitoring; keep ambient temperature below 35°C and avoid discharges below 20% SOC.`
+}
+
+function generatePredictionFallback(historicalData) {
+  const points = Array.isArray(historicalData) ? historicalData : []
+  const last = points[points.length - 1] || {}
+  const latestParts = []
+  if (last.voltage != null) latestParts.push(`voltage ${last.voltage}V`)
+  if (last.temperature != null) latestParts.push(`temperature ${last.temperature}°C`)
+  if (last.bhi != null) latestParts.push(`BHI ${last.bhi}/100`)
+  const latest = latestParts.length ? latestParts.join(', ') : 'none reported'
+  return `### Predictive Failure Risk Assessment
+- **24-Hour Failure Probability:** Cannot be computed — the AI insights API key is not configured on this deployment, so no synthetic risk percentages are fabricated.
+- **Observed Data:** ${points.length} telemetry points reviewed. Latest sample: ${latest}.
+- **Monitoring Guidance:** Keep ambient cell operating temperatures below 40°C during continuous discharge and watch for BHI values above 55.
+- **Action Required:** Reconfigure the AI insights provider to enable automated failure prediction.`
 }

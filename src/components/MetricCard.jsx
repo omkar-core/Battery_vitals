@@ -1,20 +1,21 @@
 import styles from './components.module.css'
+import { SkeletonBox } from './SkeletonLoader'
 
 const CHIP_META = {
-  OK: { label: 'OK', color: '#00E8A0', bg: 'rgba(0, 232, 160, 0.12)' },
-  WARM: { label: 'WARM', color: '#FFD60A', bg: 'rgba(255, 214, 10, 0.12)' },
-  N_C: { label: 'N/C', color: '#94A3B8', bg: 'rgba(148, 163, 184, 0.12)' },
-  STUCK: { label: 'STUCK', color: '#FF6B35', bg: 'rgba(255, 107, 53, 0.14)' },
-  RANGE: { label: 'RANGE', color: '#FF2D55', bg: 'rgba(255, 45, 85, 0.14)' },
-  FAULT: { label: 'FAULT', color: '#FF2D55', bg: 'rgba(255, 45, 85, 0.14)' },
-  ERR: { label: 'ERR', color: '#FF2D55', bg: 'rgba(255, 45, 85, 0.14)' },
+  OK: { label: 'OK', color: 'var(--state-safe)', bg: 'rgba(61, 220, 151, 0.12)' },
+  WARM: { label: 'WARM', color: 'var(--state-caution)', bg: 'rgba(245, 185, 66, 0.12)' },
+  N_C: { label: 'N/C', color: 'var(--text-tertiary)', bg: 'rgba(92, 102, 117, 0.12)' },
+  STUCK: { label: 'STUCK', color: 'var(--state-warning)', bg: 'rgba(245, 185, 66, 0.14)' },
+  RANGE: { label: 'RANGE', color: 'var(--state-critical)', bg: 'rgba(240, 71, 92, 0.14)' },
+  FAULT: { label: 'FAULT', color: 'var(--state-critical)', bg: 'rgba(240, 71, 92, 0.14)' },
+  ERR: { label: 'ERR', color: 'var(--state-critical)', bg: 'rgba(240, 71, 92, 0.14)' },
 }
 
 export default function MetricCard({
   title,
   value,
   unit,
-  color = '#00E8A0',
+  color = 'var(--accent-primary)',
   icon: Icon,
   chip,
   delta,
@@ -23,53 +24,62 @@ export default function MetricCard({
 }) {
   const chipUpper = (chip || '').toUpperCase()
   const chipMeta = CHIP_META[chipUpper] || (chip ? { label: chipUpper, color, bg: `${color}1a` } : null)
+  const isValueMissing = value == null || value === '' || value === '--'
 
   return (
     <div
       className={styles.metricCard}
-      style={{ '--glow': color, cursor: onClick ? 'pointer' : 'default' }}
+      style={{ cursor: onClick ? 'pointer' : 'default' }}
       onClick={onClick}
     >
       <div className={styles.metricTop}>
-        <span className={styles.metricTitle}>{title}</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {chipMeta ? (
-            <span
-              className="chip"
-              style={{
-                background: chipMeta.bg,
-                borderColor: `${chipMeta.color}44`,
-                color: chipMeta.color,
-                padding: '2px 7px',
-                fontSize: '10px',
-                fontWeight: 700,
-              }}
-            >
-              {chipMeta.label}
-            </span>
-          ) : null}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {Icon ? (
             <span className={styles.metricIcon}>
-              <Icon size={14} color={color} />
+              <Icon size={16} color={color} />
             </span>
           ) : null}
+          <span className={styles.metricTitle}>{title}</span>
         </div>
+
+        {chipMeta ? (
+          <span
+            className="chip"
+            style={{
+              background: chipMeta.bg,
+              borderColor: `${chipMeta.color}44`,
+              color: chipMeta.color,
+              padding: '2px 8px',
+              fontSize: '10px',
+              fontWeight: 700,
+            }}
+          >
+            {chipMeta.label}
+          </span>
+        ) : null}
       </div>
 
-      <div className={styles.metricValue} style={{ color }}>
-        {value ?? '--'}
-        {unit ? <span className={styles.metricUnit}>{unit}</span> : null}
+      <div className={styles.metricValue}>
+        {isValueMissing ? (
+          <SkeletonBox width="80px" height="32px" borderRadius="6px" />
+        ) : (
+          <span style={{ color }}>{value}</span>
+        )}
+        {unit && !isValueMissing ? <span className={styles.metricUnit}>{unit}</span> : null}
       </div>
 
       {(delta != null || subtext) && (
         <div className={styles.metricSub}>
           {delta != null ? (
-            <span className={styles.metricDelta} style={{ color: delta >= 0 ? '#00E8A0' : '#FF2D55' }}>
-              {delta >= 0 ? '▲ +' : '▼ '}
+            <span
+              className={styles.metricDelta}
+              style={{ color: delta >= 0 ? 'var(--state-safe)' : 'var(--state-critical)' }}
+            >
+              {delta >= 0 ? '↑ +' : '↓ '}
               {typeof delta === 'number' ? delta.toFixed(1) : delta}
             </span>
           ) : null}
-          {subtext && <span style={{ color: 'var(--text-muted)' }}>{subtext}</span>}
+          {subtext && <span style={{ color: 'var(--text-tertiary)' }}>{subtext}</span>}
         </div>
       )}
     </div>

@@ -120,6 +120,7 @@ function finalizeSession(session, endTime) {
   }
 
   const lastReading = rs[rs.length - 1]
+  const bhis = rs.map((r) => r.bhi).filter((v) => v != null)
   return {
     id: `sess_${startT}`,
     batteryId: session.batteryId,
@@ -130,9 +131,11 @@ function finalizeSession(session, endTime) {
     energyMoved: Number(energyWh.toFixed(2)),
     peakTemperature: peakTemp != null ? Number(peakTemp.toFixed(1)) : null,
     avgCurrent: Number((totalCurrent / rs.length).toFixed(2)),
-    maxBHI: Math.round(Math.max(...rs.map((r) => r.bhi || 0))),
+    maxBHI: bhis.length ? Math.round(Math.max(...bhis)) : null,
     startSOC: session.startSOC != null ? Math.round(session.startSOC) : null,
     endSOC: lastReading?.soc != null ? Math.round(lastReading.soc) : null,
-    efficiency: session.sessionType === 'charge' ? 94 : 98,
+    // True round-trip efficiency cannot be measured from a single
+    // unidirectional session, so report nothing instead of a fabricated value.
+    efficiency: null,
   }
 }

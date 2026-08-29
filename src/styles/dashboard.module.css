@@ -1,134 +1,153 @@
 .pageTitle {
-  font-size: 24px;
-  font-weight: 800;
+  font-size: 28px;
+  font-weight: 700;
+  font-family: var(--font-display);
   letter-spacing: -0.3px;
+  color: var(--text-primary);
 }
 
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: var(--space-5);
   flex-wrap: wrap;
-  gap: 12px;
+  gap: var(--space-4);
 }
 
 .liveBadge {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 7px 16px;
-  border-radius: 100px;
-  background: rgba(0, 232, 160, 0.08);
-  border: 1px solid rgba(0, 232, 160, 0.3);
-  color: #00E8A0;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(61, 220, 151, 0.1);
+  border: 1px solid rgba(61, 220, 151, 0.3);
+  color: var(--state-safe);
   font-size: 12px;
-  font-weight: 700;
-  transition: all 0.3s ease;
+  font-weight: 600;
+  font-family: var(--font-body);
 }
 
 .liveBadgeLive {
-  background: rgba(0, 232, 160, 0.1);
-  border-color: rgba(0, 232, 160, 0.4);
-  color: #00E8A0;
+  background: rgba(61, 220, 151, 0.12);
+  border-color: rgba(61, 220, 151, 0.35);
+  color: var(--state-safe);
 }
 
 .liveBadgeStale {
-  background: rgba(255, 214, 10, 0.1);
-  border-color: rgba(255, 214, 10, 0.4);
-  color: #FFD60A;
+  background: rgba(245, 185, 66, 0.12);
+  border-color: rgba(245, 185, 66, 0.35);
+  color: var(--state-caution);
 }
 
 .liveBadgeOffline {
-  background: rgba(255, 45, 85, 0.1);
-  border-color: rgba(255, 45, 85, 0.4);
-  color: #FF2D55;
+  background: rgba(240, 71, 92, 0.12);
+  border-color: rgba(240, 71, 92, 0.35);
+  color: var(--state-critical);
 }
 
 .liveBadgeConnecting {
-  background: rgba(56, 189, 248, 0.1);
-  border-color: rgba(56, 189, 248, 0.4);
-  color: #38BDF8;
+  background: rgba(79, 168, 255, 0.12);
+  border-color: rgba(79, 168, 255, 0.35);
+  color: var(--state-info);
 }
 
 .liveDot {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: #00E8A0;
-  box-shadow: 0 0 10px #00E8A0;
-  animation: pulse 1.5s ease-in-out infinite;
+  background: var(--state-safe);
+  box-shadow: var(--glow-green);
+  animation: livePulse 2s ease-in-out infinite;
 }
 
 .liveDotStale {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: #FFD60A;
-  box-shadow: 0 0 8px #FFD60A;
+  background: var(--state-caution);
 }
 
 .liveDotOffline {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: #FF2D55;
-  box-shadow: 0 0 8px #FF2D55;
+  background: var(--state-critical);
 }
 
 .liveDotConnecting {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: #38BDF8;
-  box-shadow: 0 0 8px #38BDF8;
-  animation: pulse 1s ease-in-out infinite;
+  background: var(--state-info);
+  animation: livePulse 1.2s ease-in-out infinite;
+}
+
+@keyframes livePulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
 }
 
 .notice {
-  padding: 11px 16px;
-  margin-bottom: 16px;
-  border-radius: 12px;
-  background: rgba(255, 214, 10, 0.07);
-  border: 1px solid rgba(255, 214, 10, 0.3);
-  color: #FFD60A;
-  font-size: 12.5px;
+  padding: 12px 16px;
+  margin-bottom: var(--space-4);
+  border-radius: var(--radius-md);
+  background: rgba(245, 185, 66, 0.08);
+  border: 1px solid var(--state-caution);
+  color: var(--state-caution);
+  font-size: 13px;
   line-height: 1.5;
 }
 
-/* ===== Hero gauges row ===== */
-.hero {
+/* ===== Bento Grid System ===== */
+.heroBento {
   display: grid;
-  grid-template-columns: 380px 1fr;
-  gap: 16px;
-  margin-bottom: 16px;
+  grid-template-columns: repeat(12, 1fr);
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
 }
 
-.gauges {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  align-content: start;
+.heroSafetyCard {
+  grid-column: span 4;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: var(--shadow);
   position: relative;
 }
 
-.gaugeCard {
-  background: var(--card-gradient);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid var(--border);
+.heroSohCard {
+  grid-column: span 4;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  padding: 14px;
+  padding: var(--space-5);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   box-shadow: var(--shadow);
-  transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.gaugeCard:hover {
-  transform: translateY(-2px);
-  border-color: var(--border-strong);
+.heroSparklineCard {
+  grid-column: span 4;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: var(--shadow);
 }
 
 .gaugeWrap {
@@ -145,16 +164,15 @@
 
 .gaugeBg {
   fill: none;
-  stroke: var(--border);
-  stroke-width: 11;
+  stroke: var(--border-subtle);
+  stroke-width: 10;
 }
 
 .gaugeArc {
   fill: none;
-  stroke-width: 11;
+  stroke-width: 10;
   stroke-linecap: round;
   transition: stroke-dashoffset 0.8s ease, stroke 0.4s ease;
-  filter: drop-shadow(0 0 6px currentColor);
 }
 
 .gaugeCenter {
@@ -167,91 +185,69 @@
 }
 
 .gaugeScore {
-  font-size: 30px;
-  font-weight: 800;
-  font-family: var(--mono);
+  font-size: 36px;
+  font-weight: 700;
+  font-family: var(--font-display);
 }
 
 .gaugeLabel {
-  font-size: 10px;
-  color: var(--text-muted);
-  letter-spacing: 0.5px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-}
-
-.gaugeSub {
-  font-size: 10px;
   font-weight: 600;
-  margin-top: 2px;
 }
 
 .safetyBadge {
-  grid-column: 1 / -1;
-  justify-self: center;
-  padding: 8px 24px;
-  border-radius: 100px;
+  padding: 8px 18px;
+  border-radius: 999px;
   border: 1.5px solid;
   font-size: 13px;
-  font-weight: 800;
-  letter-spacing: 1.2px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.4);
-  transition: all 0.3s ease;
 }
 
 .safety_safe {
-  border-color: #00E8A0;
-  background: rgba(0, 232, 160, 0.1);
-  color: #00E8A0;
-  box-shadow: 0 0 24px rgba(0, 232, 160, 0.25);
+  border-color: var(--state-safe);
+  background: rgba(61, 220, 151, 0.1);
+  color: var(--state-safe);
 }
 
 .safety_caution {
-  border-color: #FFD60A;
-  background: rgba(255, 214, 10, 0.12);
-  color: #FFD60A;
-  box-shadow: 0 0 24px rgba(255, 214, 10, 0.25);
+  border-color: var(--state-caution);
+  background: rgba(245, 185, 66, 0.1);
+  color: var(--state-caution);
 }
 
 .safety_warning {
-  border-color: #FF6B35;
-  background: rgba(255, 107, 53, 0.14);
-  color: #FF6B35;
-  box-shadow: 0 0 24px rgba(255, 107, 53, 0.3);
+  border-color: var(--state-caution);
+  background: rgba(245, 185, 66, 0.12);
+  color: var(--state-caution);
 }
 
 .safety_critical {
-  border-color: #FF2D55;
-  background: rgba(255, 45, 85, 0.2);
-  color: #FF2D55;
-  animation: criticalPulse 1.2s ease-in-out infinite;
-  box-shadow: 0 0 30px rgba(255, 45, 85, 0.5);
+  border-color: var(--state-critical);
+  background: rgba(240, 71, 92, 0.15);
+  color: var(--state-critical);
+  animation: criticalPulse 1.5s ease-in-out infinite;
 }
 
 .safety_sensor_fault {
-  border-color: #FF6B35;
-  color: #FFB380;
-  background: repeating-linear-gradient(
-    45deg,
-    rgba(255, 107, 53, 0.25),
-    rgba(255, 107, 53, 0.25) 10px,
-    rgba(18, 24, 40, 0.8) 10px,
-    rgba(18, 24, 40, 0.8) 20px
-  );
-  box-shadow: 0 0 20px rgba(255, 107, 53, 0.3);
+  border-color: var(--state-caution);
+  color: var(--state-caution);
+  background: rgba(245, 185, 66, 0.08);
 }
 
 @keyframes criticalPulse {
   0%, 100% {
-    box-shadow: 0 0 15px rgba(255, 45, 85, 0.4);
-    transform: scale(1);
+    box-shadow: 0 0 12px rgba(240, 71, 92, 0.3);
   }
   50% {
-    box-shadow: 0 0 35px rgba(255, 45, 85, 0.8);
-    transform: scale(1.04);
+    box-shadow: 0 0 24px rgba(240, 71, 92, 0.6);
   }
 }
 
@@ -260,70 +256,62 @@
   align-items: center;
   gap: 6px;
   padding: 4px 12px;
-  border-radius: 100px;
+  border-radius: 999px;
   font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  border: 1px solid var(--border);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface-raised);
 }
 
 .opCharging {
-  background: rgba(0, 232, 160, 0.12);
-  border-color: rgba(0, 232, 160, 0.4);
-  color: #00E8A0;
+  color: var(--state-safe);
+  border-color: var(--state-safe);
 }
 
 .opDischarging {
-  background: rgba(255, 45, 85, 0.12);
-  border-color: rgba(255, 45, 85, 0.4);
-  color: #FF6B35;
+  color: var(--state-critical);
+  border-color: var(--state-critical);
 }
 
 .opIdle {
-  background: rgba(148, 163, 184, 0.1);
-  border-color: rgba(148, 163, 184, 0.2);
-  color: #94A3B8;
+  color: var(--text-tertiary);
+  border-color: var(--border-subtle);
 }
 
-.heroCards {
-  min-width: 0;
-}
-
-.metricsGrid {
+.metricStrip6 {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(164px, 1fr));
-  gap: 12px;
-  height: 100%;
+  grid-template-columns: repeat(6, 1fr);
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
 }
 
-/* ===== Profile + net stats strip ===== */
 .profileStrip {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
   align-items: center;
 }
 
-/* ===== Bentos ===== */
 .bento {
   display: grid;
   grid-template-columns: 2fr 1fr;
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
 }
 
 .bentoRight {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .grid2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
 }
 
 .alertsRow {
@@ -335,12 +323,12 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 13px 16px;
-  border-radius: 12px;
-  margin-bottom: 16px;
-  background: linear-gradient(120deg, rgba(167, 139, 250, 0.14), rgba(244, 114, 182, 0.1));
-  border: 1px solid rgba(167, 139, 250, 0.4);
-  color: #d8c7ff;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-4);
+  background: rgba(185, 140, 255, 0.1);
+  border: 1px solid var(--purple);
+  color: var(--purple);
   font-size: 13px;
   font-weight: 600;
 }
@@ -349,43 +337,40 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 11px 16px;
-  border-radius: 12px;
-  margin-bottom: 16px;
-  background: rgba(255, 214, 10, 0.08);
-  border: 1px solid rgba(255, 214, 10, 0.3);
-  color: #FFD60A;
-  font-size: 12.5px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-4);
+  background: rgba(245, 185, 66, 0.08);
+  border: 1px solid var(--state-caution);
+  color: var(--state-caution);
+  font-size: 13px;
 }
 
-/* ===== Wireframe/skeleton for charts ===== */
-.debug {
-  border: 1px dashed rgba(255, 255, 255, 0.2);
-}
-
-@media (max-width: 1080px) {
-  .hero {
+/* ===== Responsive Breakpoints ===== */
+@media (max-width: 1024px) {
+  .heroBento {
     grid-template-columns: 1fr;
+  }
+  .heroSafetyCard,
+  .heroSohCard,
+  .heroSparklineCard {
+    grid-column: span 12;
+    height: auto;
+  }
+  .metricStrip6 {
+    grid-template-columns: repeat(3, 1fr);
   }
   .bento {
     grid-template-columns: 1fr;
   }
 }
 
-@media (max-width: 820px) {
-  .gauges {
-    grid-template-columns: 1fr 1fr;
+@media (max-width: 768px) {
+  .metricStrip6 {
+    grid-template-columns: repeat(2, 1fr);
+    overflow-x: auto;
   }
   .grid2 {
     grid-template-columns: 1fr;
-  }
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.4;
   }
 }

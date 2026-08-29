@@ -39,10 +39,10 @@ export async function POST(request) {
         soc: b.soc,
         soh: b.soh,
         bhi: b.bhi,
-        safety: sanitizeString(b.safety || b.state || 'SAFE', 20),
+        safety: sanitizeString(b.safety || b.state || '', 20),
         resistance: b.resistance,
         power: b.power,
-        opDirection: sanitizeString(b.opDirection || b.direction || 'IDLE', 20),
+        opDirection: sanitizeString(b.opDirection || b.direction || '', 20),
       }
     } else {
       // 1. Try reading from Firebase Realtime Database
@@ -94,8 +94,8 @@ export async function POST(request) {
     // Save prediction record if database is reachable
     try {
       const db = await getDB()
-      const bhi = latest.bhi ?? 15
-      const riskLevel = bhi >= 75 ? 'CRITICAL' : bhi >= 55 ? 'WARNING' : bhi >= 30 ? 'CAUTION' : 'INFO'
+      const bhi = latest.bhi ?? null
+      const riskLevel = bhi == null ? null : bhi >= 75 ? 'CRITICAL' : bhi >= 55 ? 'WARNING' : bhi >= 30 ? 'CAUTION' : 'INFO'
       await db.collection('predictions').insertOne({
         batteryId: latest.batteryId || batteryId,
         question: question || null,

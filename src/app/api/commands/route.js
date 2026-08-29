@@ -83,7 +83,16 @@ export async function POST(request) {
       update.profile = sanitizeString(String(value || ''), 20).toUpperCase()
     } else if (cmdName === 'SET_SAMPLE_INTERVAL') {
       update.sampleInterval = Math.max(1, Math.min(60, parseInt(value) || 3))
-    } else if (cmdName === 'REBOOT' || cmdName === 'START_CALIBRATION' || cmdName === 'RUN_SELF_TEST') {
+    } else if (cmdName === 'MUTE_BUZZER') {
+      update.buzzer = false
+      update.mute_duration = Math.max(10, Math.min(3600, parseInt(value) || 300))
+    } else if (cmdName === 'START_MONITORING') {
+      update.monitoring = true
+    } else if (cmdName === 'STOP_MONITORING') {
+      update.monitoring = false
+    } else if (cmdName === 'SET_FIREBASE_INTERVAL') {
+      update.firebaseInterval = Math.max(1, Math.min(60, parseInt(value) || 3))
+    } else if (cmdName === 'REBOOT' || cmdName === 'START_CALIBRATION' || cmdName === 'RUN_SELF_TEST' || cmdName === 'GET_SELFTEST') {
       update.last_command = cmdName
     }
 

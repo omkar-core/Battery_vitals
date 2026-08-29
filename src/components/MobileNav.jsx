@@ -13,24 +13,22 @@ import {
   Bot,
   ShieldCheck,
   Clock,
-  Sparkles,
   Settings,
   X,
 } from 'lucide-react'
 
 const PRIMARY_MOBILE = [
   { key: '/', label: 'Live', icon: Home },
-  { key: '/analytics', label: 'Graphs', icon: Activity },
   { key: '/controls', label: 'Controls', icon: SlidersHorizontal },
+  { key: '/analytics', label: 'Graphs', icon: Activity },
   { key: '/alerts', label: 'Alerts', icon: Bell },
 ]
 
 const MORE_NAV = [
-  { key: '/diagnostics', label: 'Diagnostics & Flow', icon: Cpu },
   { key: '/ai', label: 'AI Health Assistant', icon: Bot },
+  { key: '/diagnostics', label: 'Diagnostics & Flow', icon: Cpu },
   { key: '/passport', label: 'Battery Passport', icon: ShieldCheck },
-  { key: '/history', label: 'History & Sessions', icon: Clock },
-  { key: '/coming-soon', label: 'Coming Soon', icon: Sparkles },
+  { key: '/history', label: 'History & Export', icon: Clock },
   { key: '/settings', label: 'Settings', icon: Settings },
 ]
 
@@ -45,7 +43,7 @@ export default function MobileNav() {
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(5, 8, 18, 0.85)',
+            background: 'rgba(11, 14, 18, 0.88)',
             backdropFilter: 'blur(16px)',
             zIndex: 90,
             display: 'flex',
@@ -57,12 +55,12 @@ export default function MobileNav() {
         >
           <div
             style={{
-              background: '#0D1424',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              borderRadius: 20,
-              padding: '16px 12px',
-              marginBottom: 60,
-              boxShadow: '0 -10px 40px rgba(0,0,0,0.7)',
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 16,
+              padding: '16px 14px',
+              marginBottom: 64,
+              boxShadow: 'var(--shadow)',
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -71,20 +69,20 @@ export default function MobileNav() {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                padding: '0 8px 12px',
-                borderBottom: '1px solid rgba(255,255,255,0.06)',
-                marginBottom: 8,
+                padding: '0 4px 12px',
+                borderBottom: '1px solid var(--border-subtle)',
+                marginBottom: 12,
               }}
             >
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#F4F6FB' }}>
-                All Modules
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                System Modules
               </span>
               <button
                 onClick={() => setOpenMore(false)}
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: '#9AA7BF',
+                  color: 'var(--text-secondary)',
                   padding: 4,
                   cursor: 'pointer',
                 }}
@@ -105,12 +103,14 @@ export default function MobileNav() {
                       display: 'flex',
                       alignItems: 'center',
                       gap: 8,
-                      padding: '10px 12px',
-                      borderRadius: 10,
+                      padding: '12px 14px',
+                      minHeight: 44,
+                      borderRadius: 8,
                       background: active
-                        ? 'rgba(0, 232, 160, 0.12)'
-                        : 'rgba(255, 255, 255, 0.03)',
-                      color: active ? '#00E8A0' : '#CBD5E1',
+                        ? 'rgba(61, 220, 151, 0.12)'
+                        : 'var(--bg-surface-raised)',
+                      border: `1px solid ${active ? 'var(--accent-primary)' : 'var(--border-subtle)'}`,
+                      color: active ? 'var(--accent-primary)' : 'var(--text-primary)',
                       fontSize: 12,
                       fontWeight: 600,
                       textDecoration: 'none',
@@ -126,7 +126,7 @@ export default function MobileNav() {
         </div>
       )}
 
-      <nav className="mobileNav" aria-label="Primary navigation">
+      <nav className="mobileNav" aria-label="Primary bottom navigation">
         <div className="mobileNavInner">
           {PRIMARY_MOBILE.map((n) => {
             const Icon = n.icon
@@ -137,6 +137,7 @@ export default function MobileNav() {
                 href={n.key}
                 className={`mobileNavLink ${active ? 'mobileNavLinkActive' : ''}`}
                 aria-current={active ? 'page' : undefined}
+                style={{ minHeight: 44 }}
               >
                 <Icon size={18} />
                 <span>{n.label}</span>
@@ -146,7 +147,7 @@ export default function MobileNav() {
           <button
             className={`mobileNavLink ${openMore ? 'mobileNavLinkActive' : ''}`}
             onClick={() => setOpenMore(!openMore)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', minHeight: 44 }}
           >
             <MoreHorizontal size={18} />
             <span>More</span>
