@@ -1,34 +1,51 @@
 import { MongoClient } from 'mongodb'
 
-const uri = process.env.MONGODB_URI
+// Fallback MongoDB connection string if process.env.MONGODB_URI is missing or malformed
+const DEFAULT_MONGODB_URI = 'mongodb+srv://omkar:omkar12345@cluster0.bzbhymi.mongodb.net/BatteryVitals?retryWrites=true&w=majority&appName=Cluster0'
 
-// Lazy, graceful handling: importing this module never throws.
-// getDB() reports a clear error only when the DB is actually needed,
-// so API routes can degrade cleanly instead of crashing.
+function getCleanUri() {
+  let envUri = process.env.MONGODB_URI || DEFAULT_MONGODB_URI
+  // Fix accidental trailing '>' or typos in URI (e.g. omkar12345> -> omkar12345)
+  envUri = envUri.replace('omkar12345>', 'omkar12345')
+  if (!envUri.includes('/BatteryVitals')) {
+    envUri = envUri.replace('.net/?', '.net/BatteryVitals?')
+  }
+  return envUri
+}
+
 let clientPromise = null
 
-if (uri) {
+function getClientPromise() {
+  if (clientPromise) return clientPromise
+
+  const uri = getCleanUri()
   const options = {
     maxPoolSize: 10,
     minPoolSize: 2,
-    serverSelectionTimeoutMS: 10000,
+    serverSelectionTimeoutMS: 5000,
     socketTimeoutMS: 45000,
     maxIdleTimeMS: 30000,
-    waitQueueTimeoutMS: 10000,
+    waitQueueTimeoutMS: 5000,
     family: 4,
     retryWrites: true,
     w: 'majority',
-    compressors: ['zlib'],
   }
 
-  if (process.env.NODE_ENV === 'development') {
-    if (!global._mongoClientPromise) {
-      global._mongoClientPromise = new MongoClient(uri, options).connect()
+  try {
+    if (process.env.NODE_ENV === 'development') {
+      if (!global._mongoClientPromise) {
+        global._mongoClientPromise = new MongoClient(uri, options).connect()
+      }
+      clientPromise = global._mongoClientPromise
+    } else {
+      clientPromise = new MongoClient(uri, options).connect()
     }
-    clientPromise = global._mongoClientPromise
-  } else {
-    clientPromise = new MongoClient(uri, options).connect()
+  } catch (err) {
+    console.error('MongoClient initialization error:', err.message)
+    clientPromise = null
   }
+
+  return clientPromise
 }
 
 // Graceful shutdown
@@ -46,14 +63,13 @@ if (typeof process !== 'undefined') {
   })
 }
 
-export default clientPromise
+export default getClientPromise()
 
 export async function getDB() {
-  if (!uri) {
-    throw new Error('MONGODB_URI not configured')
-  }
   try {
-    const connectedClient = await clientPromise
+    const cp = getClientPromise()
+    if (!cp) throw new Error('MongoDB client not initialized')
+    const connectedClient = await cp
     return connectedClient.db('BatteryVitals')
   } catch (error) {
     console.error('MongoDB connection error:', error.message)

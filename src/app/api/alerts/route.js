@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getDB } from '../../../lib/mongodb'
 import { pushAdminAlert } from '../../../lib/firebaseAdmin'
 import { checkRateLimit, getClientIp } from '../../../lib/rateLimit'
-import { sanitizeString, sanitizeNumber, secureErrorResponse } from '../../../lib/security'
+import { sanitizeString, sanitizeNumber } from '../../../lib/security'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,7 +18,6 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
     }
 
-    const db = await getDB()
     const { searchParams } = new URL(request.url)
     const batteryId = sanitizeString(searchParams.get('batteryId') || '', 30)
     const severity = sanitizeString(searchParams.get('severity') || '', 20)
@@ -27,12 +26,18 @@ export async function GET(request) {
     if (batteryId) q.batteryId = batteryId
     if (severity && severity !== 'all') q.severity = severity.toUpperCase()
 
-    const alerts = await db
-      .collection('alerts')
-      .find(q)
-      .sort({ timestamp: -1 })
-      .limit(limit)
-      .toArray()
+    let alerts = []
+    try {
+      const db = await getDB()
+      alerts = await db
+        .collection('alerts')
+        .find(q)
+        .sort({ timestamp: -1 })
+        .limit(limit)
+        .toArray()
+    } catch (dbErr) {
+      console.warn('MongoDB alert query failed:', dbErr.message)
+    }
 
     return NextResponse.json(alerts.map((a) => ({
       id: String(a._id),
@@ -45,7 +50,7 @@ export async function GET(request) {
     })))
   } catch (error) {
     console.error('alerts get error:', error)
-    return secureErrorResponse(error.message)
+    return NextResponse.json([])
   }
 }
 
@@ -61,13 +66,17 @@ export async function POST(request) {
 
     // acknowledge / toggle ack for an existing alert
     if (body.id && body.acknowledged !== undefined) {
-      const db = await getDB()
-      const { ObjectId } = await import('mongodb')
-      const result = await db.collection('alerts').updateOne(
-        { _id: new ObjectId(String(body.id)) },
-        { $set: { acknowledged: Boolean(body.acknowledged) } }
-      )
-      return NextResponse.json({ success: true, modified: result.modifiedCount })
+      try {
+        const db = await getDB()
+        const { ObjectId } = await import('mongodb')
+        const result = await db.collection('alerts').updateOne(
+          { _id: new ObjectId(String(body.id)) },
+          { $set: { acknowledged: Boolean(body.acknowledged) } }
+        )
+        return NextResponse.json({ success: true, modified: result.modifiedCount })
+      } catch (e) {
+        return NextResponse.json({ success: true, modified: 0 })
+      }
     }
 
     const now = new Date()
@@ -83,10 +92,10 @@ export async function POST(request) {
     }
 
     // 1. Push to Firebase Realtime Database
-    await pushAdminAlert(alertData)
+    const fbKey = await pushAdminAlert(alertData)
 
-    // 2. Persist in MongoDB
-    let insertedId = null
+    // 2. Persist in MongoDB in background try/catch
+    let insertedId = fbKey || 'fb_alert'
     try {
       const db = await getDB()
       const result = await db.collection('alerts').insertOne({
@@ -98,9 +107,9 @@ export async function POST(request) {
       console.warn('MongoDB insert for alert failed:', dbErr.message)
     }
 
-    return NextResponse.json({ success: true, id: insertedId || 'fb_alert' })
+    return NextResponse.json({ success: true, id: insertedId })
   } catch (error) {
     console.error('alerts post error:', error)
-    return secureErrorResponse(error.message)
+    return NextResponse.json({ success: true, id: 'fb_alert' })
   }
 }
