@@ -5,6 +5,13 @@ let isInitialized = false
 let reconnectAttempts = 0
 const MAX_RECONNECT_ATTEMPTS = 5
 
+let connectionAttempts = 0
+const MAX_ATTEMPTS = 3
+
+// RENDER FREE TIER: Disconnect after 10 minutes of inactivity
+let lastActivity = Date.now()
+const IDLE_TIMEOUT = 10 * 60 * 1000 // 10 minutes
+
 function buildBrokerUrl() {
   const broker = process.env.MQTT_BROKER || process.env.NEXT_PUBLIC_MQTT_BROKER || 'localhost'
   if (broker.startsWith('mqtt://') || broker.startsWith('mqtts://') || broker.startsWith('ws://') || broker.startsWith('wss://')) {
@@ -33,7 +40,7 @@ export async function initMQTTBridge() {
   const client = mqtt.connect(url, {
     username: process.env.MQTT_USERNAME || process.env.NEXT_PUBLIC_MQTT_USERNAME,
     password: process.env.MQTT_PASSWORD || process.env.NEXT_PUBLIC_MQTT_PASSWORD,
-    clientId: 'vercel_bridge_' + Math.random().toString(16).substr(2, 8),
+    clientId: 'render_bridge_' + Math.random().toString(16).substr(2, 8),
     clean: true,
     reconnectPeriod: 5000,
     connectTimeout: 10000,
@@ -43,6 +50,8 @@ export async function initMQTTBridge() {
   client.on('connect', () => {
     console.log('MQTT Bridge connected:', url)
     reconnectAttempts = 0
+    connectionAttempts = 0
+    lastActivity = Date.now()
     client.subscribe('batteryvitals/+/data', { qos: 1 }, (err) => {
       if (err) console.error('MQTT subscribe error (data):', err)
     })
@@ -52,6 +61,8 @@ export async function initMQTTBridge() {
   })
 
   client.on('message', async (topic, message) => {
+    lastActivity = Date.now()
+
     try {
       const data = JSON.parse(message.toString())
       const db = await getDB()
@@ -78,6 +89,8 @@ export async function initMQTTBridge() {
         ...normalizeReading(data),
         receivedAt: new Date(),
         timestamp: Date.now(),
+        serverTimestamp: Date.now(),
+        source: 'mqtt',
       }
 
       await Promise.all([
@@ -97,6 +110,14 @@ export async function initMQTTBridge() {
 
   client.on('error', (err) => {
     console.error('MQTT bridge error:', err.message)
+    connectionAttempts++
+    lastActivity = Date.now()
+
+    if (connectionAttempts >= MAX_ATTEMPTS) {
+      console.error('Max MQTT connection attempts reached')
+      client.end(true)
+      isInitialized = false
+    }
   })
 
   client.on('offline', () => {
@@ -158,6 +179,14 @@ function closeMQTT() {
     console.log('MQTT Bridge closed')
   }
 }
+
+// RENDER FREE TIER: Auto-cleanup on idle timeout
+setInterval(() => {
+  if (mqttClient && Date.now() - lastActivity > IDLE_TIMEOUT) {
+    console.log('MQTT idle timeout - closing bridge')
+    closeMQTT()
+  }
+}, 60000) // Check every minute
 
 // Auto-cleanup on process exit (Vercel serverless)
 if (typeof process !== 'undefined') {

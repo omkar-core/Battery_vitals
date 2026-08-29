@@ -5,28 +5,33 @@ export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
+    // Test MongoDB connection
     const db = await getDB()
     await db.command({ ping: 1 })
-
-    const readingsCount = await db.collection('readings').countDocuments()
-    const liveDataCount = await db.collection('live_data').countDocuments()
 
     return NextResponse.json({
       status: 'healthy',
       database: 'connected',
-      collections: {
-        readings: readingsCount,
-        live_data: liveDataCount,
-      },
-      uptime: process.uptime(),
       timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      platform: 'render',
     })
   } catch (error) {
     console.error('health error:', error)
-    return NextResponse.json({
-      status: 'unhealthy',
-      error: error.message,
-      timestamp: new Date().toISOString(),
-    }, { status: 500 })
+    return NextResponse.json(
+      {
+        status: 'unhealthy',
+        database: 'disconnected',
+        error: error.message,
+        timestamp: new Date().toISOString(),
+      },
+      { status: 503 }
+    )
   }
+}
+
+// Support HEAD requests for health checks
+export async function HEAD() {
+  return new Response(null, { status: 200 })
 }

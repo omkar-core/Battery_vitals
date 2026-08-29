@@ -13,7 +13,11 @@ if (uri) {
     minPoolSize: 2,
     serverSelectionTimeoutMS: 10000,
     socketTimeoutMS: 45000,
-    maxIdleTimeMS: 300000,
+    maxIdleTimeMS: 30000,
+    waitQueueTimeoutMS: 10000,
+    family: 4,
+    retryWrites: true,
+    w: 'majority',
     compressors: ['zlib'],
   }
 
@@ -26,6 +30,23 @@ if (uri) {
     clientPromise = new MongoClient(uri, options).connect()
   }
 }
+
+// Graceful shutdown
+if (typeof process !== 'undefined') {
+  process.on('SIGTERM', async () => {
+    try {
+      if (clientPromise) {
+        const connectedClient = await clientPromise
+        await connectedClient.close()
+        console.log('MongoDB connection closed')
+      }
+    } catch (error) {
+      console.error('MongoDB shutdown error:', error.message)
+    }
+  })
+}
+
+export default clientPromise
 
 export async function getDB() {
   if (!uri) {

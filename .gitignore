@@ -3,6 +3,9 @@
 /.pnp
 .pnp.js
 
+# testing
+/coverage
+
 # Next.js
 /.next/
 /out/
@@ -23,9 +26,14 @@ yarn-error.log*
 # local env files
 .env
 .env*.local
+.env.production
 
 # vercel
 .vercel
+
+# render
+.render
+.render-buildpacks.json
 
 # typescript
 *.tsbuildinfo

@@ -3,7 +3,16 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
 
-  // Environment variables for client
+  // RENDER OPTIMIZATION: Standalone output reduces deployment size
+  output: 'standalone',
+
+  // Compression for faster loads
+  compress: true,
+
+  // Disable powered-by header
+  poweredByHeader: false,
+
+  // Environment variables for client-side
   env: {
     NEXT_PUBLIC_MQTT_BROKER: process.env.NEXT_PUBLIC_MQTT_BROKER,
     NEXT_PUBLIC_MQTT_USERNAME: process.env.NEXT_PUBLIC_MQTT_USERNAME,
@@ -23,8 +32,7 @@ const nextConfig = {
     formats: ['image/avif', 'image/webp'],
   },
 
-  // Webpack config for the MQTT client (browser WebSocket).
-  // The 'mqtt' package references Node built-ins; resolve them to false on the client.
+  // Webpack config for MQTT library (Node built-ins resolved to false on client)
   webpack: (config, { isServer, dev }) => {
     if (!isServer) {
       config.resolve.fallback = {
@@ -36,6 +44,11 @@ const nextConfig = {
         child_process: false,
       }
     }
+
+    // Ignore node_modules warnings
+    config.ignoreWarnings = [
+      { module: /node_modules/ },
+    ]
 
     // Reduce chunk size
     if (!dev) {
@@ -68,7 +81,7 @@ const nextConfig = {
     return config
   },
 
-  // Enable experimental features
+  // Reduce bundle size via package import optimization
   experimental: {
     optimizePackageImports: ['recharts', 'lucide-react', 'mqtt'],
   },
