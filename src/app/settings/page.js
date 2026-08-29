@@ -375,9 +375,9 @@ export default function SettingsPage() {
             </span>
           </div>
           <div className={styles.connItem}>
-            <span>HiveMQ Cloud Broker</span>
+            <span>Firebase Realtime Database</span>
             <span className={styles.mono} style={{ color: '#38BDF8' }}>
-              mqtts://xxx.s1.eu.hivemq.cloud:8883
+              {status?.firebase?.url || 'https://batteryvital-default-rtdb.asia-southeast1.firebasedatabase.app'}
             </span>
           </div>
           <div className={styles.connItem}>

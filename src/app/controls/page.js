@@ -75,7 +75,7 @@ export default function Controls() {
             Manual Hardware <span className="gradText">Control Center</span>
           </h1>
           <p className={styles.subtitle} style={{ marginBottom: 0 }}>
-            Bi-directional actuator command pipeline over MQTT with firmware safety overrides.
+            Bi-directional actuator command pipeline over Firebase Realtime Database with firmware safety overrides.
           </p>
         </div>
 
@@ -165,8 +165,7 @@ export default function Controls() {
       </div>
 
       <div className={styles.note}>
-        All commands are routed through MQTT QoS 1 to HiveMQ Cloud. If the ESP32 loses network, commands
-        are cached server-side until the device polls /api/control.
+        All commands are dispatched instantly through Firebase Realtime Database to ESP32 listeners.
       </div>
     </Layout>
   )

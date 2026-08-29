@@ -6,7 +6,7 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 export const metadata = {
   title: 'Battery Vital - Intelligent Battery Safety System',
   description:
-    'Real-time battery monitoring with MQTT, MongoDB, and Gemini AI analysis for lithium and lead-acid safety.',
+    'Real-time battery monitoring with Firebase Realtime Database, MongoDB Atlas, and Gemini AI analysis.',
   manifest: '/manifest.json',
   icons: { icon: '/favicon.svg' },
 }

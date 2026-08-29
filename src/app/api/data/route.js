@@ -1,17 +1,23 @@
 import { NextResponse } from 'next/server'
 import { getDB } from '../../../lib/mongodb'
+import { getLatestTelemetry, updateLatestTelemetry } from '../../../lib/firebaseAdmin'
+import { checkRateLimit, getClientIp } from '../../../lib/rateLimit'
+import { sanitizeString, sanitizeNumber, secureErrorResponse } from '../../../lib/security'
 
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204 })
 }
 
 export async function POST(request) {
-  const res = NextResponse.next()
-  res.headers.set('Access-Control-Allow-Origin', '*')
-  res.headers.set('Cache-Control', 'no-store, max-age=0')
   try {
+    const ip = getClientIp(request)
+    const rateCheck = checkRateLimit(`data_post_${ip}`, 120, 60000)
+    if (!rateCheck.success) {
+      return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
+    }
+
     const d = await request.json().catch(() => ({}))
-    const batteryId = d.batteryId || 'BAT001'
+    const batteryId = sanitizeString(d.batteryId || 'BAT001', 30)
     const now = new Date()
 
     const safetyMap = { SAFE: 'SAFE', CAUTION: 'CAUTION', WARNING: 'WARNING', CRITICAL: 'CRITICAL', SENSOR_FAULT: 'SAFE', EMERGENCY: 'EMERGENCY' }
@@ -19,57 +25,88 @@ export async function POST(request) {
 
     const document = {
       batteryId,
-      deviceId: d.deviceId || null,
-      voltage: d.voltage,
-      current: d.current != null ? d.current / 1000 : null,
-      power: d.power != null ? d.power / 1000 : null,
-      soc: d.soc,
-      soh: d.soh,
-      temperature: d.temperature,
-      humidity: d.humidity,
-      gasIndex: { mq2: d.mq2, mq135: d.mq135, warm: d.warm ?? true },
+      deviceId: sanitizeString(d.deviceId || 'BV001', 30),
+      voltage: sanitizeNumber(d.voltage, 0, 100),
+      current: sanitizeNumber(d.current != null ? d.current / 1000 : null, -500, 500),
+      power: sanitizeNumber(d.power != null ? d.power / 1000 : null, -5000, 5000),
+      soc: sanitizeNumber(d.soc, 0, 100),
+      soh: sanitizeNumber(d.soh, 0, 100),
+      temperature: sanitizeNumber(d.temperature, -40, 150),
+      humidity: sanitizeNumber(d.humidity, 0, 100),
+      gasIndex: {
+        mq2: sanitizeNumber(d.mq2, 0, 10000),
+        mq135: sanitizeNumber(d.mq135, 0, 10000),
+        warm: Boolean(d.warm ?? true),
+      },
       safety,
-      bhi: d.bhi,
-      opDirection: (d.op || d.opDirection || 'IDLE').toUpperCase(),
-      resistance: d.resistance,
-      profile: d.profile,
-      outputs: { auto: d.auto_mode, red: d.red_led, yellow: d.yellow_led, green: d.green_led, buzzer: d.buzzer },
-      network: { rssi: d.wifi_rssi, heap: d.free_heap },
-      firmware: d.firmware,
-      uptime: d.uptime,
-      timestamp: now,
-      receivedAt: now,
+      bhi: sanitizeNumber(d.bhi, 0, 100),
+      opDirection: sanitizeString((d.op || d.opDirection || 'IDLE').toUpperCase(), 20),
+      resistance: sanitizeNumber(d.resistance, 0, 1000),
+      profile: sanitizeString(d.profile || 'LI_ION', 20),
+      outputs: {
+        auto: Boolean(d.auto_mode ?? true),
+        red: Boolean(d.red_led),
+        yellow: Boolean(d.yellow_led),
+        green: Boolean(d.green_led ?? true),
+        buzzer: Boolean(d.buzzer),
+      },
+      network: {
+        rssi: sanitizeNumber(d.wifi_rssi, -150, 0),
+        heap: sanitizeNumber(d.free_heap, 0, 10000000),
+      },
+      firmware: sanitizeString(d.firmware || 'v11.3', 20),
+      uptime: sanitizeNumber(d.uptime, 0, 100000000),
+      timestamp: now.getTime(),
+      receivedAt: now.toISOString(),
     }
 
-    const db = await getDB()
+    // 1. Write to Firebase Realtime Database
+    await updateLatestTelemetry(batteryId, document)
 
-    await db.collection('live_data').updateOne(
-      { batteryId },
-      { $set: document },
-      { upsert: true }
+    // 2. Write to MongoDB
+    try {
+      const db = await getDB()
+      await db.collection('live_data').updateOne(
+        { batteryId },
+        { $set: document },
+        { upsert: true }
+      )
+      await db.collection('readings').insertOne(document)
+    } catch (dbErr) {
+      console.warn('MongoDB save in data POST failed:', dbErr.message)
+    }
+
+    return NextResponse.json(
+      { success: true, ts: now.getTime() },
+      { headers: { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store, max-age=0' } }
     )
-
-    await db.collection('readings').insertOne(document)
-
-    return NextResponse.json({ success: true, ts: now.getTime() }, {
-      headers: { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store, max-age=0' },
-    })
   } catch (error) {
     console.error('data save error:', error)
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    return secureErrorResponse(error.message)
   }
 }
 
 export async function GET(request) {
   try {
+    const ip = getClientIp(request)
+    const rateCheck = checkRateLimit(`data_get_${ip}`, 120, 60000)
+    if (!rateCheck.success) {
+      return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
+    }
+
     const { searchParams } = new URL(request.url)
-    const batteryId = searchParams.get('batteryId') || 'BAT001'
-    const db = await getDB()
-    const data = await db.collection('live_data').findOne({ batteryId })
+    const batteryId = sanitizeString(searchParams.get('batteryId') || 'BAT001', 30)
+
+    let data = await getLatestTelemetry(batteryId)
+    if (!data) {
+      const db = await getDB()
+      data = await db.collection('live_data').findOne({ batteryId })
+    }
+
     if (!data) return NextResponse.json({ error: 'No data yet' }, { status: 404 })
     return NextResponse.json({ success: true, data: telemetryShape(data) })
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return secureErrorResponse(error.message)
   }
 }
 

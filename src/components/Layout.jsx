@@ -17,9 +17,9 @@ export default function Layout({ children, connected, mode, lastSeen }) {
       <Header connected={connected} lastSeen={lastSeen} />
 
       <main className={styles.main}>
-        {mode === 'mqtt' ? (
+        {mode === 'firebase' ? (
           <div className={styles.banner}>
-            <span className={styles.bannerDot} /> Real-time MQTT stream active
+            <span className={styles.bannerDot} /> Real-time Firebase stream active
           </div>
         ) : null}
 

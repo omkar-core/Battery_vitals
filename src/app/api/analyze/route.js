@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { getDB } from '../../../lib/mongodb'
 import { analyzeBatteryData, predictFailure, askBatteryAssistant } from '../../../lib/gemini'
+import { getLatestTelemetry } from '../../../lib/firebaseAdmin'
+import { checkRateLimit, getClientIp } from '../../../lib/rateLimit'
+import { sanitizeString, secureErrorResponse } from '../../../lib/security'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,45 +13,56 @@ export async function OPTIONS() {
 
 export async function POST(request) {
   try {
+    const ip = getClientIp(request)
+    const rateCheck = checkRateLimit(`analyze_post_${ip}`, 15, 60000)
+    if (!rateCheck.success) {
+      return NextResponse.json({ error: 'AI analysis rate limit exceeded. Please wait 1 minute.' }, { status: 429 })
+    }
+
     const body = await request.json().catch(() => ({}))
-    const batteryId = body.batteryId || 'BAT001'
-    const question = body.question
-    const analysisType = body.analysisType || 'current'
+    const batteryId = sanitizeString(body.batteryId || 'BAT001', 30)
+    const question = sanitizeString(body.question || '', 500)
+    const analysisType = sanitizeString(body.analysisType || 'current', 30)
     const hasRawFields = ['voltage', 'current', 'temperature'].some((k) => body[k] !== undefined)
 
     let latest = null
 
-    try {
-      const db = await getDB()
-      if (hasRawFields) {
-        const b = body
-        latest = {
-          batteryId: b.batteryId || batteryId,
-          voltage: b.voltage,
-          current: b.current,
-          temperature: b.temperature,
-          humidity: b.humidity,
-          gasIndex: { mq2: b.gasMq2 ?? b.mq2, mq135: b.gasMq135 ?? b.mq135 },
-          soc: b.soc,
-          soh: b.soh,
-          bhi: b.bhi,
-          safety: b.safety || b.state || 'SAFE',
-          resistance: b.resistance,
-          power: b.power,
-          opDirection: b.opDirection || b.direction || 'IDLE',
-        }
-      } else {
-        latest = await db.collection('live_data').findOne({ batteryId })
+    if (hasRawFields) {
+      const b = body
+      latest = {
+        batteryId: b.batteryId || batteryId,
+        voltage: b.voltage,
+        current: b.current,
+        temperature: b.temperature,
+        humidity: b.humidity,
+        gasIndex: { mq2: b.gasMq2 ?? b.mq2, mq135: b.gasMq135 ?? b.mq135 },
+        soc: b.soc,
+        soh: b.soh,
+        bhi: b.bhi,
+        safety: sanitizeString(b.safety || b.state || 'SAFE', 20),
+        resistance: b.resistance,
+        power: b.power,
+        opDirection: sanitizeString(b.opDirection || b.direction || 'IDLE', 20),
       }
-    } catch (e) {
-      console.warn('DB lookup in analyze route failed:', e.message)
+    } else {
+      // 1. Try reading from Firebase Realtime Database
+      latest = await getLatestTelemetry(batteryId)
+      // 2. Fall back to MongoDB
+      if (!latest) {
+        try {
+          const db = await getDB()
+          latest = await db.collection('live_data').findOne({ batteryId })
+        } catch (e) {
+          console.warn('MongoDB lookup in analyze route failed:', e.message)
+        }
+      }
     }
 
     if (!latest) {
       return NextResponse.json(
         {
           success: false,
-          error: 'No telemetry received from ESP32 hardware yet. Waiting for initial sensor packet.',
+          error: 'No telemetry received from ESP32 hardware in Firebase yet. Waiting for initial sensor packet.',
         },
         { status: 404 }
       )
@@ -87,7 +101,7 @@ export async function POST(request) {
         question: question || null,
         riskLevel,
         riskScore: bhi ?? null,
-        analysis: analysis.substring(0, 1000),
+        analysis: sanitizeString(analysis, 2000),
         timestamp: new Date(),
       })
     } catch (e) {}
@@ -99,12 +113,6 @@ export async function POST(request) {
     })
   } catch (error) {
     console.error('Analysis error:', error)
-    return NextResponse.json(
-      {
-        error: 'Analysis failed',
-        message: error.message,
-      },
-      { status: 500 }
-    )
+    return secureErrorResponse(error.message)
   }
 }

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getDB } from '../../../lib/mongodb'
-import { initMQTTBridge, publishControlState } from '../../../lib/mqtt'
+import { setAdminCommand, getAdminCommand } from '../../../lib/firebaseAdmin'
+import { checkRateLimit, getClientIp } from '../../../lib/rateLimit'
+import { sanitizeString, secureErrorResponse } from '../../../lib/security'
 
 const DEFAULT = { auto_mode: true, red_led: false, yellow_led: false, green_led: true, buzzer: false }
 
@@ -8,14 +10,30 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 204 })
 }
 
-export async function GET() {
+export async function GET(request) {
   try {
-    const db = await getDB()
-    let cmd = await db.collection('commands').findOne({ key: 'default' })
+    const ip = getClientIp(request)
+    const rateCheck = checkRateLimit(`control_get_${ip}`, 60, 60000)
+    if (!rateCheck.success) {
+      return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
+    }
+
+    const batteryId = 'BAT001'
+    let cmd = await getAdminCommand(batteryId)
+
+    if (!cmd) {
+      const db = await getDB()
+      cmd = await db.collection('commands').findOne({ key: 'default' })
+    }
+
     if (!cmd) cmd = DEFAULT
+
     return NextResponse.json({
-      auto_mode: cmd.auto_mode, red_led: cmd.red_led,
-      yellow_led: cmd.yellow_led, green_led: cmd.green_led, buzzer: cmd.buzzer,
+      auto_mode: cmd.auto_mode ?? true,
+      red_led: cmd.red_led ?? false,
+      yellow_led: cmd.yellow_led ?? false,
+      green_led: cmd.green_led ?? true,
+      buzzer: cmd.buzzer ?? false,
     })
   } catch (error) {
     console.error('control get error:', error)
@@ -25,39 +43,39 @@ export async function GET() {
 
 export async function POST(request) {
   try {
+    const ip = getClientIp(request)
+    const rateCheck = checkRateLimit(`control_post_${ip}`, 30, 60000)
+    if (!rateCheck.success) {
+      return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
+    }
+
     const body = await request.json().catch(() => ({}))
-    const db = await getDB()
+    const batteryId = sanitizeString(body?.batteryId || 'BAT001', 30)
     const allowed = ['auto_mode', 'red_led', 'yellow_led', 'green_led', 'buzzer']
-    const update = { updatedAt: new Date() }
+    const update = { updatedAt: Date.now() }
+    
     for (const k of allowed) {
-      if (body[k] !== undefined) update[k] = !!body[k]
+      if (body[k] !== undefined) update[k] = Boolean(body[k])
     }
-    await db.collection('commands').updateOne(
-      { key: 'default' },
-      { $set: update },
-      { upsert: true }
-    )
-    const saved = await db.collection('commands').findOne({ key: 'default' })
 
+    // 1. Write to Firebase Realtime Database `/commands/[batteryId]`
+    await setAdminCommand(batteryId, update)
+
+    // 2. Persist in MongoDB
     try {
-      await initMQTTBridge()
-      publishControlState(
-        {
-          auto_mode: !!saved.auto_mode,
-          red_led: !!saved.red_led,
-          yellow_led: !!saved.yellow_led,
-          green_led: !!saved.green_led,
-          buzzer: !!saved.buzzer,
-        },
-        body?.batteryId || 'BAT001'
+      const db = await getDB()
+      await db.collection('commands').updateOne(
+        { key: 'default' },
+        { $set: update },
+        { upsert: true }
       )
-    } catch (e) {
-      console.error('MQTT publish control error:', e.message)
+    } catch (dbErr) {
+      console.warn('MongoDB update control failed:', dbErr.message)
     }
 
-    return NextResponse.json({ success: true, commands: saved })
+    return NextResponse.json({ success: true, commands: update })
   } catch (error) {
     console.error('control post error:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return secureErrorResponse(error.message)
   }
 }

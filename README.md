@@ -1,83 +1,85 @@
 # Battery Vital — Intelligent Battery Safety System
 
-A full-stack battery monitoring and safety dashboard for EV/ESS battery packs. Built on Next.js (Pages Router) with MongoDB persistence, MQTT device ingestion, and Gemini AI-driven analysis and predictive alerts.
+A full-stack battery monitoring and safety dashboard for EV/ESS battery packs. Built on Next.js (App Router) with Firebase Realtime Database live streaming, MongoDB Atlas background persistence, and Gemini AI-driven analysis and predictive alerts.
 
 ## Architecture
 
 ```
 ESP32 devices
-   │  MQTT publish (telemetry)
+   │  HTTPS (Firebase SDK / REST)
    ▼
-MQTT broker ──► /api/mqtt-bridge ──► MongoDB
-                                        │
-   Browsers ──► Next.js Pages/Routes ───┘
-                    │
-                    └──► /api/analyze & /api/predictions ──► Gemini AI
+Firebase Realtime Database ──► Website (real-time listener, instant updates)
+   │
+   │  Cron job / background sync
+   ▼
+MongoDB (historical archive, AI training data, long-term analytics)
+   │
+   ▼
+Gemini AI (reads from Firebase for live analysis, saves to MongoDB)
 ```
 
-- **ESP32 devices** publish battery telemetry (voltage, current, temperature, SOC) over MQTT.
-- **MQTT bridge** (`/api/mqtt-bridge` + `src/lib/mqtt.js`) subscribes to the broker and writes readings into MongoDB.
-- **Next.js API routes** (`src/pages/api/*`) expose the data via REST and trigger AI analysis.
-- **Gemini AI** (`src/lib/gemini.js`, `/api/analyze`, `/api/predictions`) generates insights, safety recommendations, and short-term failure predictions.
-- **Realtime UI** uses `src/hooks` (`useMQTT`, `useRealTimeData`, `useAI`) and Server-Sent Events / polling to update live charts.
+- **ESP32 devices** publish battery telemetry (voltage, current, temperature, SOC) directly to **Firebase Realtime Database** (`/live_data/BAT001`) and poll/listen to commands (`/commands/BAT001`).
+- **Firebase Realtime Database** provides zero-latency bi-directional push updates directly to the web dashboard, replacing MQTT message caps.
+- **MongoDB Atlas** maintains historical time-series logs and audit events via background sync (`/api/sync-to-mongo`).
+- **Next.js API routes** (`src/app/api/*`) expose data via REST and trigger AI analysis.
+- **Gemini AI** (`src/lib/gemini.js`, `/api/analyze`, `/api/predictions`) generates insights, safety recommendations, and failure predictions.
 
 ## Tech Stack
 
-- Next.js 14 (Pages Router), React 18
-- MongoDB (via `mongodb` driver) — `src/lib/mongodb.js`
-- MQTT (via `mqtt` client) — `src/lib/mqtt.js`
+- Next.js 14 (App Router), React 18
+- Firebase Realtime Database (via `firebase` client & `firebase-admin` server SDK)
+- MongoDB Atlas (via `mongodb` driver) — `src/lib/mongodb.js`
 - Google Gemini AI — `src/lib/gemini.js`
-- Recharts for live/history charts, lucide-react icons
+- Recharts for live/history charts, Lucide React icons
 
 ## Project Structure
 
 ```
-pages/                 # Next.js pages and API routes under /api
-  index.js             # Dashboard
-  analytics.js         # Analytics / charts
-  settings.js          # Configuration
-  alerts.js            # Alerts feed
-  history.js           # Historical telemetry
-  controls.js          # Device control panel
-  ai.js                # AI insights / predictions
-  _app.js              # Root App (global styles + PWA/SW registration)
-  _document.js         # Custom document (fonts, manifest, favicon)
-  404.js               # Custom not-found page
+src/app/               # Next.js App Router pages and API routes
+  page.js              # Live Dashboard
+  analytics/           # Analytics / charts
+  settings/            # Configuration
+  alerts/              # Alerts feed
+  history/             # Historical telemetry
+  controls/            # Device control panel
+  ai/                  # AI insights / predictions
+  diagnostics/         # System hardware diagnostics
+  api/                 # Backend REST API routes
 src/
   lib/
+    firebase.js        # Client-side Firebase RTDB initialization & helpers
+    firebaseAdmin.js   # Server-side Firebase Admin SDK
     mongodb.js         # Mongo client & connection
-    mqtt.js            # MQTT bridge client & subscription
     gemini.js          # Gemini API wrapper
     utils.js           # Shared helpers
   hooks/
-    useMQTT.js         # Real-time MQTT data hook
-    useRealTimeData.js # MQTT + HTTP polling aggregation hook
+    useFirebase.js     # Real-time Firebase RTDB hook
+    useRealTimeData.js # Aggregated telemetry hook
     useAI.js           # AI insights hook
   components/
     Header.jsx, Layout.jsx, MetricCard.jsx, LiveChart.jsx,
     ControlPanel.jsx, AIInsights.jsx, AlertsList.jsx
-  styles/globals.css   # Global styles
-  styles/*.module.css  # CSS Modules (pages + components)
-public/                # Static assets (manifest, icons, sw.js, robots.txt, sitemap.xml)
+esp32/
+  BatteryVitals_v11.3.ino  # Industrial ESP32 firmware with Firebase RTDB push
 ```
 
 ### API Endpoints (`/api/*`)
 
 | Endpoint | Purpose |
 | --- | --- |
-| `/api/health` | Service health / liveness |
+| `/api/health` | Health & connection checks (Firebase + MongoDB) |
 | `/api/status` | System status summary |
-| `/api/latest` | Latest reading(s) per pack |
+| `/api/latest` | Latest reading(s) per pack from Firebase |
+| `/api/telemetry` | Latest telemetry snapshot / ingest |
 | `/api/data` | Persisted telemetry data |
-| `/api/history` | Historical range query |
-| `/api/telemetry` | Latest telemetry snapshot |
+| `/api/history` | Historical range query from MongoDB |
 | `/api/stats` | Aggregated statistics |
 | `/api/analyze` | Gemini safety analysis |
 | `/api/predictions` | Gemini failure prediction |
 | `/api/alerts` | Read/create alerts |
-| `/api/control` | Send control commands |
-| `/api/commands` | Command dispatch |
-| `/api/mqtt-bridge` | MQTT → MongoDB ingest |
+| `/api/control` | Control state management |
+| `/api/commands` | Control command dispatch |
+| `/api/sync-to-mongo` | Firebase → MongoDB background sync |
 
 ## Getting Started
 
@@ -87,13 +89,7 @@ public/                # Static assets (manifest, icons, sw.js, robots.txt, site
    npm install
    ```
 
-2. Configure environment — copy `.env.example` to `.env` and fill in values. See everything used:
-
-   ```env
-   MONGODB_URI=...
-   MQTT_URL=...
-   GEMINI_API_KEY=...
-   ```
+2. Configure environment — copy `.env.example` to `.env` and fill in Firebase and MongoDB credentials.
 
 3. Run the development server:
 
@@ -111,7 +107,3 @@ npm run build    # Production build
 npm run start    # Start production server
 npm run lint     # Lint
 ```
-
-## Deployment
-
-Deployment targets Vercel (`vercel.json`). See `.env.example` for the required environment variables.

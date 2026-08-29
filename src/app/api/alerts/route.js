@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getDB } from '../../../lib/mongodb'
+import { pushAdminAlert } from '../../../lib/firebaseAdmin'
+import { checkRateLimit, getClientIp } from '../../../lib/rateLimit'
+import { sanitizeString, sanitizeNumber, secureErrorResponse } from '../../../lib/security'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,11 +12,17 @@ export async function OPTIONS() {
 
 export async function GET(request) {
   try {
+    const ip = getClientIp(request)
+    const rateCheck = checkRateLimit(`alerts_get_${ip}`, 60, 60000)
+    if (!rateCheck.success) {
+      return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
+    }
+
     const db = await getDB()
     const { searchParams } = new URL(request.url)
-    const batteryId = searchParams.get('batteryId')
-    const severity = searchParams.get('severity')
-    const limit = searchParams.get('limit') || '100'
+    const batteryId = sanitizeString(searchParams.get('batteryId') || '', 30)
+    const severity = sanitizeString(searchParams.get('severity') || '', 20)
+    const limit = Math.min(200, Math.max(1, parseInt(searchParams.get('limit') || '100')))
     const q = {}
     if (batteryId) q.batteryId = batteryId
     if (severity && severity !== 'all') q.severity = severity.toUpperCase()
@@ -22,7 +31,7 @@ export async function GET(request) {
       .collection('alerts')
       .find(q)
       .sort({ timestamp: -1 })
-      .limit(parseInt(limit))
+      .limit(limit)
       .toArray()
 
     return NextResponse.json(alerts.map((a) => ({
@@ -36,39 +45,62 @@ export async function GET(request) {
     })))
   } catch (error) {
     console.error('alerts get error:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return secureErrorResponse(error.message)
   }
 }
 
 export async function POST(request) {
   try {
-    const db = await getDB()
+    const ip = getClientIp(request)
+    const rateCheck = checkRateLimit(`alerts_post_${ip}`, 30, 60000)
+    if (!rateCheck.success) {
+      return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
+    }
+
     const body = await request.json().catch(() => ({}))
 
     // acknowledge / toggle ack for an existing alert
     if (body.id && body.acknowledged !== undefined) {
+      const db = await getDB()
       const { ObjectId } = await import('mongodb')
       const result = await db.collection('alerts').updateOne(
         { _id: new ObjectId(String(body.id)) },
-        { $set: { acknowledged: !!body.acknowledged } }
+        { $set: { acknowledged: Boolean(body.acknowledged) } }
       )
       return NextResponse.json({ success: true, modified: result.modifiedCount })
     }
 
     const now = new Date()
-    const result = await db.collection('alerts').insertOne({
-      batteryId: body.batteryId || 'BAT001',
-      severity: body.severity,
-      type: body.type,
-      message: body.message,
-      bhi: body.bhi,
-      sensorData: body.sensorData,
+    const alertData = {
+      batteryId: sanitizeString(body.batteryId || 'BAT001', 30),
+      severity: sanitizeString(body.severity || 'INFO', 20).toUpperCase(),
+      type: sanitizeString(body.type || 'SYSTEM_ALERT', 40),
+      message: sanitizeString(body.message || 'Alert triggered', 500),
+      bhi: sanitizeNumber(body.bhi, 0, 100),
+      sensorData: body.sensorData || null,
       acknowledged: false,
-      timestamp: now,
-    })
-    return NextResponse.json({ success: true, id: String(result.insertedId) })
+      timestamp: now.getTime(),
+    }
+
+    // 1. Push to Firebase Realtime Database
+    await pushAdminAlert(alertData)
+
+    // 2. Persist in MongoDB
+    let insertedId = null
+    try {
+      const db = await getDB()
+      const result = await db.collection('alerts').insertOne({
+        ...alertData,
+        timestamp: now,
+      })
+      insertedId = String(result.insertedId)
+    } catch (dbErr) {
+      console.warn('MongoDB insert for alert failed:', dbErr.message)
+    }
+
+    return NextResponse.json({ success: true, id: insertedId || 'fb_alert' })
   } catch (error) {
     console.error('alerts post error:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return secureErrorResponse(error.message)
   }
 }

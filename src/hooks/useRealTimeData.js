@@ -1,41 +1,39 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useMQTT } from './useMQTT'
+import { useFirebase } from './useFirebase'
 
-const POLL_INTERVAL_MS = 3000
+const POLL_INTERVAL_MS = 5000
 const POLL_TIMEOUT_MS = 5000
 
 function createTimeoutSignal(ms) {
-  // AbortSignal.timeout is not available in every browser; emulate it.
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), ms)
   return { signal: controller.signal, clear: () => clearTimeout(timer) }
 }
 
-// Real-time data hook: uses MQTT when available, falls back to HTTP polling.
+// Real-time data hook: uses Firebase Realtime Database stream, with HTTP fallback.
 export function useRealTimeData(batteryId = 'BAT001') {
-  const { connected: mqttConnected, data: mqttData, publish } = useMQTT()
+  const { connected: firebaseConnected, data: firebaseData, sendCommand: sendFirebaseCmd } = useFirebase(batteryId)
   const [data, setData] = useState(null)
   const [history, setHistory] = useState([])
   const [connected, setConnected] = useState(false)
   const [mode, setMode] = useState('poll')
   const [error, setError] = useState(null)
 
-  // MQTT path
+  // Firebase real-time stream path
   useEffect(() => {
-    if (mqttConnected && mqttData) {
-      setMode('mqtt')
+    if (firebaseConnected && firebaseData) {
+      setMode('firebase')
       setConnected(true)
       setError(null)
-      setHistory((h) => [...h, { time: Date.now(), ...mqttData }].slice(-50))
-      // setData inside updater avoids stale-closure warnings
-      setData((prev) => ({ ...prev, ...mqttData }))
+      setHistory((h) => [...h, { time: Date.now(), ...firebaseData }].slice(-50))
+      setData((prev) => ({ ...prev, ...firebaseData }))
     }
-  }, [mqttConnected, mqttData])
+  }, [firebaseConnected, firebaseData])
 
-  // HTTP polling fallback (only while MQTT is not delivering data)
+  // HTTP polling fallback (only while Firebase RTDB stream has no data)
   useEffect(() => {
-    if (mqttConnected) return undefined
+    if (firebaseConnected) return undefined
 
     let active = true
     let timer = null
@@ -54,7 +52,7 @@ export function useRealTimeData(batteryId = 'BAT001') {
           setData(d)
           setConnected(true)
           setError(null)
-          setMode((m) => (m === 'mqtt' ? m : 'poll'))
+          setMode((m) => (m === 'firebase' ? m : 'poll'))
           setHistory((h) => [...h, { time: Date.now(), ...d }].slice(-50))
         }
       } catch (e) {
@@ -75,7 +73,7 @@ export function useRealTimeData(batteryId = 'BAT001') {
       if (timer) clearInterval(timer)
       if (timed) timed.clear()
     }
-  }, [batteryId, mqttConnected])
+  }, [batteryId, firebaseConnected])
 
   const sendControl = async (command, value) => {
     const requestId = Math.random().toString(16).slice(2, 10)
@@ -84,14 +82,18 @@ export function useRealTimeData(batteryId = 'BAT001') {
       value: value !== undefined ? value : command.toLowerCase().includes('on'),
       requestId,
     }
-    if (mqttConnected) {
-      publish(`batteryvitals/${batteryId}/control`, payload)
+    
+    // Direct write to Firebase Realtime Database
+    if (firebaseConnected) {
+      await sendFirebaseCmd(command, value)
     }
+
+    // Also dispatch to API endpoint for MongoDB audit event logging
     try {
       const response = await fetch('/api/commands', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...payload, batteryId }),
       })
       let body = null
       try { body = await response.json() } catch (e) { /* ignore */ }
@@ -103,3 +105,5 @@ export function useRealTimeData(batteryId = 'BAT001') {
 
   return { data, history, connected, mode, error, sendControl }
 }
+
+export default useRealTimeData

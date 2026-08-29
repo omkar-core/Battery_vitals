@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getDB } from '../../../lib/mongodb'
-import { initMQTTBridge, publishControl } from '../../../lib/mqtt'
+import { setAdminCommand } from '../../../lib/firebaseAdmin'
+import { checkRateLimit, getClientIp } from '../../../lib/rateLimit'
+import { sanitizeString, isValidCommand, secureErrorResponse } from '../../../lib/security'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,8 +12,14 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 204 })
 }
 
-export async function GET() {
+export async function GET(request) {
   try {
+    const ip = getClientIp(request)
+    const rateCheck = checkRateLimit(`commands_get_${ip}`, 60, 60000)
+    if (!rateCheck.success) {
+      return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
+    }
+
     const db = await getDB()
     let cmd = await db.collection('commands').findOne({ key: 'default' })
     if (!cmd) cmd = DEFAULT
@@ -27,12 +35,28 @@ export async function GET() {
 
 export async function POST(request) {
   try {
-    const body = await request.json().catch(() => ({}))
-    const { command, value, requestId } = body
-    const now = new Date()
-    const update = { updatedAt: now }
+    const ip = getClientIp(request)
+    const rateCheck = checkRateLimit(`commands_post_${ip}`, 30, 60000)
+    if (!rateCheck.success) {
+      return NextResponse.json({ error: 'Command rate limit exceeded. Please wait.' }, { status: 429 })
+    }
 
-    const cmdName = String(command || '').toUpperCase()
+    const body = await request.json().catch(() => ({}))
+    const rawCommand = sanitizeString(body.command || '', 50)
+    const value = body.value
+    const requestId = sanitizeString(body.requestId || Math.random().toString(16).slice(2, 10), 40)
+    const batteryId = sanitizeString(body.batteryId || 'BAT001', 30)
+
+    if (rawCommand && !isValidCommand(rawCommand)) {
+      return NextResponse.json(
+        { success: false, error: `Unauthorized command: ${rawCommand}` },
+        { status: 400 }
+      )
+    }
+
+    const now = new Date()
+    const update = { updatedAt: now.getTime() }
+    const cmdName = rawCommand.toUpperCase()
 
     if (cmdName === 'LED_MODE') {
       const v = String(value || '').toUpperCase()
@@ -56,45 +80,41 @@ export async function POST(request) {
     } else if (cmdName === 'TEST_BUZZER') {
       update.buzzer = true
     } else if (cmdName === 'SET_PROFILE') {
-      update.profile = String(value || '').toUpperCase()
+      update.profile = sanitizeString(String(value || ''), 20).toUpperCase()
     } else if (cmdName === 'SET_SAMPLE_INTERVAL') {
-      update.sampleInterval = parseInt(value) || 3
+      update.sampleInterval = Math.max(1, Math.min(60, parseInt(value) || 3))
     } else if (cmdName === 'REBOOT' || cmdName === 'START_CALIBRATION' || cmdName === 'RUN_SELF_TEST') {
       update.last_command = cmdName
     }
 
-    const db = await getDB()
-    await db.collection('commands').updateOne(
-      { key: 'default' },
-      { $set: update },
-      { upsert: true }
-    )
+    // 1. Dispatch command payload to Firebase Realtime Database
+    await setAdminCommand(batteryId, {
+      command: cmdName,
+      value,
+      requestId,
+      ...update,
+    })
 
+    // 2. Update local state & audit event in MongoDB
     try {
-      await initMQTTBridge()
-      const batteryId = body?.batteryId || 'BAT001'
-      publishControl(batteryId, {
-        command,
-        value,
-        requestId,
-        ts: Date.now(),
-      })
-    } catch (e) {
-      console.error('MQTT publish command error:', e.message)
-    }
-
-    try {
+      const db = await getDB()
+      await db.collection('commands').updateOne(
+        { key: 'default' },
+        { $set: update },
+        { upsert: true }
+      )
       await db.collection('system_events').insertOne({
-        type: 'USER_ACTION', severity: 'INFO',
-        message: `Command: ${command} ${value || ''}`,
-        details: { command, value, requestId },
+        type: 'USER_ACTION',
+        severity: 'INFO',
+        message: `Command dispatched via Firebase: ${cmdName} ${value || ''}`,
+        details: { command: cmdName, value, requestId, ip },
         timestamp: now,
       })
     } catch (e) { /* non-critical */ }
 
-    return NextResponse.json({ success: true, command, value, ts: now.getTime() })
+    return NextResponse.json({ success: true, command: cmdName, value, ts: now.getTime() })
   } catch (error) {
     console.error('commands post error:', error)
-    return NextResponse.json({ success: true, error: error.message }, { status: 200 })
+    return secureErrorResponse(error.message)
   }
 }

@@ -159,7 +159,7 @@ export default function DiagnosticsPage() {
 
           <ArrowRight size={18} color="var(--text-muted)" style={{ flexShrink: 0 }} />
 
-          {/* Hop 2: HiveMQ Cloud */}
+          {/* Hop 2: Firebase Realtime Database */}
           <div style={{ textAlign: 'center', flex: 1, minWidth: 140 }}>
             <div
               style={{
@@ -170,17 +170,17 @@ export default function DiagnosticsPage() {
               }}
             >
               <Radio size={24} color="#38BDF8" />
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#fff', marginTop: 4 }}>HiveMQ Cloud</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: '#fff', marginTop: 4 }}>Firebase RTDB</div>
               <div style={{ fontSize: 10, color: '#38BDF8', fontWeight: 700, marginTop: 2 }}>
-                TLS MQTT Broker
+                Real-Time Database
               </div>
             </div>
-            <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>Port 8883 / 8884</div>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>Zero-Broker Push</div>
           </div>
 
           <ArrowRight size={18} color="var(--text-muted)" style={{ flexShrink: 0 }} />
 
-          {/* Hop 3: Vercel Bridge */}
+          {/* Hop 3: Vercel / Admin SDK */}
           <div style={{ textAlign: 'center', flex: 1, minWidth: 140 }}>
             <div
               style={{
@@ -191,9 +191,9 @@ export default function DiagnosticsPage() {
               }}
             >
               <Server size={24} color="#A78BFA" />
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#fff', marginTop: 4 }}>Next.js Bridge</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: '#fff', marginTop: 4 }}>Admin SDK API</div>
               <div style={{ fontSize: 10, color: '#A78BFA', fontWeight: 700, marginTop: 2 }}>
-                API Pipeline
+                Next.js Backend
               </div>
             </div>
             <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>
@@ -216,10 +216,10 @@ export default function DiagnosticsPage() {
               <Database size={24} color={healthInfo?.database === 'connected' ? '#00E8A0' : '#FFD60A'} />
               <div style={{ fontSize: 13, fontWeight: 800, color: '#fff', marginTop: 4 }}>MongoDB Atlas</div>
               <div style={{ fontSize: 10, color: '#00E8A0', fontWeight: 700, marginTop: 2 }}>
-                {healthInfo?.collections?.readings ?? 'Stored'} Readings
+                Background Archive
               </div>
             </div>
-            <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>Time-Series TTL</div>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>Time-Series Sync</div>
           </div>
 
           <ArrowRight size={18} color="var(--text-muted)" style={{ flexShrink: 0 }} />
@@ -237,7 +237,7 @@ export default function DiagnosticsPage() {
               <Activity size={24} color="#00E8A0" />
               <div style={{ fontSize: 13, fontWeight: 800, color: '#fff', marginTop: 4 }}>Client WebApp</div>
               <div style={{ fontSize: 10, color: '#00E8A0', fontWeight: 700, marginTop: 2 }}>
-                {mode === 'mqtt' ? 'WebSockets Live' : 'HTTP Polling'}
+                {mode === 'firebase' || mode === 'mqtt' ? 'Firebase Real-Time' : 'HTTP Polling'}
               </div>
             </div>
             <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>React 18 / Next.js</div>

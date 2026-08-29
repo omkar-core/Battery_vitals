@@ -1,37 +1,45 @@
 import { NextResponse } from 'next/server'
 import { getDB } from '../../../lib/mongodb'
+import { adminDb } from '../../../lib/firebaseAdmin'
+import { checkRateLimit, getClientIp } from '../../../lib/rateLimit'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(request) {
+  const ip = getClientIp(request)
+  const rateCheck = checkRateLimit(`health_get_${ip}`, 60, 60000)
+  if (!rateCheck.success) {
+    return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
+  }
+
+  let mongoStatus = 'disconnected'
+  let firebaseStatus = 'disconnected'
+
   try {
-    // Test MongoDB connection
     const db = await getDB()
     await db.command({ ping: 1 })
-
-    return NextResponse.json({
-      status: 'healthy',
-      database: 'connected',
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      memory: process.memoryUsage(),
-      platform: 'render',
-    })
-  } catch (error) {
-    console.error('health error:', error)
-    return NextResponse.json(
-      {
-        status: 'unhealthy',
-        database: 'disconnected',
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      },
-      { status: 503 }
-    )
+    mongoStatus = 'connected'
+  } catch (e) {
+    mongoStatus = 'disconnected'
   }
+
+  try {
+    await adminDb.ref('.info/connected').once('value')
+    firebaseStatus = 'connected'
+  } catch (e) {
+    firebaseStatus = 'error'
+  }
+
+  return NextResponse.json({
+    status: mongoStatus === 'connected' ? 'healthy' : 'degraded',
+    database: mongoStatus,
+    firebase: firebaseStatus,
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    platform: 'vercel',
+  })
 }
 
-// Support HEAD requests for health checks
 export async function HEAD() {
   return new Response(null, { status: 200 })
 }

@@ -1,8 +1,9 @@
 /*
   =====================================================================
-  BatteryVitals v11.3 — Crash-Proof Industrial Firmware
-  - Fixes Interrupt WDT timeout on Core 1 (Native Safe DHT Reader)
-  - Full Error Debug Logging for HTTP status codes
+  BatteryVitals v11.3 — Firebase Realtime Database Industrial Firmware
+  - Direct Firebase Realtime Database Push via HTTPS REST API
+  - Zero Broker Message Limit Capping
+  - Non-blocking Native DHT Reader & INA219 Power Shunt Integration
   =====================================================================
 */
 
@@ -18,19 +19,23 @@
 #define WIFI_SSID       "Om"
 #define WIFI_PASSWORD   "123456789"
 
-#define VERCEL_BASE     "https://battery-vitals-puce.vercel.app"
-#define URL_DATA        "https://battery-vitals-puce.vercel.app/api/data"
-#define URL_CONTROL     "https://battery-vitals-puce.vercel.app/api/control"
-#define URL_ALERTS      "https://battery-vitals-puce.vercel.app/api/alerts/esp32"
+// Firebase Realtime Database Configuration
+#define FIREBASE_HOST   "https://batteryvital-default-rtdb.asia-southeast1.firebasedatabase.app"
+#define FIREBASE_URL_DATA "https://batteryvital-default-rtdb.asia-southeast1.firebasedatabase.app/live_data/BAT001.json"
+#define FIREBASE_URL_CONTROL "https://batteryvital-default-rtdb.asia-southeast1.firebasedatabase.app/commands/BAT001.json"
+#define VERCEL_URL_DATA "https://battery-vitals-puce.vercel.app/api/telemetry"
+
+#define ESP32_EMAIL     "esp32@batteryvital.local"
+#define ESP32_PASS      "Esp32SecurePass2026omkar@12345"
 
 #define DEVICE_ID       "BV001"
 #define BATTERY_ID      "BAT001"
-#define FIRMWARE_VER    "v11.3"
+#define FIRMWARE_VER    "v11.3-firebase"
 
 #define SENSOR_INTERVAL   2000
 #define DHT_INTERVAL      3000
-#define UPLOAD_INTERVAL   5000
-#define CONTROL_INTERVAL  3000
+#define UPLOAD_INTERVAL   3000
+#define CONTROL_INTERVAL  2000
 #define SAFETY_INTERVAL   1000
 #define DIAGNOSTIC_PRINT  15000
 #define WIFI_RETRY        10000
@@ -106,29 +111,29 @@ bool readNativeDHT11(uint8_t pin, float &temp, float &humidity) {
   delayMicroseconds(40);
   pinMode(pin, INPUT_PULLUP);
 
-  uint32_t uSec = micros();
+  unsigned long timeout = micros();
   while (digitalRead(pin) == HIGH) {
-    if (micros() - uSec > 100) return false;
+    if (micros() - timeout > 100) return false;
   }
-  uSec = micros();
+  timeout = micros();
   while (digitalRead(pin) == LOW) {
-    if (micros() - uSec > 100) return false;
+    if (micros() - timeout > 100) return false;
   }
-  uSec = micros();
+  timeout = micros();
   while (digitalRead(pin) == HIGH) {
-    if (micros() - uSec > 100) return false;
+    if (micros() - timeout > 100) return false;
   }
 
   for (int i = 0; i < 40; i++) {
-    uSec = micros();
+    timeout = micros();
     while (digitalRead(pin) == LOW) {
-      if (micros() - uSec > 100) return false;
+      if (micros() - timeout > 100) return false;
     }
-    uint32_t tHigh = micros();
+    unsigned long tBit = micros();
     while (digitalRead(pin) == HIGH) {
-      if (micros() - tHigh > 100) return false;
+      if (micros() - tBit > 100) return false;
     }
-    if ((micros() - tHigh) > 40) {
+    if ((micros() - tBit) > 40) {
       data[i / 8] |= (1 << (7 - (i % 8)));
     }
   }
@@ -143,51 +148,56 @@ bool readNativeDHT11(uint8_t pin, float &temp, float &humidity) {
 
 void readSensors() {
   if (sensor.ina_ok) {
-    float v = ina219.getBusVoltage_V();
-    float cur = ina219.getCurrent_mA();
-    if (!isnan(v) && v >= 0.0f && v <= 32.0f) {
-      sensor.voltage = v;
-      sensor.current_mA = cur;
-      sensor.power_mW = ina219.getPower_mW();
-      sensor.shunt_mV = ina219.getShuntVoltage_mV();
-    }
-  } else {
-    if (ina219.begin()) {
-      ina219.setCalibration_16V_400mA();
-      sensor.ina_ok = true;
-    }
+    sensor.voltage = ina219.getBusVoltage_V();
+    sensor.shunt_mV = ina219.getShuntVoltage_mV();
+    sensor.current_mA = ina219.getCurrent_mA();
+    sensor.power_mW = ina219.getPower_mW();
   }
 
   sensor.mq2_raw = analogRead(PIN_MQ2);
   sensor.mq135_raw = analogRead(PIN_MQ135);
 
-  sensor.soc = constrain((sensor.voltage / 12.6f) * 100.0f, 0.0f, 100.0f);
-  sensor.soh = constrain((sensor.voltage / NOMINAL_VOLTAGE) * 100.0f, 0.0f, 100.0f);
+  // Coulomb Counting for SOC
+  float dt = (float)SENSOR_INTERVAL / 1000.0f;
+  float Ah_delta = (sensor.current_mA / 1000.0f) * (dt / 3600.0f);
+  sensor.coulomb_Ah += Ah_delta;
+  if (sensor.coulomb_Ah > NOMINAL_CAPACITY_AH) sensor.coulomb_Ah = NOMINAL_CAPACITY_AH;
+  if (sensor.coulomb_Ah < 0.0f) sensor.coulomb_Ah = 0.0f;
+  sensor.soc = (sensor.coulomb_Ah / NOMINAL_CAPACITY_AH) * 100.0f;
 
+  // Internal Resistance Estimation
+  if (abs(sensor.current_mA) > 100.0f) {
+    sensor.resistance = (abs(sensor.shunt_mV) / 1000.0f) / (abs(sensor.current_mA) / 1000.0f);
+  }
+
+  // Operation Direction
   if (sensor.current_mA > 50.0f) sensor.op = "CHARGING";
   else if (sensor.current_mA < -50.0f) sensor.op = "DISCHARGING";
   else sensor.op = "IDLE";
 
-  float risk = 0.0f;
-  if (sensor.voltage < 10.5f || sensor.voltage > 14.5f) risk += 35.0f;
-  if (sensor.temperature > 50.0f) risk += 30.0f;
-  if (sensor.mq2_raw > 2000) risk += 20.0f;
-  if (sensor.mq135_raw > 2000) risk += 15.0f;
-  sensor.bhi = constrain(risk, 0.0f, 100.0f);
+  // BHI Calculation
+  float bhi = 0.0f;
+  if (sensor.voltage > 14.4f || sensor.voltage < 10.0f) bhi += 35.0f;
+  if (sensor.temperature > 45.0f) bhi += 30.0f;
+  if (sensor.mq2_raw > 1500) bhi += 25.0f;
+  if (sensor.mq135_raw > 1500) bhi += 20.0f;
+  sensor.bhi = min(bhi, 100.0f);
 
-  if (sensor.bhi >= 70.0f) sensor.state = "CRITICAL";
-  else if (sensor.bhi >= 40.0f) sensor.state = "WARNING";
+  if (sensor.bhi >= 75.0f) sensor.state = "CRITICAL";
+  else if (sensor.bhi >= 50.0f) sensor.state = "WARNING";
+  else if (sensor.bhi >= 25.0f) sensor.state = "CAUTION";
   else sensor.state = "SAFE";
 }
 
 void updateLEDs() {
   if (!sensor.auto_mode) return;
-  if (strcmp(sensor.state, "CRITICAL") == 0) {
+
+  if (strcmp(sensor.state, "CRITICAL") == 0 || strcmp(sensor.state, "EMERGENCY") == 0) {
     digitalWrite(PIN_LED_RED, HIGH);
     digitalWrite(PIN_LED_YELLOW, LOW);
     digitalWrite(PIN_LED_GREEN, LOW);
-    digitalWrite(PIN_BUZZER, (millis() / 250) % 2 == 0 ? HIGH : LOW);
-  } else if (strcmp(sensor.state, "WARNING") == 0) {
+    digitalWrite(PIN_BUZZER, HIGH);
+  } else if (strcmp(sensor.state, "WARNING") == 0 || strcmp(sensor.state, "CAUTION") == 0) {
     digitalWrite(PIN_LED_RED, LOW);
     digitalWrite(PIN_LED_YELLOW, HIGH);
     digitalWrite(PIN_LED_GREEN, LOW);
@@ -229,8 +239,9 @@ void pollControl() {
   HTTPClient http;
   secureClient.setInsecure();
 
-  http.begin(secureClient, URL_CONTROL);
-  http.setTimeout(5000);
+  // Fetch command payload directly from Firebase Realtime Database
+  http.begin(secureClient, FIREBASE_URL_CONTROL);
+  http.setTimeout(4000);
 
   int code = http.GET();
   if (code == 200) {
@@ -259,9 +270,10 @@ void sendTelemetry() {
   HTTPClient http;
   secureClient.setInsecure();
 
-  http.begin(secureClient, URL_DATA);
+  // 1. Send Direct PUT payload to Firebase Realtime Database REST URL
+  http.begin(secureClient, FIREBASE_URL_DATA);
   http.addHeader("Content-Type", "application/json");
-  http.setTimeout(8000);
+  http.setTimeout(5000);
 
   StaticJsonDocument<1024> doc;
   doc["batteryId"]    = BATTERY_ID;
@@ -280,18 +292,30 @@ void sendTelemetry() {
   doc["op"]           = sensor.op;
   doc["wifi_rssi"]    = WiFi.RSSI();
   doc["free_heap"]    = ESP.getFreeHeap();
+  doc["timestamp"]    = millis();
 
   String payload;
   serializeJson(doc, payload);
 
-  int code = http.POST(payload);
+  int code = http.PUT(payload);
   if (code == 200 || code == 201) {
     stats.packetsSent++;
-    Serial.printf("[VERCEL] Uploaded Packet #%u\n", stats.packetsSent);
+    Serial.printf("[FIREBASE RTDB] Pushed Telemetry Packet #%u\n", stats.packetsSent);
   } else {
-    stats.packetsFailed++;
-    String resp = http.getString();
-    Serial.printf("[VERCEL] HTTP Error: %d | Response: %s\n", code, resp.c_str());
+    // Secondary fallback upload to Vercel Endpoint
+    HTTPClient vHttp;
+    vHttp.begin(secureClient, VERCEL_URL_DATA);
+    vHttp.addHeader("Content-Type", "application/json");
+    vHttp.setTimeout(5000);
+    int vCode = vHttp.POST(payload);
+    if (vCode == 200 || vCode == 201) {
+      stats.packetsSent++;
+      Serial.printf("[VERCEL FALLBACK] Telemetry Uploaded #%u\n", stats.packetsSent);
+    } else {
+      stats.packetsFailed++;
+      Serial.printf("[FIREBASE & VERCEL] Upload Failed (FB: %d, V: %d)\n", code, vCode);
+    }
+    vHttp.end();
   }
   http.end();
 }
@@ -300,9 +324,9 @@ void setup() {
   Serial.begin(115200);
   delay(100);
 
-  Serial.println(F("\n=========================================="));
-  Serial.println(F("   BATTERYVITALS v11.3 CRASH-PROOF BOOT   "));
-  Serial.println(F("=========================================="));
+  Serial.println(F("\n======================================================="));
+  Serial.println(F("   BATTERYVITALS v11.3 FIREBASE REALTIME DATABASE BOOT   "));
+  Serial.println(F("======================================================="));
 
   pinMode(PIN_BUZZER, OUTPUT);
   pinMode(PIN_LED_RED, OUTPUT);

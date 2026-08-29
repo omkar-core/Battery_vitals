@@ -212,7 +212,7 @@ export default function ControlPanel({ commands = {}, onCommand, batteryState = 
           <Clock size={15} color="#FFD60A" flexShrink={0} />
           <span>
             <strong>Manual Override Engaged:</strong> Actuator buttons below send immediate commands
-            over MQTT. Note: Safety interlocks will override if a CRITICAL state occurs.
+            over Firebase Realtime Database. Note: Safety interlocks will override if a CRITICAL state occurs.
           </span>
         </div>
       )}
@@ -270,7 +270,7 @@ export default function ControlPanel({ commands = {}, onCommand, batteryState = 
 
       {pending && (
         <div style={{ fontSize: 11, color: '#38BDF8', marginTop: 10, fontFamily: 'monospace' }}>
-          Transmitting MQTT command: {pending}...
+          Transmitting Firebase command: {pending}...
         </div>
       )}
     </div>
