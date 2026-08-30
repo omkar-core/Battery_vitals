@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { Suspense } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { ChevronRight, Home } from 'lucide-react'
@@ -38,7 +38,15 @@ const TAB_NAME_MAP = {
   version: 'Version Info',
 }
 
-export default function Breadcrumbs({ customCrumbs }) {
+export default function Breadcrumbs(props) {
+  return (
+    <Suspense fallback={null}>
+      <BreadcrumbsInner {...props} />
+    </Suspense>
+  )
+}
+
+function BreadcrumbsInner({ customCrumbs }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const tab = searchParams?.get('tab') || searchParams?.get('filter')

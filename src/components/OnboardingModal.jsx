@@ -87,6 +87,11 @@ export default function OnboardingModal({ isOpen, onClose, onOpenManual }) {
   useEffect(() => {
     if (isOpen) {
       setCurrentStep(0)
+      // A first-time visitor saw the guide now — mark it complete so it
+      // never pops up again on subsequent visits or navigations.
+      try {
+        localStorage.setItem(ONBOARDING_STORAGE_KEY, 'true')
+      } catch (e) {}
     }
   }, [isOpen])
 

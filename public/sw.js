@@ -1,5 +1,5 @@
 // sw.js — Bulletproof Service Worker for Next.js Battery Vital app
-const CACHE_NAME = 'bv-cache-v6';
+const CACHE_NAME = 'bv-cache-v7';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
@@ -22,10 +22,23 @@ self.addEventListener('fetch', (e) => {
 
   const url = new URL(request.url);
 
-  // 2. Bypass API requests completely — let browser handle natively
+  // 2. Bypass ALL API requests — let browser handle natively
   if (url.pathname.startsWith('/api/')) return;
 
-  // 3. Navigation requests (e.g. /settings, /analytics)
+  // 3. Bypass ALL Next.js internals (RSC payloads, static chunks, build data).
+  //    Serving stale copies of these breaks Next's client-side router and causes
+  //    "Failed to fetch RSC payload ... reading 'call'" navigation errors.
+  if (
+    url.pathname.startsWith('/_next/') ||
+    url.search.includes('_rsc=') ||
+    url.pathname.includes('.next') ||
+    request.headers.get('RSC') === '1' ||
+    request.headers.get('Next-Router-State-Tree')
+  ) {
+    return;
+  }
+
+  // 4. Navigation requests — network-first; only use cache as offline fallback
   if (request.mode === 'navigate') {
     e.respondWith(
       fetch(request).catch(async () => {
@@ -41,7 +54,7 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // 4. Static assets & Next.js bundles
+  // 5. Static assets — cache-first for offline resilience
   e.respondWith(
     caches.open(CACHE_NAME).then(async (cache) => {
       const cached = await cache.match(request);
