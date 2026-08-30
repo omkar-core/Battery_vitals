@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import Link from 'next/link'
 import Header from './Header'
 import Breadcrumbs from './Breadcrumbs'
 import ContextualActions from './ContextualActions'
@@ -8,14 +9,21 @@ import BatteryPassportSlideout from './BatteryPassportSlideout'
 import CommandPalette from './CommandPalette'
 import KeyboardShortcutsModal from './KeyboardShortcutsModal'
 import OnboardingModal from './OnboardingModal'
+import ErrorBoundary from './ErrorBoundary'
+import CookieConsent from './CookieConsent'
 import { UserManualModal, WiringDiagramModal, VersionInfoModal } from './HelpModals'
 import ToastContainer from './ToastContainer'
 import { NotificationProvider, useNotifications } from '../context/NotificationContext'
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts'
+import useTabTitle from '../hooks/useTabTitle'
 import styles from './layout.module.css'
 
 function LayoutInner({ children, connected, mode, lastSeen, data }) {
   const { markAllRead } = useNotifications()
+
+  // L18 - Browser tab shows a live SOC summary (🔋 NN% | Battery Vital).
+  const tabSoc = data?.battery?.soc != null ? Number(data.battery.soc) : data?.soc != null ? Number(data.soc) : null
+  useTabTitle(tabSoc)
 
   // Modal and drawer visibility states
   const [passportOpen, setPassportOpen] = useState(false)
@@ -109,7 +117,8 @@ function LayoutInner({ children, connected, mode, lastSeen, data }) {
           </div>
         )}
 
-        {children}
+        {/* D6 - Error boundary keeps one bad render from blanking the console */}
+        <ErrorBoundary>{children}</ErrorBoundary>
       </main>
 
       {/* 5. Modernized Footer with Keyboard Shortcut Hint */}
@@ -124,12 +133,18 @@ function LayoutInner({ children, connected, mode, lastSeen, data }) {
             <span>
               Press <kbd onClick={() => setShortcutsOpen(true)} className={styles.footerKbd}>?</kbd> for keyboard shortcuts • <kbd onClick={() => setCmdPaletteOpen(true)} className={styles.footerKbd}>Ctrl+K</kbd> to search
             </span>
+            <span className={styles.footerLegal}>
+              <Link href="/privacy">Privacy</Link> • <Link href="/terms">Terms</Link>
+            </span>
           </div>
         </div>
       </footer>
 
       {/* 6. Real-time Toast Notifications Container */}
       <ToastContainer />
+
+      {/* 6b. Cookie Consent Banner (E5 - GDPR-style, localStorage-persisted) */}
+      <CookieConsent />
 
       {/* 7. Right-Side Battery Passport Slide-out Drawer */}
       <BatteryPassportSlideout

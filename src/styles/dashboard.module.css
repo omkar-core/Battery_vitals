@@ -53,6 +53,18 @@
   color: var(--state-info);
 }
 
+.liveBadgeSlow {
+  background: rgba(245, 185, 66, 0.12);
+  border-color: rgba(245, 185, 66, 0.45);
+  color: var(--state-caution);
+}
+
+.liveBadgeNoData {
+  background: rgba(148, 163, 184, 0.12);
+  border-color: rgba(148, 163, 184, 0.35);
+  color: var(--text-tertiary);
+}
+
 .liveDot {
   width: 6px;
   height: 6px;
@@ -67,6 +79,21 @@
   height: 6px;
   border-radius: 50%;
   background: var(--state-caution);
+}
+
+.liveDotSlow {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--state-caution);
+  animation: livePulse 1.2s ease-in-out infinite;
+}
+
+.liveDotNoData {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
 }
 
 .liveDotOffline {
@@ -110,10 +137,11 @@
   grid-template-columns: repeat(12, 1fr);
   gap: var(--space-4);
   margin-bottom: var(--space-5);
+  position: relative;
 }
 
 .heroSafetyCard {
-  grid-column: span 4;
+  grid-column: span 3;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
@@ -126,7 +154,7 @@
 }
 
 .heroSohCard {
-  grid-column: span 4;
+  grid-column: span 3;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
@@ -138,8 +166,22 @@
   box-shadow: var(--shadow);
 }
 
+.heroSocCard {
+  grid-column: span 3;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: var(--shadow);
+}
+
 .heroSparklineCard {
-  grid-column: span 4;
+  grid-column: span 3;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
@@ -346,6 +388,27 @@
   font-size: 13px;
 }
 
+/* L1 - Energy flow strip */
+.energyFlowRow {
+  margin-bottom: var(--space-4);
+}
+
+/* K3 - Instrument panel (needle gauges) */
+.instrumentRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.instrumentCard {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  box-shadow: var(--shadow);
+}
+
 /* ===== Responsive Breakpoints ===== */
 @media (max-width: 1024px) {
   .heroBento {
@@ -353,6 +416,7 @@
   }
   .heroSafetyCard,
   .heroSohCard,
+  .heroSocCard,
   .heroSparklineCard {
     grid-column: span 12;
     height: auto;
@@ -371,6 +435,9 @@
     overflow-x: auto;
   }
   .grid2 {
+    grid-template-columns: 1fr;
+  }
+  .instrumentRow {
     grid-template-columns: 1fr;
   }
 }

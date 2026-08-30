@@ -188,7 +188,7 @@ export function WiringDiagramModal({ isOpen, onClose }) {
 
         <div className={styles.modalFooter}>
           <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
-            Hardware Specification v9.4 • ESP32-WROOM-32D Core
+            Hardware Specification v12.0 • ESP32-WROOM-32D Core
           </span>
           <button className={styles.primaryModalBtn} onClick={onClose}>
             Close Diagram
@@ -223,32 +223,32 @@ export function VersionInfoModal({ isOpen, onClose }) {
         <div className={styles.versionGrid}>
           <div className={styles.versionRow}>
             <span>Website Console Version</span>
-            <strong>v2.1.0 (Production Release)</strong>
+            <strong>v2.0.0 (Production)</strong>
           </div>
           <div className={styles.versionRow}>
             <span>ESP32 Firmware Engine</span>
-            <strong>v9.4.0 (Edge Safety Kernel)</strong>
+            <strong>v12.0 (Edge Safety Kernel)</strong>
           </div>
           <div className={styles.versionRow}>
             <span>Cloud Telemetry Sync</span>
-            <strong>Firebase Realtime Database v12.18</strong>
+            <strong>Firebase Realtime Database</strong>
           </div>
           <div className={styles.versionRow}>
             <span>AI Predictive Model</span>
-            <strong>Google Gemini 1.5 Pro / Flash API</strong>
+            <strong>Google Gemini API</strong>
           </div>
           <div className={styles.versionRow}>
             <span>Historical Storage</span>
-            <strong>MongoDB Atlas Cloud Shard</strong>
+            <strong>MongoDB Atlas</strong>
           </div>
           <div className={styles.versionRow}>
             <span>Last Updated</span>
-            <strong>January 28, 2025</strong>
+            <strong>{new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</strong>
           </div>
         </div>
 
         <div className={styles.manualSection} style={{ marginTop: 14 }}>
-          <h4 style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Release 2.1.0 Highlights</h4>
+          <h4 style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Release Highlights</h4>
           <ul className={styles.manualList} style={{ fontSize: 12 }}>
             <li>Redesigned modern header with inline battery vitals card &amp; multi-tier navigation</li>
             <li>Real-time toast notification system with audio synthesis &amp; desktop alerts</li>

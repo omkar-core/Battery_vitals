@@ -73,7 +73,8 @@ export async function POST(request) {
     const current = sanitizeNumber(b.current != null ? b.current / 1000 : null, -500, 500)
     const power = sanitizeNumber(b.power != null ? b.power / 1000 : b.power, -5000, 5000)
     const soc = sanitizeNumber(b.soc, 0, 100)
-    const soh = sanitizeNumber(b.soh, 0, 100)
+    const sohValid = b.soh_valid === true || (b.soh_valid !== false && sanitizeNumber(b.resistance, 0, 1000) > 0)
+    const soh = sohValid ? sanitizeNumber(b.soh, 0, 100) : null
     const temperature = sanitizeNumber(e.temperature != null ? e.temperature : body.temperature, -40, 150)
     const humidity = sanitizeNumber(e.humidity != null ? e.humidity : body.humidity, 0, 100)
     const mq2 = sanitizeNumber(g.index_mq2 != null ? g.index_mq2 : body.mq2, 0, 10000)

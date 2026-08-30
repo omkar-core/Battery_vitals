@@ -2,7 +2,7 @@
   "name": "battery-vitals-nextjs",
   "version": "2.0.0",
   "private": true,
-  "description": "Battery Vital - Intelligent Battery Safety System (Next.js + MongoDB + MQTT + Gemini AI)",
+  "description": "Battery Vital - Intelligent Battery Safety System (Next.js + Firebase RTDB + MongoDB + Gemini AI)",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

@@ -15,7 +15,6 @@ import {
   Settings,
   HelpCircle,
   Zap,
-  Battery,
   AlertTriangle,
   BookOpen,
   Sun,
@@ -41,11 +40,6 @@ const COMMAND_ITEMS = [
   { id: 'p-history', category: 'Pages', title: 'History & Export', desc: 'Aggregated telemetry logs and CSV/JSON export', icon: Clock, path: '/history' },
   { id: 'p-settings', category: 'Pages', title: 'Settings & Profiles', desc: 'Chemistry thresholds and general preferences', icon: Settings, path: '/settings' },
   { id: 'p-about', category: 'Pages', title: 'About Battery Vital', desc: 'Product info, architecture and specs', icon: HelpCircle, path: '/about' },
-
-  // Batteries
-  { id: 'b-smoke', category: 'Batteries', title: 'Living Room Smoke Detector', desc: 'Active 9V Li-MnO2 (BV-9V-001) • 8.7V • 72% SOC', icon: Battery, path: '/' },
-  { id: 'b-solar', category: 'Batteries', title: 'Solar LiFePO4 Bank (BAT002)', desc: '12V 100Ah Storage Pack • 13.2V • Standby', icon: Battery, path: '/analytics' },
-  { id: 'b-bike', category: 'Batteries', title: 'E-Bike Commuter Pack (BAT003)', desc: '48V 14Ah NMC Pack • 52.4V • Full', icon: Battery, path: '/passport' },
 
   // Settings
   { id: 's-battery', category: 'Settings', title: 'Battery Configuration', desc: 'Set nominal voltage, capacity, and chemistry (9V, AA, 18650, etc.)', icon: Settings, path: '/settings' },

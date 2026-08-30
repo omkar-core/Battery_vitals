@@ -10,11 +10,8 @@ import {
   Download,
   Copy,
   Check,
-  Calendar,
-  Layers,
-  Activity,
   Cpu,
-  Zap,
+  Activity,
   ExternalLink,
   QrCode,
 } from 'lucide-react'
@@ -24,36 +21,38 @@ import styles from './components.module.css'
 export default function BatteryPassportSlideout({ isOpen, onClose, data }) {
   const [copied, setCopied] = useState(false)
 
-  const passportId = 'PASSPORT-BV-9V-001'
-  const serialNumber = 'BV-9V-2025-001'
-  const batteryName = 'Living Room Smoke Detector'
-  const chemistry = 'Ultralife Lithium (Li-MnO2) 9V'
-  const installDate = 'Jan 15, 2025'
-  const manufacturer = 'Ultralife Corp. / Battery Vital Certified'
+  // Passport identity is derived strictly from the connected device telemetry.
+  const batteryId = data?.batteryId || data?.battery?.batteryId || 'BAT001'
+  const passportId = `PASSPORT-${batteryId}`
+  const deviceId = data?.deviceId || null
+  const profile = data?.profile || data?.battery?.profile || data?.battery?.chemistry || null
+  const firmware = data?.firmware || null
 
-  const liveVoltage = data?.battery?.voltage ?? data?.voltage ?? 8.7
-  const liveSoc = data?.battery?.soc ?? data?.soc ?? 72
-  const liveSoh = data?.battery?.soh ?? data?.soh ?? 96
-  const cycles = data?.battery?.cycles ?? 142
-  const resistance = data?.battery?.resistance ?? data?.resistance ?? 14.2
-  const energyWh = data?.battery?.energyWh ?? 88.4
+  // Real telemetry values only. Missing sensor fields render as '--', never fabricated.
+  const liveVoltage = data?.battery?.voltage ?? data?.voltage ?? null
+  const liveSoc = data?.battery?.soc ?? data?.soc ?? null
+  const liveSoh = data?.battery?.soh ?? data?.soh ?? null
+  const cycles = data?.battery?.cycles ?? null
+  const resistance = data?.battery?.resistance ?? data?.resistance ?? null
+  const energyWh = data?.battery?.energyWh ?? null
 
   const telemetryHash = useMemo(() => {
     const base = JSON.stringify({
       passportId,
-      serialNumber,
+      batteryId,
+      deviceId,
       voltage: liveVoltage,
       soc: liveSoc,
       soh: liveSoh,
       cycles,
-      timestamp: data?.timestamp || Date.now(),
+      timestamp: data?.timestamp || null,
     })
     let h = 0
     for (let i = 0; i < base.length; i++) {
       h = (h * 31 + base.charCodeAt(i)) | 0
     }
-    return `0x${Math.abs(h).toString(16).padStart(8, '0').toUpperCase()}D4B8`
-  }, [liveVoltage, liveSoc, liveSoh, cycles, data?.timestamp])
+    return `0x${Math.abs(h).toString(16).padStart(8, '0').toUpperCase()}`
+  }, [passportId, batteryId, deviceId, liveVoltage, liveSoc, liveSoh, cycles, data?.timestamp])
 
   const copyHash = () => {
     navigator.clipboard.writeText(telemetryHash)
@@ -64,17 +63,10 @@ export default function BatteryPassportSlideout({ isOpen, onClose, data }) {
   const exportJSON = () => {
     const doc = {
       passportId,
-      serialNumber,
-      batteryName,
-      chemistry,
-      installDate,
-      manufacturer,
-      specs: {
-        nominalVoltage: '9.0V',
-        nominalCapacity: '1200mAh',
-        maxDischargeRate: '1.0A',
-        chemistryProfile: 'Li-MnO2',
-      },
+      batteryId,
+      deviceId,
+      firmware,
+      profile,
       currentTelemetry: {
         voltage: liveVoltage,
         soc: liveSoc,
@@ -85,8 +77,8 @@ export default function BatteryPassportSlideout({ isOpen, onClose, data }) {
       },
       proof: {
         telemetryHash,
-        certifiedBy: 'Battery Vital Decentralized Audit Network v2.1',
-        timestamp: new Date().toISOString(),
+        generatedAt: new Date().toISOString(),
+        note: 'Content hash of the latest live telemetry snapshot',
       },
     }
     const blob = new Blob([JSON.stringify(doc, null, 2)], { type: 'application/json' })
@@ -130,15 +122,15 @@ export default function BatteryPassportSlideout({ isOpen, onClose, data }) {
 
         {/* Content Body */}
         <div className={styles.slideoutBody}>
-          {/* Certificate Hero Card */}
+          {/* Device Identity Card */}
           <div className={styles.passportHeroCard}>
             <div className={styles.passportHeroTop}>
               <div>
                 <span className={styles.passportVerifiedChip}>
-                  <Award size={12} /> VERIFIED ASSET
+                  <Award size={12} /> LIVE DEVICE IDENTITY
                 </span>
-                <h3 className={styles.passportBatteryName}>{batteryName}</h3>
-                <div className={styles.passportSerial}>SN: {serialNumber}</div>
+                <h3 className={styles.passportBatteryName}>{batteryId}</h3>
+                <div className={styles.passportSerial}>SN: {deviceId || '--'}</div>
               </div>
               <div className={styles.passportQrWrap}>
                 <QrCode size={44} color="#00E8A0" />
@@ -147,20 +139,20 @@ export default function BatteryPassportSlideout({ isOpen, onClose, data }) {
 
             <div className={styles.passportGrid}>
               <div className={styles.passportGridItem}>
-                <span className={styles.passportGridLabel}>Chemistry</span>
-                <span className={styles.passportGridVal}>{chemistry}</span>
+                <span className={styles.passportGridLabel}>Battery ID</span>
+                <span className={styles.passportGridVal}>{batteryId}</span>
               </div>
               <div className={styles.passportGridItem}>
-                <span className={styles.passportGridLabel}>Installed</span>
-                <span className={styles.passportGridVal}>{installDate}</span>
+                <span className={styles.passportGridLabel}>Device ID</span>
+                <span className={styles.passportGridVal}>{deviceId || '--'}</span>
               </div>
               <div className={styles.passportGridItem}>
-                <span className={styles.passportGridLabel}>Nominal Rating</span>
-                <span className={styles.passportGridVal}>9.0V / 1200mAh</span>
+                <span className={styles.passportGridLabel}>Profile</span>
+                <span className={styles.passportGridVal}>{profile || '--'}</span>
               </div>
               <div className={styles.passportGridItem}>
-                <span className={styles.passportGridLabel}>Manufacturer</span>
-                <span className={styles.passportGridVal}>{manufacturer}</span>
+                <span className={styles.passportGridLabel}>Firmware</span>
+                <span className={styles.passportGridVal}>{firmware || '--'}</span>
               </div>
             </div>
           </div>
@@ -172,39 +164,43 @@ export default function BatteryPassportSlideout({ isOpen, onClose, data }) {
               <div className={styles.passportMetricCard}>
                 <span className={styles.passportMetricLabel}>State of Health (SOH)</span>
                 <span className={styles.passportMetricValue} style={{ color: '#00E8A0' }}>
-                  {liveSoh}%
+                  {liveSoh != null ? `${formatNumber(liveSoh, 0)}%` : '--'}
                 </span>
               </div>
               <div className={styles.passportMetricCard}>
                 <span className={styles.passportMetricLabel}>Live SOC</span>
                 <span className={styles.passportMetricValue} style={{ color: '#38BDF8' }}>
-                  {liveSoc}%
+                  {liveSoc != null ? `${formatNumber(liveSoc, 0)}%` : '--'}
                 </span>
               </div>
               <div className={styles.passportMetricCard}>
                 <span className={styles.passportMetricLabel}>Terminal Voltage</span>
                 <span className={styles.passportMetricValue} style={{ color: '#FFD60A' }}>
-                  {formatNumber(liveVoltage, 2)}V
+                  {liveVoltage != null ? `${formatNumber(liveVoltage, 2)}V` : '--'}
                 </span>
               </div>
               <div className={styles.passportMetricCard}>
                 <span className={styles.passportMetricLabel}>Cycle Count</span>
-                <span className={styles.passportMetricValue}>{cycles}</span>
+                <span className={styles.passportMetricValue}>{cycles != null ? cycles : '--'}</span>
               </div>
               <div className={styles.passportMetricCard}>
                 <span className={styles.passportMetricLabel}>Internal Resistance</span>
-                <span className={styles.passportMetricValue}>{formatNumber(resistance, 1)} mΩ</span>
+                <span className={styles.passportMetricValue}>
+                  {resistance != null ? `${formatNumber(resistance, 1)} mΩ` : '--'}
+                </span>
               </div>
               <div className={styles.passportMetricCard}>
                 <span className={styles.passportMetricLabel}>Energy Throughput</span>
-                <span className={styles.passportMetricValue}>{formatNumber(energyWh, 1)} Wh</span>
+                <span className={styles.passportMetricValue}>
+                  {energyWh != null ? `${formatNumber(energyWh, 1)} Wh` : '--'}
+                </span>
               </div>
             </div>
           </div>
 
           {/* Proof Hash */}
           <div className={styles.passportSection}>
-            <h4 className={styles.passportSectionTitle}>Cryptographic Proof</h4>
+            <h4 className={styles.passportSectionTitle}>Integrity Proof</h4>
             <div className={styles.passportHashBox}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                 <Hash size={13} color="var(--accent-primary)" />
@@ -220,6 +216,12 @@ export default function BatteryPassportSlideout({ isOpen, onClose, data }) {
                   {copied ? <Check size={13} color="#00E8A0" /> : <Copy size={13} />}
                   <span>{copied ? 'Copied' : 'Copy'}</span>
                 </button>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
+                <Activity size={13} color="#00E8A0" />
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                  Updates with each telemetry frame received from the device.
+                </span>
               </div>
             </div>
           </div>

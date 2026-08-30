@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import Layout from '../../components/Layout'
 import MetricCard from '../../components/MetricCard'
+import HealthScore from '../../components/HealthScore'
 import RealtimeGraphs from '../../components/RealtimeGraphs'
 import { useRealTimeData } from '../../hooks/useRealTimeData'
 import { normalizeTelemetry, formatNumber, safetyColor, safetyLabel, bhiStatus, exportToCSV } from '../../lib/utils'
@@ -21,6 +22,7 @@ export default function Analytics() {
   const soc = live?.battery?.soc ?? live?.soc
   const soh = live?.battery?.soh ?? live?.soh
   const ir = live?.battery?.resistance ?? live?.resistance
+  const cycles = live?.battery?.cycles ?? live?.cycles
 
   const normalizedHistory = useMemo(() => {
     return normalizeTelemetry(history)
@@ -124,6 +126,11 @@ export default function Analytics() {
             subtext={s.subtext}
           />
         ))}
+      </div>
+
+      {/* L2 - Gamified Health Score (count-up + letter grade from real SOH/cycles/temp) */}
+      <div style={{ marginBottom: 20, maxWidth: 620 }}>
+        <HealthScore soh={soh} cycles={cycles} temperature={temp} />
       </div>
 
       {/* Complete 8 Real-Time Graphs Suite */}

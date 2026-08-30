@@ -3,6 +3,7 @@
 import React from 'react'
 import Tooltip from './Tooltip'
 import { SkeletonBox } from './SkeletonLoader'
+import useAnimatedNumber from '../hooks/useAnimatedNumber'
 import styles from './components.module.css'
 
 const CHIP_META = {
@@ -37,10 +38,23 @@ export default function MetricCard({
   subtext,
   tooltip,
   onClick,
+  animate = true,
 }) {
   const chipUpper = (chip || '').toUpperCase()
   const chipMeta = CHIP_META[chipUpper] || (chip ? { label: chipUpper, color, bg: `${color}1a` } : null)
   const isValueMissing = value == null || value === '' || value === '--'
+
+  // K2 - Animated numeric values (count-up with easing, reduced-motion aware).
+  const parsedValue = parseFloat(value)
+  const digits =
+    typeof value === 'number'
+      ? Number.isInteger(value) ? 0 : 2
+      : String(value).includes('.')
+      ? Math.min(3, String(value).split('.')[1].length)
+      : 0
+  const animatedValue = useAnimatedNumber(parsedValue, 450, digits)
+  const useAnimated = animate && !isValueMissing && !Number.isNaN(parsedValue)
+  const displayValue = useAnimated && animatedValue != null ? animatedValue : value
 
   const titleKey = (title || '').toLowerCase().trim()
   const tooltipText = tooltip || DEFAULT_TOOLTIPS[titleKey] || `Real-time metric: ${title}`
@@ -84,7 +98,7 @@ export default function MetricCard({
         {isValueMissing ? (
           <SkeletonBox width="80px" height="32px" borderRadius="6px" />
         ) : (
-          <span style={{ color }}>{value}</span>
+          <span style={{ color }}>{displayValue}</span>
         )}
         {unit && !isValueMissing ? <span className={styles.metricUnit}>{unit}</span> : null}
       </div>

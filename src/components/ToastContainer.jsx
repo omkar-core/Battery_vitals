@@ -59,7 +59,7 @@ const TYPE_CONFIG = {
 }
 
 export default function ToastContainer() {
-  const { toasts, dismissToast, muteForOneHour } = useNotifications()
+  const { toasts, dismissToast, setToastHover, muteForOneHour } = useNotifications()
 
   if (!toasts || toasts.length === 0) return null
 
@@ -77,6 +77,8 @@ export default function ToastContainer() {
               borderColor: conf.borderColor,
               background: conf.bg,
             }}
+            onMouseEnter={() => setToastHover(toast.id, true)}
+            onMouseLeave={() => setToastHover(toast.id, false)}
           >
             <div className={styles.toastHeader}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

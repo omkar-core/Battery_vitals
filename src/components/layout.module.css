@@ -118,6 +118,27 @@
   border-color: var(--accent-primary);
 }
 
+.footerLegal {
+  white-space: nowrap;
+}
+
+.footerLegal a {
+  color: var(--text-tertiary);
+  text-decoration: none;
+}
+
+.footerLegal a:hover {
+  color: var(--accent-primary);
+}
+
+@media (max-width: 640px) {
+  .footerShortcutsHint {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+}
+
 @keyframes pulse {
   0%, 100% {
     opacity: 1;

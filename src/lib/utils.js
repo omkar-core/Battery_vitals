@@ -27,17 +27,88 @@ export function bhiStatus(bhi) {
 }
 
 export function getConnectionState(timestamp) {
-  if (!timestamp) return { state: 'CONNECTING', label: 'Connecting...', color: '#38BDF8', ageSec: null }
+  if (!timestamp) return { state: 'NO_DATA', label: 'No Data', color: '#94A3B8', ageSec: null }
   const time = typeof timestamp === 'number' ? timestamp : new Date(timestamp).getTime()
   const ageSec = Math.max(0, Math.floor((Date.now() - time) / 1000))
-  if (ageSec < 30) {
+  if (ageSec < 10) {
     return { state: 'LIVE', label: `Live (${ageSec}s ago)`, color: '#00E8A0', ageSec }
-  } else if (ageSec < 120) {
-    return { state: 'STALE', label: `Stale (${Math.floor(ageSec)}s ago)`, color: '#FFD60A', ageSec }
+  } else if (ageSec < 30) {
+    return { state: 'SLOW', label: `Slow (${ageSec}s ago)`, color: '#FFB800', ageSec }
   } else {
     const mins = Math.floor(ageSec / 60)
     return { state: 'OFFLINE', label: `Offline (${mins}m ago)`, color: '#FF2D55', ageSec }
   }
+}
+
+// L3 - Battery "mood" indicator. Deterministic mapping of telemetry to an
+// emotive status with an explanation. Never fabricates — null inputs fall
+// through to 'UNKNOWN'.
+export function batteryMood({ soc, temperature, current, safety }) {
+  const safeLevel = String(safety || 'SAFE').toUpperCase()
+  const hasCrit = safeLevel === 'CRITICAL' || safeLevel === 'EMERGENCY'
+  const hasWarn = hasCrit || safeLevel === 'WARNING' || safeLevel === 'CAUTION'
+  const t = temperature == null ? null : Number(temperature)
+  const s = soc == null ? null : Number(soc)
+  const c = current == null ? null : Number(current)
+
+  if (hasCrit || (t != null && t > 60)) {
+    return { emoji: '😱', label: 'Panicking', reason: 'Critical alert or thermal runaway risk detected', color: '#FF2D55' }
+  }
+  if (c != null && c > 0.05) {
+    return { emoji: '⚡', label: 'Energized', reason: 'Battery is actively charging', color: '#38BDF8' }
+  }
+  if (t != null && t > 45) {
+    return { emoji: '🥵', label: 'Hot', reason: `Temperature ${t.toFixed(1)}°C exceeds 45°C`, color: '#FF6B35' }
+  }
+  if (t != null && t < 5) {
+    return { emoji: '🥶', label: 'Cold', reason: `Temperature ${t.toFixed(1)}°C below 5°C`, color: '#38BDF8' }
+  }
+  if (hasWarn) {
+    return { emoji: '😰', label: 'Stressed', reason: `${safeLevel} level active on this battery`, color: '#FF6B35' }
+  }
+  if (s != null && s < 15) {
+    return { emoji: '😰', label: 'Stressed', reason: `State of charge critically low at ${Math.round(s)}%`, color: '#FF2D55' }
+  }
+  if (s != null && s < 30) {
+    return { emoji: '😟', label: 'Worried', reason: `State of charge low at ${Math.round(s)}%`, color: '#FFB800' }
+  }
+  if (s != null && s > 60) {
+    return { emoji: '😊', label: 'Happy', reason: 'Healthy charge, normal temperature, no alerts', color: '#00E8A0' }
+  }
+  if (s != null && s >= 30) {
+    return { emoji: '😐', label: 'Neutral', reason: `State of charge ${Math.round(s)}% with normal conditions`, color: '#94A3B8' }
+  }
+  if (c != null && Math.abs(c) < 0.02) {
+    return { emoji: '😴', label: 'Sleeping', reason: 'No load — battery is idle', color: '#94A3B8' }
+  }
+  return { emoji: '😐', label: 'Unknown', reason: 'Awaiting sufficient telemetry', color: '#94A3B8' }
+}
+
+// L2 - Battery Health Score (gamified 0-100 with letter grade). Blends SOH,
+// cycle aging and thermal stress. Fully deterministic from real telemetry.
+export function computeHealthScore({ soh, cycles, temperature }) {
+  if (soh == null) return null
+  const cyclesN = Number(cycles) || 0
+  const tempN = temperature == null ? 25 : Number(temperature)
+  let score = Number(soh)
+  score -= Math.min(30, cyclesN * 0.04) // 0.04% aging per equivalent full cycle
+  score -= Math.max(0, tempN - 35) * 1.2 // accelerated aging above 35°C
+  score = Math.max(0, Math.min(100, Math.round(score)))
+
+  const grade =
+    score >= 90 ? { grade: 'A+', label: 'Excellent', color: '#00E8A0' }
+    : score >= 80 ? { grade: 'A', label: 'Very Good', color: '#00E8A0' }
+    : score >= 70 ? { grade: 'B', label: 'Good', color: '#A3E635' }
+    : score >= 60 ? { grade: 'C', label: 'Fair', color: '#FFD60A' }
+    : score >= 50 ? { grade: 'D', label: 'Poor', color: '#FF6B35' }
+    : { grade: 'F', label: 'Replace Soon', color: '#FF2D55' }
+
+  const tips = []
+  if (tempN > 35) tips.push('Keep temperature below 35°C to slow aging')
+  if (cyclesN > 500) tips.push('Cycle count is high — consider a replacement pack soon')
+  if (Number(soh) < 90 && cyclesN < 300) tips.push('Avoid charging above 80% for longer lifespan')
+  if (tips.length === 0) tips.push('Healthy usage pattern — keep avoiding deep discharges')
+  return { score, grade: grade.grade, label: grade.label, color: grade.color, tips }
 }
 
 export function formatUptime(seconds) {

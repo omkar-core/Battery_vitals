@@ -30,7 +30,7 @@ export async function POST(request) {
       current: sanitizeNumber(d.current != null ? d.current / 1000 : null, -500, 500),
       power: sanitizeNumber(d.power != null ? d.power / 1000 : null, -5000, 5000),
       soc: sanitizeNumber(d.soc, 0, 100),
-      soh: sanitizeNumber(d.soh, 0, 100),
+      soh: (d.soh_valid === true || (d.soh_valid !== false && sanitizeNumber(d.resistance, 0, 1000) > 0)) ? sanitizeNumber(d.soh, 0, 100) : null,
       temperature: sanitizeNumber(d.temperature, -40, 150),
       humidity: sanitizeNumber(d.humidity, 0, 100),
       gasIndex: {

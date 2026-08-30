@@ -830,6 +830,282 @@
   margin-top: auto;
 }
 
+.aboutMissionFlow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 18px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+.aboutMissionChip {
+  padding: 8px 18px;
+  border-radius: 100px;
+  background: var(--bg-surface-raised);
+  border: 1px solid var(--border-strong);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+}
+
+.aboutMissionChip:first-child {
+  background: rgba(0, 232, 160, 0.12);
+  border-color: rgba(0, 232, 160, 0.35);
+  color: #00E8A0;
+}
+
+.aboutMissionArrow {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.aboutGuideCard {
+  display: flex;
+  gap: 22px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: var(--shadow);
+}
+
+.aboutGuideAvatar {
+  width: 84px;
+  height: 84px;
+  border-radius: 16px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  font-size: 28px;
+  font-weight: 900;
+  font-family: var(--font-mono);
+  color: #38BDF8;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+}
+
+.aboutGuideInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.aboutGuideName {
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.3px;
+}
+
+.aboutGuideRole {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #38BDF8;
+  margin-top: 3px;
+}
+
+.aboutGuideDesc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 10px 0 14px;
+}
+
+.aboutLinkedInBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 15px;
+  border-radius: 8px;
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: #38BDF8;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background 0.2s ease;
+}
+
+.aboutLinkedInBtn:hover {
+  background: rgba(56, 189, 248, 0.2);
+}
+
+.aboutLinkedInNone {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  padding: 8px 0;
+}
+
+.aboutTeamGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+.aboutTeamCard {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.aboutTeamCard:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-strong);
+}
+
+.aboutTeamAvatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  font-weight: 900;
+  font-family: var(--font-mono);
+  color: #00E8A0;
+  background: rgba(0, 232, 160, 0.1);
+  border: 1px solid rgba(0, 232, 160, 0.3);
+  margin-bottom: 12px;
+}
+
+.aboutTeamName {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.2px;
+}
+
+.aboutTeamRole {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-top: 3px;
+}
+
+.aboutTeamDesc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  margin: 10px 0 14px;
+  flex: 1;
+}
+
+.aboutBuiltGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.aboutBuiltItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.aboutBuiltItem svg {
+  color: #00E8A0;
+  flex-shrink: 0;
+}
+
+.aboutTechColumns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.aboutTechColumn {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+}
+
+.aboutTechColumnTitle {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.aboutTechList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.aboutTechList li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.aboutTechList li svg {
+  color: #38BDF8;
+  flex-shrink: 0;
+}
+
+.aboutVisionGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.aboutVisionCard {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+}
+
+.aboutVisionTitle {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--accent-primary);
+  margin-bottom: 5px;
+}
+
+.aboutVisionDesc {
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+  line-height: 1.45;
+}
+
+.aboutAcademicStrip {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
 @media (max-width: 860px) {
   .aboutStepsGrid {
     grid-template-columns: 1fr;
@@ -840,6 +1116,18 @@
   }
   .aboutHeroFlowArrow {
     display: none;
+  }
+  .aboutGuideCard {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .aboutGuideAvatar {
+    width: 64px;
+    height: 64px;
+    font-size: 22px;
+  }
+  .aboutMissionFlow {
+    justify-content: flex-start;
   }
 }
 

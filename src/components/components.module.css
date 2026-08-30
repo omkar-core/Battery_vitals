@@ -1615,6 +1615,20 @@ html[data-theme="light"] .skeleton {
   color: #FFB800;
 }
 
+.connBadge_slow {
+  background: rgba(255, 184, 0, 0.1);
+  border: 1px solid rgba(255, 184, 0, 0.38);
+  color: #FFB800;
+}
+
+/* L11 - Live clock + runtime estimate under the connection badge */
+.clockText {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
 .connBadgeText {
   line-height: 1;
 }
@@ -2166,6 +2180,129 @@ html[data-theme="light"] .skeleton {
   overflow: hidden;
   backdrop-filter: blur(16px);
   animation: toastSlideIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* K8 - Hovering a toast pauses its countdown bar (visual + discoverable) */
+.toastItem:hover .toastProgressBar {
+  animation-play-state: paused;
+}
+
+/* K7 - Critical alerts pulse a red border + glow until acknowledged */
+.toast_critical {
+  animation:
+    toastSlideIn 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+    toastCriticalPulse 1.1s ease-in-out infinite;
+}
+
+.toast_critical:hover {
+  animation-play-state: paused;
+}
+
+@keyframes toastCriticalPulse {
+  0%, 100% {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 0 0 rgba(255, 45, 85, 0.45);
+  }
+  50% {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 0 4px rgba(255, 45, 85, 0.25);
+  }
+}
+
+/* K14 - Charging-state toast gives a soft breathing glow */
+.toast_charging {
+  animation:
+    toastSlideIn 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+    toastChargingGlow 2s ease-in-out infinite;
+}
+
+@keyframes toastChargingGlow {
+  0%, 100% { box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6); }
+  50% { box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 14px rgba(56, 189, 248, 0.35); }
+}
+
+/* E5 - Cookie consent banner */
+.cookieBanner {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: min(560px, calc(100vw - 32px));
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--bg-surface-raised);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
+  animation: cookieSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes cookieSlideUp {
+  from { opacity: 0; transform: translate(-50%, 16px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.cookieIcon {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: #FFB800;
+  background: rgba(255, 184, 0, 0.12);
+  border: 1px solid rgba(255, 184, 0, 0.3);
+}
+
+.cookieBody {
+  flex: 1;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.cookieBody strong {
+  display: block;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.cookieBody p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.cookieBody a {
+  color: var(--accent-primary);
+  text-decoration: underline;
+}
+
+.cookieActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.cookieAcceptBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--accent-primary);
+  background: var(--accent-primary);
+  color: #00140d;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+@media (max-width: 560px) {
+  .cookieBanner {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 
 @keyframes toastSlideIn {

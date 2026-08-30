@@ -1,0 +1,326 @@
+/* ========================================================================= */
+/* K/L Series Animation Components                                          */
+/* Respects the global prefers-reduced-motion override in globals.css       */
+/* ========================================================================= */
+
+/* K1 - Animated SVG Battery Icon */
+.batteryFill {
+  transition: height 0.5s ease, y 0.5s ease, fill 0.4s ease;
+}
+
+.batteryBoltPulse {
+  animation: boltPulse 1.5s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes boltPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.batteryShake {
+  animation: batteryShakeKF 0.3s linear infinite;
+}
+
+@keyframes batteryShakeKF {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-1.5px); }
+  75% { transform: translateX(1.5px); }
+}
+
+.batteryChargingGlow {
+  animation: batteryChargeGlow 2s ease-in-out infinite;
+}
+
+@keyframes batteryChargeGlow {
+  0%, 100% { filter: drop-shadow(0 0 2px rgba(56, 189, 248, 0.35)); }
+  50% { filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.7)); }
+}
+
+/* K4 - Circular SOC Gauge */
+.socRingWrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.socRingBreathing {
+  animation: socRingBreathe 2s ease-in-out infinite;
+}
+
+@keyframes socRingBreathe {
+  0%, 100% { opacity: 0.75; }
+  50% { opacity: 1; }
+}
+
+.socRingScore {
+  font-size: 34px;
+  font-weight: 700;
+  font-family: var(--font-display);
+  line-height: 1;
+}
+
+.socRingLabel {
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.socRingRemain {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  margin-top: 4px;
+}
+
+/* K3 - Needle Gauge */
+.needleGaugeWrap {
+  position: relative;
+  width: 100%;
+  max-width: 260px;
+  margin: 0 auto;
+}
+
+.needleGaugeNeedle {
+  transform-box: fill-box;
+  transform-origin: 100px 100px;
+  transition: transform 0.8s ease-out;
+}
+
+.needleDropShadow {
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5));
+}
+
+.needleGaugeValue {
+  font-size: 24px;
+  font-weight: 700;
+  font-family: var(--font-display);
+  color: var(--text-primary);
+}
+
+.needleGaugeLabel {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+/* L1 - Energy Flow Visualization */
+.flowPathBase {
+  fill: none;
+  stroke-dasharray: 9 7;
+  stroke-linecap: round;
+}
+
+.flowCharging {
+  stroke: #38BDF8;
+  animation: flowDashCharging 1s linear infinite;
+}
+
+.flowDischarging {
+  stroke: #FF6B35;
+  animation: flowDashDischarging 1s linear infinite;
+}
+
+.flowIdle {
+  stroke: #94A3B8;
+  stroke-dashoffset: 0;
+}
+
+@keyframes flowDashCharging {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: 16; }
+}
+
+@keyframes flowDashDischarging {
+  from { stroke-dashoffset: 16; }
+  to { stroke-dashoffset: 0; }
+}
+
+.flowLabel {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  fill: var(--text-primary);
+}
+
+.flowGlowCharging {
+  filter: drop-shadow(0 0 5px rgba(56, 189, 248, 0.6));
+}
+
+.flowGlowDischarging {
+  filter: drop-shadow(0 0 5px rgba(255, 107, 53, 0.6));
+}
+
+/* L4 - Data Ticker (stock-market marquee) */
+.tickerWrap {
+  overflow: hidden;
+  position: relative;
+  margin-bottom: var(--space-4, 16px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md, 10px);
+  background: var(--bg-surface-raised);
+}
+
+.tickerTrack {
+  display: inline-flex;
+  align-items: center;
+  gap: 28px;
+  white-space: nowrap;
+  padding: 8px 0;
+  animation: tickerScroll 40s linear infinite;
+  will-change: transform;
+}
+
+.tickerWrap:hover .tickerTrack {
+  animation-play-state: paused;
+}
+
+@keyframes tickerScroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.tickerItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.tickerKey {
+  color: var(--text-tertiary);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.tickerUp { color: #00E8A0; }
+.tickerDown { color: #FF2D55; }
+.tickerFlat { color: #94A3B8; }
+
+/* L3 - Mood indicator pop animation */
+.moodBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.moodEmoji {
+  font-size: 16px;
+  line-height: 1;
+  animation: moodPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes moodPop {
+  0% { transform: scale(0.5); opacity: 0; }
+  60% { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* L2 - Health Score */
+.healthScoreCard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+}
+
+.healthScoreLabel {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.healthScoreTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.healthScoreNum {
+  font-size: 40px;
+  font-weight: 800;
+  font-family: var(--font-display);
+  letter-spacing: -1px;
+  line-height: 1;
+}
+
+.healthScoreGrade {
+  font-size: 13px;
+  font-weight: 800;
+  padding: 5px 12px;
+  border-radius: 8px;
+  border: 1px solid currentColor;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.healthScoreBarBg {
+  width: 100%;
+  height: 8px;
+  border-radius: 6px;
+  background: var(--border-subtle);
+  overflow: hidden;
+}
+
+.healthScoreBarFill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 1s ease;
+}
+
+.healthScoreDesc {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.healthScoreTips {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+  margin-top: 2px;
+}
+
+.healthScoreTip {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+  line-height: 1.4;
+}
+
+.healthScoreTip svg {
+  color: #38BDF8;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* K5 - Live data pulse overlay */
+.livePulseOverlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  animation: livePulseFlash 0.5s ease-out;
+  box-shadow: inset 0 0 0 1px rgba(0, 232, 160, 0.35);
+  opacity: 0;
+}
+
+@keyframes livePulseFlash {
+  0% { opacity: 0; }
+  30% { opacity: 0.4; }
+  100% { opacity: 0; }
+}

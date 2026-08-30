@@ -237,7 +237,7 @@ export default function DiagnosticsPage() {
               <Activity size={24} color="#00E8A0" />
               <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', marginTop: 4 }}>Client WebApp</div>
               <div style={{ fontSize: 10, color: '#00E8A0', fontWeight: 700, marginTop: 2 }}>
-                {mode === 'firebase' || mode === 'mqtt' ? 'Firebase Real-Time' : 'HTTP Polling'}
+                {mode === 'firebase' ? 'Firebase Real-Time' : 'HTTP Polling'}
               </div>
             </div>
             <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>React 18 / Next.js</div>

@@ -8,9 +8,15 @@ import Sparkline from '../components/Sparkline'
 import ControlPanel from '../components/ControlPanel'
 import AIInsights from '../components/AIInsights'
 import AlertsList from '../components/AlertsList'
+import DataTicker from '../components/DataTicker'
+import SocRing from '../components/SocRing'
+import EnergyFlow from '../components/EnergyFlow'
+import NeedleGauge from '../components/NeedleGauge'
+import MoodBadge from '../components/MoodBadge'
 import SkeletonLoader, { SkeletonMetric, SkeletonChart, SkeletonControl, SkeletonAI } from '../components/SkeletonLoader'
 import { useRealTimeData } from '../hooks/useRealTimeData'
 import { useAI } from '../hooks/useAI'
+import useTabTitle from '../hooks/useTabTitle'
 import {
   bhiStatus,
   safetyColor,
@@ -22,6 +28,7 @@ import {
   rssiToBars,
   playAlertChime,
 } from '../lib/utils'
+import animStyles from '../styles/anim.module.css'
 import {
   Zap,
   Flame,
@@ -39,8 +46,6 @@ import {
   Minus,
   HardDrive,
   Clock,
-  Play,
-  Square,
   Volume2,
   VolumeX,
   AlertTriangle,
@@ -50,7 +55,7 @@ import styles from '../styles/dashboard.module.css'
 const CIRC = 2 * Math.PI * 82
 
 export default function Dashboard() {
-  const { data, history, connected, mode, error, sendControl, simulating, toggleSimulation } = useRealTimeData()
+  const { data, history, connected, mode, error, sendControl } = useRealTimeData()
   const { analysis, loading, runAnalysis } = useAI()
   const [commands, setCommands] = useState({ auto_mode: true })
   const [alerts, setAlerts] = useState([])
@@ -131,6 +136,37 @@ export default function Dashboard() {
   const efficiency = live.efficiency
   const rul = live.rul
 
+  // L18 - Browser tab live SOC (🔋 NN% | Battery Vital)
+  useTabTitle(soc)
+
+  // L4 - Ticker items with deltas against the previous sample (real data only)
+  const tickerItems = useMemo(() => {
+    const prev = sparkRows[sparkRows.length - 2] || {}
+    const delta = (cur, p) => (cur == null || p == null ? null : Number(cur) - Number(p))
+    const dTxt = (cur, p) => {
+      const d = delta(cur, p)
+      return d == null
+        ? ''
+        : `${d >= 0 ? '+' : ''}${Math.abs(d) >= 10 ? Math.round(d) : d.toFixed(2)}`
+    }
+    const items = []
+    if (voltage != null) items.push({ key: 'v', label: 'VOLT', value: `${formatNumber(voltage)}V`, delta: delta(voltage, prev.voltage), deltaText: dTxt(voltage, prev.voltage) })
+    if (current != null) items.push({ key: 'i', label: 'CURR', value: `${formatNumber(current)}A`, delta: delta(current, prev.current), deltaText: dTxt(current, prev.current) })
+    if (power != null) items.push({ key: 'p', label: 'PWR', value: `${formatNumber(power)}W`, delta: delta(power, prev.power), deltaText: dTxt(power, prev.power) })
+    if (soc != null) items.push({ key: 's', label: 'SOC', value: `${Math.round(soc)}%`, delta: delta(soc, prev.soc), deltaText: dTxt(soc, prev.soc) })
+    if (temperature != null) items.push({ key: 't', label: 'TEMP', value: `${formatNumber(temperature, 1)}°C`, delta: delta(temperature, prev.temperature), deltaText: dTxt(temperature, prev.temperature) })
+    if (bhi != null) items.push({ key: 'bhi', label: 'BHI', value: `${Math.round(bhi)}`, delta: delta(bhi, prev.bhi), deltaText: dTxt(bhi, prev.bhi) })
+    return items
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sparkRows, voltage, current, power, soc, temperature, bhi])
+
+  // Remaining capacity label for the SOC ring (real SOC × nominal capacity)
+  const capacityAh = data?.battery?.capacityAh ?? data?.capacityAh
+  const remainingLabel =
+    soc != null && Number(capacityAh) > 0
+      ? `${Math.round((Number(soc) / 100) * Number(capacityAh) * 1000)} mAh left`
+      : null
+
   // Safety State with 5 variants
   const rawSafety = (data?.battery?.safety ?? data?.safety ?? 'SAFE').toUpperCase()
   const isSensorFault =
@@ -209,6 +245,9 @@ export default function Dashboard() {
 
   return (
     <Layout connected={connected} mode={mode} lastSeen={lastSeen} data={data}>
+      {/* L4 - Live data ticker strip */}
+      <DataTicker items={tickerItems} />
+
       {/* Header with Title and 4-State Connection Indicator */}
       <div className={styles.header}>
         <div>
@@ -221,30 +260,6 @@ export default function Dashboard() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          {/* Demo Simulation Mode Toggle */}
-          <button
-            onClick={toggleSimulation}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '6px 14px',
-              borderRadius: 100,
-              background: simulating ? 'linear-gradient(120deg, rgba(167, 139, 250, 0.2), rgba(56, 189, 248, 0.15))' : 'var(--input-bg)',
-              border: `1px solid ${simulating ? 'rgba(167, 139, 250, 0.5)' : 'var(--border)'}`,
-              color: simulating ? '#A78BFA' : 'var(--text-secondary)',
-              fontSize: 11,
-              fontWeight: 700,
-              cursor: 'pointer',
-              boxShadow: simulating ? '0 0 14px rgba(167, 139, 250, 0.3)' : 'none',
-              transition: 'all 0.25s ease',
-            }}
-            title="Toggle Demo Simulation Mode for offline presentations"
-          >
-            {simulating ? <Square size={13} fill="#A78BFA" /> : <Play size={13} />}
-            <span>Demo Mode: {simulating ? 'ACTIVE' : 'OFF'}</span>
-          </button>
-
           <button
             onClick={() => {
               setSoundEnabled(!soundEnabled)
@@ -274,8 +289,12 @@ export default function Dashboard() {
             className={`${styles.liveBadge} ${
               connState.state === 'LIVE'
                 ? styles.liveBadgeLive
+                : connState.state === 'SLOW'
+                ? styles.liveBadgeSlow
                 : connState.state === 'STALE'
                 ? styles.liveBadgeStale
+                : connState.state === 'NO_DATA'
+                ? styles.liveBadgeNoData
                 : connState.state === 'CONNECTING'
                 ? styles.liveBadgeConnecting
                 : styles.liveBadgeOffline
@@ -285,8 +304,12 @@ export default function Dashboard() {
               className={
                 connState.state === 'LIVE'
                   ? styles.liveDot
+                  : connState.state === 'SLOW'
+                  ? styles.liveDotSlow
                   : connState.state === 'STALE'
                   ? styles.liveDotStale
+                  : connState.state === 'NO_DATA'
+                  ? styles.liveDotNoData
                   : connState.state === 'CONNECTING'
                   ? styles.liveDotConnecting
                   : styles.liveDotOffline
@@ -394,6 +417,11 @@ export default function Dashboard() {
 
       {/* Row 1: Weighted Bento Hero Row */}
       <div className={styles.heroBento}>
+        {/* K5 - Live pulse ring that replays on every fresh telemetry frame */}
+        {connState.state === 'LIVE' && (
+          <span key={lastSeen ?? 'live'} className={animStyles.livePulseOverlay} />
+        )}
+
         {/* Hero Card 1: Dominant Safety State Anchor (4 cols) */}
         <div className={`${styles.heroSafetyCard} ${safetyClass}`}>
           <div>
@@ -450,7 +478,13 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Hero Card 3: Live Sparkline Mini-Chart (4 cols) */}
+        {/* Hero Card 3: Circular SOC Ring Gauge + Mood (3 cols) */}
+        <div className={styles.heroSocCard}>
+          <SocRing soc={soc} charging={op === 'CHARGING'} remainingLabel={remainingLabel} />
+          <MoodBadge soc={soc} current={current} temperature={temperature} safety={safety} />
+        </div>
+
+        {/* Hero Card 4: Live Sparkline Mini-Chart (3 cols) */}
         <div className={styles.heroSparklineCard}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-tertiary)' }}>
@@ -462,6 +496,11 @@ export default function Dashboard() {
           </div>
           <Sparkline data={sparkData} dataKey="voltage" color="var(--state-caution)" height={120} />
         </div>
+      </div>
+
+      {/* L1 - Energy flow strip */}
+      <div className={styles.energyFlowRow}>
+        <EnergyFlow op={op} current={current} power={power} />
       </div>
 
       {/* Row 2: Primary Telemetry Metric Strip (6 equal cols) */}
@@ -609,6 +648,40 @@ export default function Dashboard() {
             <Sparkline data={sparkData} dataKey={s.key} color={s.color} height={30} />
           </div>
         ))}
+      </div>
+
+      {/* K3 - Professional instrument panel (needle gauges) */}
+      <div className={styles.instrumentRow}>
+        <div className={styles.instrumentCard}>
+          <NeedleGauge
+            label="Battery Current"
+            value={current}
+            min={-20}
+            max={20}
+            unit=" A"
+            digits={2}
+            zones={[
+              { min: 0, max: 0.45, color: '#FF2D55' },
+              { min: 0.45, max: 0.55, color: '#00E8A0' },
+              { min: 0.55, max: 1, color: '#38BDF8' },
+            ]}
+          />
+        </div>
+        <div className={styles.instrumentCard}>
+          <NeedleGauge
+            label="Cell Temperature"
+            value={temperature}
+            min={-10}
+            max={70}
+            unit="°C"
+            digits={1}
+            zones={[
+              { min: 0, max: 0.625, color: '#00E8A0' },
+              { min: 0.625, max: 0.75, color: '#FFD60A' },
+              { min: 0.75, max: 1, color: '#FF2D55' },
+            ]}
+          />
+        </div>
       </div>
 
       {/* Bento: Live Sensor Trends + Quick Controls */}

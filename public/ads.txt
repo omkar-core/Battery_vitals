@@ -1,0 +1,3 @@
+# Battery Vital does not serve advertising.
+# This placeholder confirms the site runs no programmatic ad inventory.
+# No third-party ads.txt entries are present.

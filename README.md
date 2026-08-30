@@ -19,7 +19,7 @@ Gemini AI (reads from Firebase for live analysis, saves to MongoDB)
 ```
 
 - **ESP32 devices** publish battery telemetry (voltage, current, temperature, SOC) directly to **Firebase Realtime Database** (`/live_data/BAT001`) and poll/listen to commands (`/commands/BAT001`).
-- **Firebase Realtime Database** provides zero-latency bi-directional push updates directly to the web dashboard, replacing MQTT message caps.
+- **Firebase Realtime Database** provides zero-latency bi-directional push updates directly to the web dashboard, replacing the earlier MQTT bridge.
 - **MongoDB Atlas** maintains historical time-series logs and audit events via background sync (`/api/sync-to-mongo`).
 - **Next.js API routes** (`src/app/api/*`) expose data via REST and trigger AI analysis.
 - **Gemini AI** (`src/lib/gemini.js`, `/api/analyze`, `/api/predictions`) generates insights, safety recommendations, and failure predictions.

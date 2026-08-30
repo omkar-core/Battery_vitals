@@ -69,7 +69,15 @@ export function normalizeEsp32Packet(packet, { now = Date.now() } = {}) {
   const uptimeMs = num(p.timestamp)
   const voltage = num(p.voltage)
   const soc = num(p.soc)
-  const soh = num(p.soh)
+  // SOH is only trusted when it is genuinely derived from a live resistance
+  // measurement under load. The firmware boot default (100%) must never be
+  // presented as real telemetry. New firmware reports `soh_valid`; legacy
+  // frames are treated as measured only when a positive resistance is present.
+  const rawSoh = num(p.soh)
+  const sohMeasured =
+    p.soh_valid === true ||
+    (p.soh_valid === false ? false : num(p.resistance) > 0)
+  const soh = sohMeasured && rawSoh != null ? rawSoh : null
   const bhi = num(p.bhi)
   const temperature = num(p.temperature)
   const humidity = num(p.humidity)

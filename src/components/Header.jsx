@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
@@ -41,6 +41,9 @@ import { useTheme } from '../hooks/useTheme'
 import { useNotifications } from '../context/NotificationContext'
 import NotificationCenter from './NotificationCenter'
 import Tooltip from './Tooltip'
+import AnimatedBatteryIcon from './AnimatedBatteryIcon'
+import MoodBadge from './MoodBadge'
+import Sparkline from './Sparkline'
 import styles from './components.module.css'
 
 export default function Header({
@@ -62,11 +65,41 @@ export default function Header({
   const [activeDropdown, setActiveDropdown] = useState(null) // 'analytics' | 'ai' | 'alerts' | 'system' | 'help' | 'user' | 'notif'
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [lastUpdateText, setLastUpdateText] = useState('Just now')
-  const [devices, setDevices] = useState([
-    { id: 'BAT001', name: 'Living Room Smoke Detector', type: '9V Li-MnO2', voltage: '8.7V', soc: 72, active: true },
-    { id: 'BAT002', name: 'Solar Storage Bank', type: '12V LiFePO4', voltage: '13.2V', soc: 89, active: false },
-    { id: 'BAT003', name: 'E-Bike Commuter Pack', type: '48V Li-Ion', voltage: '51.8V', soc: 64, active: false },
-  ])
+  const [clockText, setClockText] = useState('')
+  const [runtimeText, setRuntimeText] = useState('')
+
+  // Monitored devices are derived exclusively from live telemetry — no fabricated packs.
+  const devices = useMemo(() => {
+    const t = telemetryData || {}
+    const battery = t.battery || t
+    const batteryId = t.batteryId || 'BAT001'
+    const deviceId = t.deviceId || null
+    const profile = t.profile || battery.profile || null
+    return [
+      {
+        id: batteryId,
+        name: profile || batteryId,
+        type: deviceId || '--',
+        voltage: battery.voltage != null ? `${Number(battery.voltage).toFixed(1)}V` : '--',
+        soc: battery.soc != null ? Math.round(Number(battery.soc)) : null,
+        active: true,
+      },
+    ]
+  }, [telemetryData])
+
+  // Rolling SOC buffer for the mini sparkline (real telemetry only).
+  const socBuffRef = useRef([])
+  const [socSpark, setSocSpark] = useState([])
+  useEffect(() => {
+    const t = telemetryData || {}
+    const s = t.battery?.soc ?? t.soc
+    if (s == null) return
+    const last = socBuffRef.current[socBuffRef.current.length - 1]?.soc
+    if (last === s) return
+    socBuffRef.current.push({ soc: Number(s) })
+    if (socBuffRef.current.length > 28) socBuffRef.current.shift()
+    setSocSpark(socBuffRef.current.slice())
+  }, [telemetryData])
 
   const headerRef = useRef(null)
 
@@ -89,12 +122,38 @@ export default function Header({
         const mins = Math.floor(info.ageSec / 60)
         setLastUpdateText(`Last update: ${mins}m ago`)
       }
+
+      // L11 - Live wall clock (HH:MM:SS) next to the connection badge.
+      setClockText(
+        new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      )
+
+      // L11 - Runtime estimate: time-to-empty (discharge) or time-to-full (charge),
+      // derived from real SOC + current. Never fabricates — nulls when missing.
+      const t = telemetryData || {}
+      const s = t.battery?.soc != null ? Number(t.battery.soc) : t.soc != null ? Number(t.soc) : null
+      const c = t.battery?.current != null ? Number(t.battery.current) : t.current != null ? Number(t.current) : null
+      const capAh = t.battery?.capacityAh ?? t.capacityAh
+      if (s == null || c == null || Math.abs(c) < 0.02) {
+        setRuntimeText('')
+      } else {
+        const capacity = Number(capAh) > 0 ? Number(capAh) : 1.4 // vendor nominal when unreported
+        const hours =
+          c > 0 ? ((100 - s) / 100) * capacity / c : (s / 100) * capacity / Math.abs(c)
+        if (!isFinite(hours) || hours <= 0) {
+          setRuntimeText('')
+        } else {
+          const h = Math.floor(hours)
+          const m = Math.floor((hours - h) * 60)
+          setRuntimeText(`${c > 0 ? 'Full at' : 'Empty in'} ${h}h ${m.toString().padStart(2, '0')}m`)
+        }
+      }
     }
 
     updateConn()
     const timer = setInterval(updateConn, 1000)
     return () => clearInterval(timer)
-  }, [lastSeen, connected])
+  }, [lastSeen, connected, telemetryData])
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -131,14 +190,26 @@ export default function Header({
       )
     }
 
-    if (connInfo.state === 'CONNECTING' || connInfo.state === 'STALE') {
+    if (connInfo.state === 'NO_DATA') {
       return (
         <div
           className={`${styles.connBadge} ${styles.connBadge_connecting}`}
-          title="Establishing connection to Firebase stream..."
+          title="No telemetry frames received yet"
         >
           <RefreshCw size={13} className={styles.spinAnimation} />
-          <span className={styles.connBadgeText}>CONNECTING...</span>
+          <span className={styles.connBadgeText}>NO DATA</span>
+        </div>
+      )
+    }
+
+    if (connInfo.state === 'SLOW') {
+      return (
+        <div
+          className={`${styles.connBadge} ${styles.connBadge_slow}`}
+          title="Stream is lagging - last frame 10-30s ago"
+        >
+          <Clock size={13} className={styles.blinkAnimation} />
+          <span className={styles.connBadgeText}>SLOW</span>
         </div>
       )
     }
@@ -566,7 +637,7 @@ export default function Header({
                   <FileText size={15} color="var(--text-secondary)" />
                   <div>
                     <div className={styles.dropdownItemTitle}>Version Info</div>
-                    <div className={styles.dropdownItemDesc}>Console v2.1.0 • Firmware v9.4.0</div>
+                    <div className={styles.dropdownItemDesc}>ESP32 Firmware v12.0 • Firebase streaming</div>
                   </div>
                 </button>
               </div>
@@ -575,12 +646,61 @@ export default function Header({
         </nav>
 
         {/* ========================================================================= */}
-        {/* 3. RIGHT SECTION: Status Badge + Bell + Passport + Theme + User      */}
+        {/* 3. RIGHT SECTION: Battery Mini-Card + Status + Bell + Passport + Theme + User */}
         {/* ========================================================================= */}
         <div className={styles.headerRight}>
+          {/* Battery Mini Status Card (Requirement #4 - live SOC + sparkline + mood) */}
+          {(() => {
+            const t = telemetryData || {}
+            const b = t.battery || t
+            const socMini = b.soc != null ? Number(b.soc) : null
+            const voltMini = b.voltage
+            const curMini = b.current != null ? Number(b.current) : null
+            const charging = curMini != null && curMini > 0.05
+            return (
+              <button
+                className={styles.headerBatteryCard}
+                onClick={onOpenPassport}
+                title="Open Battery Passport"
+              >
+                <span className={styles.headerBatteryIconBox}>
+                  <AnimatedBatteryIcon soc={socMini} charging={charging} size={22} />
+                </span>
+                <span className={styles.headerBatteryInfo}>
+                  <span className={styles.headerBatteryName}>
+                    {devices[0].name} · {devices[0].id}
+                  </span>
+                  <span className={styles.headerBatteryMetrics}>
+                    <span className={styles.headerVoltage}>
+                      {voltMini != null ? `${Number(voltMini).toFixed(1)}V` : '--'}
+                    </span>
+                    <span className={styles.headerMetricSep}>•</span>
+                    <span className={styles.headerSoc} style={{ color: socMini != null && socMini < 20 ? '#FF2D55' : '#00E8A0' }}>
+                      {socMini != null ? `${Math.round(socMini)}%` : '--'}
+                    </span>
+                    <span className={styles.headerMetricSep}>•</span>
+                    <MoodBadge
+                      soc={socMini}
+                      current={curMini}
+                      temperature={b.temperature != null ? b.temperature : t.environment?.temperature ?? t.temperature}
+                      safety={b.safety ?? t.safety}
+                    />
+                  </span>
+                </span>
+                <span className={styles.headerSparkline}>
+                  <Sparkline data={socSpark} dataKey="soc" color="#00E8A0" height={22} />
+                </span>
+              </button>
+            )
+          })()}
+
           {/* Connection Status Badge (Requirement #2) */}
           <div className={styles.connectionBlock}>
             {renderConnectionBadge()}
+            <div className={styles.clockText}>
+              {clockText}
+              {runtimeText ? ` · ${runtimeText}` : ''}
+            </div>
             <div className={styles.lastUpdateLabel}>{lastUpdateText}</div>
           </div>
 
@@ -663,9 +783,6 @@ export default function Header({
                     key={d.id}
                     className={`${styles.deviceItemBtn} ${d.active ? styles.deviceItemActive : ''}`}
                     onClick={() => {
-                      setDevices((prev) =>
-                        prev.map((dev) => ({ ...dev, active: dev.id === d.id }))
-                      )
                       setActiveDropdown(null)
                     }}
                   >
@@ -673,7 +790,7 @@ export default function Header({
                       <Radio size={12} color={d.active ? '#00E8A0' : 'var(--text-tertiary)'} />
                       <div style={{ textAlign: 'left' }}>
                         <div className={styles.deviceName}>{d.name}</div>
-                        <div className={styles.deviceMeta}>{d.id} • {d.voltage} ({d.soc}%)</div>
+                        <div className={styles.deviceMeta}>{d.id} • {d.voltage} ({d.soc != null ? `${d.soc}%` : '--'})</div>
                       </div>
                     </div>
                     {d.active && <Check size={14} color="#00E8A0" />}

@@ -94,6 +94,7 @@ struct {
   float prevTemp     = 25.0f;
   float soc          = 100.0f;
   float soh          = 100.0f;
+  bool  soh_valid    = false;  // SOH is only genuine once derived from a live resistance read
   float coulomb_Ah   = NOMINAL_CAPACITY_AH;
   float throughputAh = 0.0f;
   float energyWh     = 0.0f;
@@ -230,6 +231,7 @@ void readSensors() {
   if (sensor.resistance > 0.0f) {
     float soh = SOH_CEIL - ((sensor.resistance - R_TARGET_MOHM) / (R_END_MOHM - R_TARGET_MOHM)) * (SOH_CEIL - SOH_FLOOR);
     sensor.soh = clampf(soh, SOH_FLOOR, SOH_CEIL);
+    sensor.soh_valid = true;
   }
 
   // Voltage / temperature slew rates for diagnostics.
@@ -388,7 +390,15 @@ String buildTelemetryPayload() {
   doc["mq135"]        = sensor.mq135_raw;
   doc["mq135_ppm"]    = map(constrain(sensor.mq135_raw, 300, 4095), 300, 4095, 400, 2000);
   doc["soc"]          = round(sensor.soc);
-  doc["soh"]          = round(sensor.soh);
+  // SOH is a measured/derived value only — the boot default of 100.0 must
+  // never be reported as real telemetry, which is why it is omitted until a
+  // resistance-derived reading exists.
+  if (sensor.soh_valid) {
+    doc["soh"]          = round(sensor.soh);
+    doc["soh_valid"]    = true;
+  } else {
+    doc["soh_valid"]    = false;
+  }
   doc["bhi"]          = round(sensor.bhi);
   doc["resistance"]   = round(sensor.resistance * 100.0f) / 100.0f;
   doc["dV_dt"]        = round(sensor.dV_dt * 1000.0f) / 1000.0f;
@@ -462,6 +472,7 @@ void restoreAnalytics() {
   sensor.throughputAh = prefs.getFloat("throughAh", 0.0f);
   sensor.energyWh     = prefs.getFloat("energyWh", 0.0f);
   sensor.soh          = prefs.getFloat("soh", 100.0f);
+  sensor.soh_valid    = prefs.getBool("sohValid", false);
   sensor.coulomb_Ah   = clampf(sensor.coulomb_Ah, 0.0f, NOMINAL_CAPACITY_AH);
   sensor.soc          = (sensor.coulomb_Ah / NOMINAL_CAPACITY_AH) * 100.0f;
   sensor.cycles       = sensor.throughputAh / (2.0f * NOMINAL_CAPACITY_AH);
@@ -472,6 +483,7 @@ void persistAnalytics() {
   prefs.putFloat("throughAh", sensor.throughputAh);
   prefs.putFloat("energyWh", sensor.energyWh);
   prefs.putFloat("soh", sensor.soh);
+  prefs.putBool("sohValid", sensor.soh_valid);
 }
 
 // =====================================================================

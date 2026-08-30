@@ -80,48 +80,7 @@ function playTone(type = 'info') {
   }
 }
 
-const SEED_NOTIFICATIONS = [
-  {
-    id: 'n-seed-1',
-    title: 'ESP32 Connected',
-    message: 'ESP32 connected and streaming telemetry from BAT001.',
-    type: 'success',
-    timestamp: Date.now() - 45000,
-    read: false,
-    actionUrl: '/diagnostics',
-    actionLabel: 'View Telemetry',
-  },
-  {
-    id: 'n-seed-2',
-    title: 'Cell Imbalance Notice',
-    message: 'Cell imbalance detected (Delta: 120mV) — Balancing cycle scheduled.',
-    type: 'warning',
-    timestamp: Date.now() - 180000,
-    read: false,
-    actionUrl: '/analytics',
-    actionLabel: 'View Graphs',
-  },
-  {
-    id: 'n-seed-3',
-    title: 'Battery Voltage Low',
-    message: 'Battery voltage is low (8.1V) — Consider replacement or recharging soon.',
-    type: 'warning',
-    timestamp: Date.now() - 420000,
-    read: false,
-    actionUrl: '/alerts',
-    actionLabel: 'View Details',
-  },
-  {
-    id: 'n-seed-4',
-    title: 'Configuration Active',
-    message: 'Battery configuration saved successfully and synced with hardware.',
-    type: 'success',
-    timestamp: Date.now() - 900000,
-    read: true,
-    actionUrl: '/settings',
-    actionLabel: 'Settings',
-  },
-]
+const SEED_NOTIFICATIONS = []
 
 export function NotificationProvider({ children }) {
   const [toasts, setToasts] = useState([])
@@ -129,7 +88,9 @@ export function NotificationProvider({ children }) {
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [desktopEnabled, setDesktopEnabled] = useState(false)
   const [mutedMap, setMutedMap] = useState({})
-  const timerRefs = useRef(new Map())
+  // K8 - Per-toast countdown state + hover pause support.
+  const remainingRef = useRef(new Map())
+  const hoverRef = useRef(new Set())
 
   // Load persisted notifications and settings on mount
   useEffect(() => {
@@ -191,13 +152,38 @@ export function NotificationProvider({ children }) {
     }
   }, [])
 
+  // K8 - Toast countdown driven by a 1s ticker; hover holds the countdown.
+  useEffect(() => {
+    const ticker = setInterval(() => {
+      setToasts((prev) => {
+        let changed = false
+        const next = prev.filter((t) => {
+          if (hoverRef.current.has(t.id)) return true
+          const remaining = (remainingRef.current.get(t.id) ?? t.duration ?? 5000) - 1000
+          remainingRef.current.set(t.id, remaining)
+          if (remaining <= 0) {
+            changed = true
+            return false
+          }
+          return true
+        })
+        return changed ? next : prev
+      })
+    }, 1000)
+    return () => clearInterval(ticker)
+  }, [])
+
   // Dismiss a single toast
   const dismissToast = useCallback((id) => {
+    remainingRef.current.delete(id)
+    hoverRef.current.delete(id)
     setToasts((prev) => prev.filter((t) => t.id !== id))
-    if (timerRefs.current.has(id)) {
-      clearTimeout(timerRefs.current.get(id))
-      timerRefs.current.delete(id)
-    }
+  }, [])
+
+  // K8 - Pause/resume a toast countdown while the pointer is over it
+  const setToastHover = useCallback((id, hovering) => {
+    if (hovering) hoverRef.current.add(id)
+    else hoverRef.current.delete(id)
   }, [])
 
   // Add a toast + notification history entry
@@ -266,6 +252,9 @@ export function NotificationProvider({ children }) {
       // Add to toast queue (max 5 concurrent toasts)
       setToasts((prev) => [notifItem, ...prev].slice(0, 5))
 
+      // Track remaining countdown per toast
+      remainingRef.current.set(id, autoDismissMs)
+
       // Add to notification center history
       setNotifications((prev) => {
         const next = [notifItem, ...prev].slice(0, 100)
@@ -275,15 +264,9 @@ export function NotificationProvider({ children }) {
         return next
       })
 
-      // Setup auto-dismiss timer
-      const timer = setTimeout(() => {
-        dismissToast(id)
-      }, autoDismissMs)
-      timerRefs.current.set(id, timer)
-
       return id
     },
-    [soundEnabled, desktopEnabled, mutedMap, dismissToast]
+    [soundEnabled, desktopEnabled, mutedMap]
   )
 
   // Mark all notifications as read
@@ -336,6 +319,7 @@ export function NotificationProvider({ children }) {
     desktopEnabled,
     addNotification,
     dismissToast,
+    setToastHover,
     markAllRead,
     markAsRead,
     muteForOneHour,
@@ -358,6 +342,7 @@ export function useNotifications() {
       desktopEnabled: false,
       addNotification: () => {},
       dismissToast: () => {},
+      setToastHover: () => {},
       markAllRead: () => {},
       markAsRead: () => {},
       muteForOneHour: () => {},
