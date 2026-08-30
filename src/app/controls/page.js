@@ -67,7 +67,7 @@ export default function Controls() {
   const batterySafety = data?.battery?.safety || data?.safety || 'SAFE'
 
   return (
-    <Layout connected={connected} lastSeen={data?.timestamp}>
+    <Layout connected={connected} lastSeen={data?.timestamp} data={data}>
       <div className={styles.pageHeader}>
         <div>
           <h1 className={styles.pageTitle}>

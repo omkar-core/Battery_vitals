@@ -228,13 +228,18 @@ export default function AIInsights({ analysis, loading = false, onAnalyze }) {
       {/* Loading State with Animated Stepper */}
       {loading ? (
         <div className={styles.aiLoading}>
-          <Loader className={styles.spin} size={32} color="#BF5AF2" />
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>
-              Gemini 1.5 Neural Model Evaluating Telemetry...
+          <div className={styles.aiBrainPulseWrap}>
+            <Bot size={40} color="#BF5AF2" className={styles.aiBrainPulseIcon} />
+          </div>
+          <div style={{ textAlign: 'center', marginTop: 12 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)' }}>
+              AI Analyst is analyzing your battery data...
             </div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-              Auditing cell voltages, current direction, and thermal runaway limits
+            <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 4 }}>
+              Auditing cell voltages, current direction, gas sensor readings &amp; thermal runaway bounds
+            </div>
+            <div style={{ fontSize: 11, color: '#BF5AF2', fontWeight: 600, marginTop: 8 }}>
+              Estimated time: This usually takes 5-10 seconds
             </div>
           </div>
         </div>

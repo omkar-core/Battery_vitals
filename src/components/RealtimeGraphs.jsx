@@ -214,6 +214,24 @@ export default function RealtimeGraphs({ rawData = [], liveState = {} }) {
         </div>
       </div>
 
+      {/* Loading state for historical graph data */}
+      {chartData.length === 0 && (
+        <div className={styles.chartLoadingPanel}>
+          <RefreshCw size={34} className={styles.spinAnimation} color="#00E8A0" />
+          <div style={{ textAlign: 'center', marginTop: 14 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
+              Fetching historical data (last 24 hours)...
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 4 }}>
+              Connecting to telemetry datastore &amp; aggregating time-series samples
+            </div>
+          </div>
+          <div className={styles.chartLoadingProgressBar}>
+            <div className={styles.chartLoadingProgressInner} />
+          </div>
+        </div>
+      )}
+
       {/* 8 Specialized Graphs Grid */}
       <div className={styles.chartGrid}>
         {/* ========================================================

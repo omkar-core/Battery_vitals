@@ -98,7 +98,7 @@ export default function DiagnosticsPage() {
   }
 
   return (
-    <Layout connected={connected} lastSeen={lastSeen}>
+    <Layout connected={connected} lastSeen={lastSeen} data={data}>
       <div className={styles.pageHeader}>
         <div>
           <h1 className={styles.pageTitle}>

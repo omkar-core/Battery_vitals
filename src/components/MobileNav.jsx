@@ -1,40 +1,44 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   Home,
   Activity,
-  SlidersHorizontal,
+  Bot,
   Bell,
   MoreHorizontal,
   Cpu,
-  Bot,
+  SlidersHorizontal,
   ShieldCheck,
   Clock,
   Settings,
+  HelpCircle,
   X,
 } from 'lucide-react'
+import { useNotifications } from '../context/NotificationContext'
 
 const PRIMARY_MOBILE = [
   { key: '/', label: 'Live', icon: Home },
-  { key: '/controls', label: 'Controls', icon: SlidersHorizontal },
-  { key: '/analytics', label: 'Graphs', icon: Activity },
+  { key: '/analytics', label: 'Analytics', icon: Activity },
+  { key: '/ai', label: 'AI Insights', icon: Bot },
   { key: '/alerts', label: 'Alerts', icon: Bell },
 ]
 
 const MORE_NAV = [
-  { key: '/ai', label: 'AI Health Assistant', icon: Bot },
+  { key: '/settings', label: 'Battery Config', icon: Settings },
+  { key: '/controls', label: 'Controls & Relays', icon: SlidersHorizontal },
   { key: '/diagnostics', label: 'Diagnostics & Flow', icon: Cpu },
   { key: '/passport', label: 'Battery Passport', icon: ShieldCheck },
   { key: '/history', label: 'History & Export', icon: Clock },
-  { key: '/settings', label: 'Settings', icon: Settings },
+  { key: '/about', label: 'About & Help', icon: HelpCircle },
 ]
 
 export default function MobileNav() {
   const pathname = usePathname()
   const [openMore, setOpenMore] = useState(false)
+  const { unreadCount } = useNotifications()
 
   return (
     <>
@@ -75,7 +79,7 @@ export default function MobileNav() {
               }}
             >
               <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
-                System Modules
+                System &amp; Help Modules
               </span>
               <button
                 onClick={() => setOpenMore(false)}
@@ -131,16 +135,39 @@ export default function MobileNav() {
           {PRIMARY_MOBILE.map((n) => {
             const Icon = n.icon
             const active = pathname === n.key
+            const isAlertTab = n.key === '/alerts'
             return (
               <Link
                 key={n.key}
                 href={n.key}
                 className={`mobileNavLink ${active ? 'mobileNavLinkActive' : ''}`}
                 aria-current={active ? 'page' : undefined}
-                style={{ minHeight: 44 }}
+                style={{ minHeight: 44, position: 'relative' }}
               >
                 <Icon size={18} />
                 <span>{n.label}</span>
+                {isAlertTab && unreadCount > 0 && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: 4,
+                      right: 14,
+                      background: '#FF2D55',
+                      color: '#fff',
+                      fontSize: 9,
+                      fontWeight: 800,
+                      borderRadius: 8,
+                      height: 14,
+                      minWidth: 14,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '0 3px',
+                    }}
+                  >
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
               </Link>
             )
           })}

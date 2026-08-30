@@ -62,7 +62,7 @@ export default function AlertsPage() {
   const unacked = alerts.filter((a) => !a.acknowledged).length
 
   return (
-    <Layout connected={connected} lastSeen={data?.timestamp}>
+    <Layout connected={connected} lastSeen={data?.timestamp} data={data}>
       <div className={styles.pageHeader}>
         <div>
           <h1 className={styles.pageTitle}>

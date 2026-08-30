@@ -1,133 +1,931 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   BatteryCharging,
+  Battery,
+  BatteryMedium,
+  BatteryLow,
   Activity,
-  SlidersHorizontal,
   Bot,
   Bell,
-  Clock,
   Settings,
   Home,
   Cpu,
   ShieldCheck,
   Sun,
   Moon,
+  ChevronDown,
+  Check,
+  AlertTriangle,
+  RefreshCw,
+  Search,
+  BookOpen,
+  HelpCircle,
+  User,
+  SlidersHorizontal,
+  Sliders,
+  FileText,
+  Clock,
+  Sparkles,
+  GitCompare,
+  Layers,
+  ExternalLink,
+  Menu,
+  X,
+  Radio,
+  LogOut,
+  PlusCircle,
+  TrendingUp,
 } from 'lucide-react'
 import { getConnectionState } from '../lib/utils'
 import { useTheme } from '../hooks/useTheme'
+import { useNotifications } from '../context/NotificationContext'
+import NotificationCenter from './NotificationCenter'
+import Tooltip from './Tooltip'
 import styles from './components.module.css'
 
-export const NAV = [
-  { key: '/', label: 'Dashboard', icon: Home },
-  { key: '/controls', label: 'Controls', icon: SlidersHorizontal },
-  { key: '/analytics', label: 'Graphs & Trends', icon: Activity },
-  { key: '/ai', label: 'AI Analyst', icon: Bot },
-  { key: '/alerts', label: 'Alerts', icon: Bell },
-  { key: '/diagnostics', label: 'Diagnostics', icon: Cpu },
-  { key: '/passport', label: 'Passport', icon: ShieldCheck },
-  { key: '/history', label: 'History & Export', icon: Clock },
-  { key: '/settings', label: 'Settings', icon: Settings },
-]
-
-export default function Header({ connected, lastSeen }) {
+export default function Header({
+  connected = true,
+  lastSeen,
+  telemetryData,
+  onOpenPassport,
+  onOpenCommandPalette,
+  onOpenOnboarding,
+  onOpenManual,
+  onOpenWiring,
+  onOpenVersion,
+}) {
   const pathname = usePathname()
+  const router = useRouter()
   const { isDark, toggleTheme } = useTheme()
-  const [unreadAlerts, setUnreadAlerts] = useState(0)
-  const [connInfo, setConnInfo] = useState(getConnectionState(lastSeen))
+  const { unreadCount } = useNotifications()
+
+  // State management for dropdowns and popups
+  const [activeDropdown, setActiveDropdown] = useState(null) // 'analytics' | 'ai' | 'alerts' | 'system' | 'help' | 'user' | 'notif'
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [lastUpdateText, setLastUpdateText] = useState('Just now')
+  const [devices, setDevices] = useState([
+    { id: 'BAT001', name: 'Living Room Smoke Detector', type: '9V Li-MnO2', voltage: '8.7V', soc: 72, active: true },
+    { id: 'BAT002', name: 'Solar Storage Bank', type: '12V LiFePO4', voltage: '13.2V', soc: 89, active: false },
+    { id: 'BAT003', name: 'E-Bike Commuter Pack', type: '48V Li-Ion', voltage: '51.8V', soc: 64, active: false },
+  ])
+
+  const headerRef = useRef(null)
+
+  // Current battery data (from telemetry or defaults matching specifications)
+  const activeDevice = devices.find((d) => d.active) || devices[0]
+  const liveVoltage = telemetryData?.battery?.voltage ?? telemetryData?.voltage ?? 8.7
+  const liveSoc = telemetryData?.battery?.soc ?? telemetryData?.soc ?? 72
+  const batteryName = activeDevice.name
+
+  // Sparkline data points for last 10 minutes (normalized points)
+  const sparklinePoints = [70, 71, 71, 72, 71, 72, 73, 72, 72, 72]
+
+  // Dynamic connection badge calculation
+  const [connInfo, setConnInfo] = useState(() => getConnectionState(lastSeen))
 
   useEffect(() => {
-    setConnInfo(getConnectionState(lastSeen))
-    const timer = setInterval(() => {
-      setConnInfo(getConnectionState(lastSeen))
-    }, 3000)
+    const updateConn = () => {
+      const info = getConnectionState(lastSeen)
+      setConnInfo(info)
+
+      if (info.ageSec == null) {
+        setLastUpdateText('Connecting...')
+      } else if (info.ageSec < 5) {
+        setLastUpdateText('Last update: Just now')
+      } else if (info.ageSec < 60) {
+        setLastUpdateText(`Last update: ${info.ageSec} seconds ago`)
+      } else {
+        const mins = Math.floor(info.ageSec / 60)
+        setLastUpdateText(`Last update: ${mins}m ago`)
+      }
+    }
+
+    updateConn()
+    const timer = setInterval(updateConn, 1000)
     return () => clearInterval(timer)
   }, [lastSeen, connected])
 
+  // Close dropdowns on outside click
   useEffect(() => {
-    let active = true
-    const fetchUnread = () => {
-      fetch('/api/alerts?limit=50')
-        .then((r) => r.json())
-        .then((alerts) => {
-          if (active && Array.isArray(alerts)) {
-            const count = alerts.filter((a) => !a.acknowledged).length
-            setUnreadAlerts(count)
-          }
-        })
-        .catch(() => {})
+    const handleClickOutside = (e) => {
+      if (headerRef.current && !headerRef.current.contains(e.target)) {
+        setActiveDropdown(null)
+      }
     }
-    fetchUnread()
-    const interval = setInterval(fetchUnread, 15000)
-    return () => {
-      active = false
-      clearInterval(interval)
-    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const stateKey = connInfo.state.toLowerCase()
+  // Close mobile drawer on route change
+  useEffect(() => {
+    setMobileMenuOpen(false)
+    setActiveDropdown(null)
+  }, [pathname])
+
+  const toggleDropdown = (name) => {
+    setActiveDropdown((prev) => (prev === name ? null : name))
+  }
+
+  // Battery icon based on SOC percentage
+  const getSocBatteryIcon = (soc) => {
+    if (soc > 60) {
+      return <BatteryCharging size={20} color="#00E8A0" />
+    } else if (soc >= 20) {
+      return <BatteryMedium size={20} color="#FFB800" />
+    } else {
+      return <BatteryLow size={20} color="#FF2D55" />
+    }
+  }
+
+  const socColor = liveSoc > 60 ? '#00E8A0' : liveSoc >= 20 ? '#FFB800' : '#FF2D55'
+
+  // Connection badge styling and icon
+  const renderConnectionBadge = () => {
+    if (!connected || connInfo.state === 'OFFLINE') {
+      return (
+        <div
+          className={`${styles.connBadge} ${styles.connBadge_offline}`}
+          title="Device offline - telemetry paused"
+        >
+          <AlertTriangle size={13} className={styles.blinkAnimation} />
+          <span className={styles.connBadgeText}>OFFLINE</span>
+        </div>
+      )
+    }
+
+    if (connInfo.state === 'CONNECTING' || connInfo.state === 'STALE') {
+      return (
+        <div
+          className={`${styles.connBadge} ${styles.connBadge_connecting}`}
+          title="Establishing connection to Firebase stream..."
+        >
+          <RefreshCw size={13} className={styles.spinAnimation} />
+          <span className={styles.connBadgeText}>CONNECTING...</span>
+        </div>
+      )
+    }
+
+    // Default LIVE state
+    return (
+      <div
+        className={`${styles.connBadge} ${styles.connBadge_live}`}
+        title="Streaming live telemetry via Firebase Realtime Database"
+      >
+        <span className={styles.livePulseDot}>
+          <Check size={10} strokeWidth={3} />
+        </span>
+        <span className={styles.connBadgeText}>LIVE</span>
+      </div>
+    )
+  }
 
   return (
-    <nav className={styles.shell}>
-      <Link href="/" className={styles.brand}>
-        <div className={styles.brandLogo}>
-          <BatteryCharging size={18} color="var(--accent-primary)" />
-        </div>
-        <div>
-          <div className={styles.brandTitle}>
-            Battery <span className={styles.brandAccent}>Vital</span>
-          </div>
-          <div className={styles.brandSub}>Signal Room Safety Console</div>
-        </div>
-      </Link>
+    <header className={styles.headerShell} ref={headerRef}>
+      <div className={styles.headerContainer}>
+        {/* ========================================================================= */}
+        {/* 1. LEFT SECTION: Logo + Tagline + Inline Battery Status Card             */}
+        {/* ========================================================================= */}
+        <div className={styles.headerLeft}>
+          {/* Mobile Hamburger Button */}
+          <button
+            className={styles.mobileHamburgerBtn}
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="Toggle navigation menu"
+          >
+            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
 
-      <div className={styles.nav}>
-        {NAV.map((n) => {
-          const Icon = n.icon
-          const active = pathname === n.key
-          const isAlertTab = n.key === '/alerts'
-          return (
-            <Link
-              key={n.key}
-              href={n.key}
-              className={`${styles.navLink} ${active ? styles.navLinkActive : ''}`}
+          {/* Brand Logo & Updated Tagline */}
+          <Link href="/" className={styles.brandGroup} title="Battery Vital Mission Control">
+            <div className={styles.brandLogoIcon}>
+              <BatteryCharging size={20} color="var(--accent-primary)" />
+            </div>
+            <div className={styles.brandTextGroup}>
+              <div className={styles.brandTitleText}>
+                Battery <span className={styles.brandVitalText}>Vital</span>
+              </div>
+              {/* Requirement #1: Tagline replacement */}
+              <div className={styles.brandTagline}>
+                Smart Battery Monitoring System — Real-Time Protection for All Battery Types
+              </div>
+            </div>
+          </Link>
+
+          {/* Requirement #4: Inline Battery Status Card */}
+          <Tooltip text="Click to view live dashboard and telemetry curves" shortcut="Ctrl+D">
+            <div
+              className={styles.headerBatteryCard}
+              onClick={() => router.push('/')}
+              role="button"
+              tabIndex={0}
+              aria-label={`Current battery: ${batteryName}, ${liveVoltage}V, ${liveSoc}% SOC`}
             >
-              <Icon size={14} />
-              <span>{n.label}</span>
-              {isAlertTab && unreadAlerts > 0 && (
-                <span className={styles.badgeCount}>{unreadAlerts > 99 ? '99+' : unreadAlerts}</span>
-              )}
+              <div className={styles.headerBatteryIconBox}>{getSocBatteryIcon(liveSoc)}</div>
+              <div className={styles.headerBatteryInfo}>
+                <div className={styles.headerBatteryName} title={batteryName}>
+                  {batteryName}
+                </div>
+                <div className={styles.headerBatteryMetrics}>
+                  <span className={styles.headerVoltage}>{Number(liveVoltage).toFixed(1)}V</span>
+                  <span className={styles.headerMetricSep}>•</span>
+                  <span className={styles.headerSoc} style={{ color: socColor }}>
+                    {liveSoc}% SOC
+                  </span>
+                </div>
+              </div>
+
+              {/* Tiny sparkline visualization */}
+              <div className={styles.headerSparkline} title="Last 10 minutes SOC trend">
+                <svg width="42" height="18" viewBox="0 0 42 18">
+                  <path
+                    d="M 2 12 L 6 10 L 11 11 L 16 9 L 21 10 L 26 8 L 31 7 L 36 8 L 40 7"
+                    fill="none"
+                    stroke={socColor}
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+            </div>
+          </Tooltip>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* 2. CENTER SECTION: Reorganized 6 Main Navigation Items with Dropdowns    */}
+        {/* ========================================================================= */}
+        <nav className={styles.headerNav} aria-label="Main Navigation">
+          {/* 1. Dashboard (Direct Link) */}
+          <Tooltip text="Mission control overview & live gauges" shortcut="Ctrl+D">
+            <Link
+              href="/"
+              className={`${styles.navItemBtn} ${pathname === '/' ? styles.navItemActive : ''}`}
+            >
+              <Home size={16} />
+              <span>Dashboard</span>
             </Link>
-          )
-        })}
-      </div>
+          </Tooltip>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        {/* Dark / Light Mode Toggle Button */}
-        <button
-          onClick={toggleTheme}
-          className={styles.themeToggle}
-          title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          aria-label="Toggle Theme"
-        >
-          {isDark ? <Sun size={16} color="var(--state-caution)" /> : <Moon size={16} color="var(--state-info)" />}
-        </button>
+          {/* 2. Analytics (Dropdown) */}
+          <div className={styles.navDropdownWrapper}>
+            <button
+              className={`${styles.navItemBtn} ${pathname === '/analytics' || pathname === '/history' ? styles.navItemActive : ''}`}
+              onClick={() => toggleDropdown('analytics')}
+              aria-expanded={activeDropdown === 'analytics'}
+            >
+              <Activity size={16} />
+              <span>Analytics</span>
+              <ChevronDown size={13} className={styles.navChevron} />
+            </button>
 
-        {/* Real-Time Connection Indicator Pill */}
-        <div
-          className={`${styles.status} ${styles['status_' + stateKey] || ''}`}
-          title={`Status: ${connInfo.state} (Last seen: ${connInfo.ageSec != null ? `${connInfo.ageSec}s ago` : 'never'})`}
-        >
-          <span
-            className={`${styles.dot} ${styles['dot_' + stateKey] || ''}`}
-            style={{ background: connInfo.color }}
-          />
-          <span style={{ color: connInfo.color, fontWeight: 700 }}>{connInfo.state}</span>
+            {activeDropdown === 'analytics' && (
+              <div className={styles.navDropdownMenu}>
+                <Link
+                  href="/analytics"
+                  className={styles.dropdownMenuItem}
+                  onClick={() => setActiveDropdown(null)}
+                >
+                  <Activity size={15} color="#00E8A0" />
+                  <div>
+                    <div className={styles.dropdownItemTitle}>Live Graphs</div>
+                    <div className={styles.dropdownItemDesc}>Real-time voltage, current &amp; temp curves</div>
+                  </div>
+                </Link>
+                <Link
+                  href="/history?tab=trends"
+                  className={styles.dropdownMenuItem}
+                  onClick={() => setActiveDropdown(null)}
+                >
+                  <TrendingUp size={15} color="#38BDF8" />
+                  <div>
+                    <div className={styles.dropdownItemTitle}>Historical Trends</div>
+                    <div className={styles.dropdownItemDesc}>Multi-day degradation &amp; capacity analysis</div>
+                  </div>
+                </Link>
+                <Link
+                  href="/history?tab=compare"
+                  className={styles.dropdownMenuItem}
+                  onClick={() => setActiveDropdown(null)}
+                >
+                  <GitCompare size={15} color="#FFB800" />
+                  <div>
+                    <div className={styles.dropdownItemTitle}>Compare Sessions</div>
+                    <div className={styles.dropdownItemDesc}>Overlay charging &amp; discharge cycles</div>
+                  </div>
+                </Link>
+                <Link
+                  href="/history?tab=export"
+                  className={styles.dropdownMenuItem}
+                  onClick={() => setActiveDropdown(null)}
+                >
+                  <FileText size={15} color="#B98CFF" />
+                  <div>
+                    <div className={styles.dropdownItemTitle}>Export Data</div>
+                    <div className={styles.dropdownItemDesc}>Download raw CSV, JSON &amp; audit reports</div>
+                  </div>
+                </Link>
+              </div>
+            )}
+          </div>
+
+          {/* 3. AI Insights (Dropdown) */}
+          <div className={styles.navDropdownWrapper}>
+            <button
+              className={`${styles.navItemBtn} ${pathname === '/ai' ? styles.navItemActive : ''}`}
+              onClick={() => toggleDropdown('ai')}
+              aria-expanded={activeDropdown === 'ai'}
+            >
+              <Bot size={16} />
+              <span>AI Insights</span>
+              <ChevronDown size={13} className={styles.navChevron} />
+            </button>
+
+            {activeDropdown === 'ai' && (
+              <div className={styles.navDropdownMenu}>
+                <Link
+                  href="/ai"
+                  className={styles.dropdownMenuItem}
+                  onClick={() => setActiveDropdown(null)}
+                >
+                  <Bot size={15} color="#00E8A0" />
+                  <div>
+                    <div className={styles.dropdownItemTitle}>Smart Analysis</div>
+                    <div className={styles.dropdownItemDesc}>Gemini AI diagnostic safety evaluations</div>
+                  </div>
+                </Link>
+                <Link
+                  href="/ai?tab=predictions"
+                  className={styles.dropdownMenuItem}
+                  onClick={() => setActiveDropdown(null)}
+                >
+                  <Sparkles size={15} color="#38BDF8" />
+                  <div>
+                    <div className={styles.dropdownItemTitle}>Predictions</div>
+                    <div className={styles.dropdownItemDesc}>Remaining cycle life &amp; replacement dates</div>
+                  </div>
+                </Link>
+                <Link
+                  href="/ai?tab=recommendations"
+                  className={styles.dropdownMenuItem}
+                  onClick={() => setActiveDropdown(null)}
+                >
+                  <ShieldCheck size={15} color="#FFB800" />
+                  <div>
+                    <div className={styles.dropdownItemTitle}>Recommendations</div>
+                    <div className={styles.dropdownItemDesc}>Thermal mitigations &amp; charging rate advice</div>
+                  </div>
+                </Link>
+                <Link
+                  href="/ai?tab=training"
+                  className={styles.dropdownMenuItem}
+                  onClick={() => setActiveDropdown(null)}
+                >
+                  <Layers size={15} color="#B98CFF" />
+                  <div>
+                    <div className={styles.dropdownItemTitle}>Training Data</div>
+                    <div className={styles.dropdownItemDesc}>Physics-informed ML degradation models</div>
+                  </div>
+                </Link>
+              </div>
+            )}
+          </div>
+
+          {/* 4. Alerts (Dropdown with Badge) */}
+          <div className={styles.navDropdownWrapper}>
+            <button
+              className={`${styles.navItemBtn} ${pathname === '/alerts' ? styles.navItemActive : ''}`}
+              onClick={() => toggleDropdown('alerts')}
+              aria-expanded={activeDropdown === 'alerts'}
+            >
+              <Bell size={16} />
+              <span>Alerts</span>
+              {unreadCount > 0 && (
+                <span className={styles.navBadgeCount}>{unreadCount > 99 ? '99+' : unreadCount}</span>
+              )}
+              <ChevronDown size={13} className={styles.navChevron} />
+            </button>
+
+            {activeDropdown === 'alerts' && (
+              <div className={styles.navDropdownMenu}>
+                <Link
+                  href="/alerts"
+                  className={styles.dropdownMenuItem}
+                  onClick={() => setActiveDropdown(null)}
+                >
+                  <AlertTriangle size={15} color="#FF2D55" />
+                  <div style={{ flex: 1 }}>
+                    <div className={styles.dropdownItemTitle}>
+                      Active Alerts {unreadCount > 0 && `(${unreadCount})`}
+                    </div>
+                    <div className={styles.dropdownItemDesc}>Critical safety hazards &amp; sensor warnings</div>
+                  </div>
+                </Link>
+                <Link
+                  href="/alerts?tab=history"
+                  className={styles.dropdownMenuItem}
+                  onClick={() => setActiveDropdown(null)}
+                >
+                  <Clock size={15} color="#38BDF8" />
+                  <div>
+                    <div className={styles.dropdownItemTitle}>Alert History</div>
+                    <div className={styles.dropdownItemDesc}>Full historical log of acknowledged events</div>
+                  </div>
+                </Link>
+                <Link
+                  href="/settings?tab=alerts"
+                  className={styles.dropdownMenuItem}
+                  onClick={() => setActiveDropdown(null)}
+                >
+                  <SlidersHorizontal size={15} color="#FFB800" />
+                  <div>
+                    <div className={styles.dropdownItemTitle}>Alert Settings</div>
+                    <div className={styles.dropdownItemDesc}>Threshold boundaries for voltage &amp; temp</div>
+                  </div>
+                </Link>
+                <Link
+                  href="/settings?tab=notifications"
+                  className={styles.dropdownMenuItem}
+                  onClick={() => setActiveDropdown(null)}
+                >
+                  <Bell size={15} color="#00E8A0" />
+                  <div>
+                    <div className={styles.dropdownItemTitle}>Notification Preferences</div>
+                    <div className={styles.dropdownItemDesc}>Sound effects, desktop push &amp; quiet hours</div>
+                  </div>
+                </Link>
+              </div>
+            )}
+          </div>
+
+          {/* 5. System (Dropdown) */}
+          <div className={styles.navDropdownWrapper}>
+            <button
+              className={`${styles.navItemBtn} ${pathname === '/settings' || pathname === '/controls' || pathname === '/diagnostics' ? styles.navItemActive : ''}`}
+              onClick={() => toggleDropdown('system')}
+              aria-expanded={activeDropdown === 'system'}
+            >
+              <Settings size={16} />
+              <span>System</span>
+              <ChevronDown size={13} className={styles.navChevron} />
+            </button>
+
+            {activeDropdown === 'system' && (
+              <div className={styles.navDropdownMenu}>
+                <Link
+                  href="/settings?tab=battery"
+                  className={styles.dropdownMenuItem}
+                  onClick={() => setActiveDropdown(null)}
+                >
+                  <Sliders size={15} color="#00E8A0" />
+                  <div>
+                    <div className={styles.dropdownItemTitle}>Battery Configuration</div>
+                    <div className={styles.dropdownItemDesc}>Set 9V, AA, 18650, or EV chemistry model</div>
+                  </div>
+                </Link>
+                <Link
+                  href="/controls"
+                  className={styles.dropdownMenuItem}
+                  onClick={() => setActiveDropdown(null)}
+                >
+                  <SlidersHorizontal size={15} color="#38BDF8" />
+                  <div>
+                    <div className={styles.dropdownItemTitle}>Controls &amp; Commands</div>
+                    <div className={styles.dropdownItemDesc}>Manual relay breakers &amp; buzzer triggers</div>
+                  </div>
+                </Link>
+                <Link
+                  href="/diagnostics"
+                  className={styles.dropdownMenuItem}
+                  onClick={() => setActiveDropdown(null)}
+                >
+                  <Cpu size={15} color="#FFB800" />
+                  <div>
+                    <div className={styles.dropdownItemTitle}>Diagnostics</div>
+                    <div className={styles.dropdownItemDesc}>Hardware health, RSSI &amp; memory telemetry</div>
+                  </div>
+                </Link>
+                <Link
+                  href="/settings?tab=calibration"
+                  className={styles.dropdownMenuItem}
+                  onClick={() => setActiveDropdown(null)}
+                >
+                  <RefreshCw size={15} color="#B98CFF" />
+                  <div>
+                    <div className={styles.dropdownItemTitle}>Calibration</div>
+                    <div className={styles.dropdownItemDesc}>Zero current shunts &amp; voltage dividers</div>
+                  </div>
+                </Link>
+                <Link
+                  href="/settings"
+                  className={styles.dropdownMenuItem}
+                  onClick={() => setActiveDropdown(null)}
+                >
+                  <Settings size={15} color="var(--text-secondary)" />
+                  <div>
+                    <div className={styles.dropdownItemTitle}>Settings</div>
+                    <div className={styles.dropdownItemDesc}>Global system preferences &amp; backups</div>
+                  </div>
+                </Link>
+              </div>
+            )}
+          </div>
+
+          {/* 6. Help (Dropdown) */}
+          <div className={styles.navDropdownWrapper}>
+            <button
+              className={`${styles.navItemBtn} ${pathname === '/about' ? styles.navItemActive : ''}`}
+              onClick={() => toggleDropdown('help')}
+              aria-expanded={activeDropdown === 'help'}
+            >
+              <HelpCircle size={16} />
+              <span>Help</span>
+              <ChevronDown size={13} className={styles.navChevron} />
+            </button>
+
+            {activeDropdown === 'help' && (
+              <div className={styles.navDropdownMenu}>
+                <Link
+                  href="/about"
+                  className={styles.dropdownMenuItem}
+                  onClick={() => setActiveDropdown(null)}
+                >
+                  <HelpCircle size={15} color="#00E8A0" />
+                  <div>
+                    <div className={styles.dropdownItemTitle}>About Battery Vital</div>
+                    <div className={styles.dropdownItemDesc}>Overview, supported batteries &amp; architecture</div>
+                  </div>
+                </Link>
+                <button
+                  className={styles.dropdownMenuItemBtn}
+                  onClick={() => {
+                    setActiveDropdown(null)
+                    if (onOpenOnboarding) onOpenOnboarding()
+                  }}
+                >
+                  <Sparkles size={15} color="#38BDF8" />
+                  <div>
+                    <div className={styles.dropdownItemTitle}>Quick Start Guide</div>
+                    <div className={styles.dropdownItemDesc}>6-step interactive onboarding walkthrough</div>
+                  </div>
+                </button>
+                <button
+                  className={styles.dropdownMenuItemBtn}
+                  onClick={() => {
+                    setActiveDropdown(null)
+                    if (onOpenManual) onOpenManual()
+                  }}
+                >
+                  <BookOpen size={15} color="#FFB800" />
+                  <div>
+                    <div className={styles.dropdownItemTitle}>User Manual</div>
+                    <div className={styles.dropdownItemDesc}>Operating guidelines &amp; safety limits</div>
+                  </div>
+                </button>
+                <button
+                  className={styles.dropdownMenuItemBtn}
+                  onClick={() => {
+                    setActiveDropdown(null)
+                    if (onOpenWiring) onOpenWiring()
+                  }}
+                >
+                  <Cpu size={15} color="#B98CFF" />
+                  <div>
+                    <div className={styles.dropdownItemTitle}>Wiring Diagrams</div>
+                    <div className={styles.dropdownItemDesc}>Pinouts for ESP32, INA219, DHT11 &amp; gas sensors</div>
+                  </div>
+                </button>
+                <Link
+                  href="/about#faq"
+                  className={styles.dropdownMenuItem}
+                  onClick={() => setActiveDropdown(null)}
+                >
+                  <HelpCircle size={15} color="#00E8A0" />
+                  <div>
+                    <div className={styles.dropdownItemTitle}>FAQ</div>
+                    <div className={styles.dropdownItemDesc}>Frequently asked battery monitoring questions</div>
+                  </div>
+                </Link>
+                <a
+                  href="mailto:support@batteryvital.com"
+                  className={styles.dropdownMenuItem}
+                  onClick={() => setActiveDropdown(null)}
+                >
+                  <ExternalLink size={15} color="#38BDF8" />
+                  <div>
+                    <div className={styles.dropdownItemTitle}>Contact Support</div>
+                    <div className={styles.dropdownItemDesc}>Direct technical engineering assistance</div>
+                  </div>
+                </a>
+                <button
+                  className={styles.dropdownMenuItemBtn}
+                  onClick={() => {
+                    setActiveDropdown(null)
+                    if (onOpenVersion) onOpenVersion()
+                  }}
+                >
+                  <FileText size={15} color="var(--text-secondary)" />
+                  <div>
+                    <div className={styles.dropdownItemTitle}>Version Info</div>
+                    <div className={styles.dropdownItemDesc}>Console v2.1.0 • Firmware v9.4.0</div>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
+        </nav>
+
+        {/* ========================================================================= */}
+        {/* 3. RIGHT SECTION: Status Badge + Search + Bell + Passport + User         */}
+        {/* ========================================================================= */}
+        <div className={styles.headerRight}>
+          {/* Global Search / Command Palette Trigger */}
+          <Tooltip text="Quick search anything in system" shortcut="Ctrl+K">
+            <button
+              className={styles.searchTriggerBtn}
+              onClick={onOpenCommandPalette}
+              aria-label="Open Command Search (Ctrl+K)"
+            >
+              <Search size={14} />
+              <span className={styles.searchTriggerText}>Search...</span>
+              <kbd className={styles.searchKbd}>Ctrl+K</kbd>
+            </button>
+          </Tooltip>
+
+          {/* Connection Status Badge (Requirement #2) */}
+          <div className={styles.connectionBlock}>
+            {renderConnectionBadge()}
+            <div className={styles.lastUpdateLabel}>{lastUpdateText}</div>
+          </div>
+
+          {/* Notification Bell with Center Dropdown */}
+          <div className={styles.notifWrapper}>
+            <Tooltip text="Notifications &amp; live alerts" shortcut="N to mark read">
+              <button
+                className={`${styles.iconActionBtn} ${activeDropdown === 'notif' ? styles.iconActionBtnActive : ''}`}
+                onClick={() => toggleDropdown('notif')}
+                aria-label={`Notifications (${unreadCount} unread)`}
+              >
+                <Bell size={17} />
+                {unreadCount > 0 && (
+                  <span className={styles.notifCountBadge}>{unreadCount > 99 ? '99+' : unreadCount}</span>
+                )}
+              </button>
+            </Tooltip>
+
+            {activeDropdown === 'notif' && (
+              <NotificationCenter onClose={() => setActiveDropdown(null)} />
+            )}
+          </div>
+
+          {/* Battery Passport Slide-out Button (Requirement #3, #7) */}
+          <Tooltip text="View Battery Passport &amp; verified digital twin">
+            <button
+              className={styles.iconActionBtn}
+              onClick={onOpenPassport}
+              aria-label="Open Battery Passport Slideout"
+            >
+              <ShieldCheck size={18} color="#00E8A0" />
+            </button>
+          </Tooltip>
+
+          {/* Dark / Light Theme Toggle */}
+          <Tooltip text={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
+            <button
+              className={styles.iconActionBtn}
+              onClick={toggleTheme}
+              aria-label="Toggle Theme"
+            >
+              {isDark ? <Sun size={17} color="#FFB800" /> : <Moon size={17} color="#38BDF8" />}
+            </button>
+          </Tooltip>
+
+          {/* User Account Avatar & Device Switcher Dropdown (Requirement #3, #8) */}
+          <div className={styles.userDropdownWrapper}>
+            <button
+              className={styles.userAvatarBtn}
+              onClick={() => toggleDropdown('user')}
+              aria-label="User Account and Devices"
+              aria-expanded={activeDropdown === 'user'}
+            >
+              <div className={styles.avatarCircle}>
+                <User size={15} />
+              </div>
+              <ChevronDown size={12} className={styles.avatarChevron} />
+            </button>
+
+            {activeDropdown === 'user' && (
+              <div className={styles.userDropdownMenu}>
+                <div className={styles.userProfileHead}>
+                  <div className={styles.userProfileName}>Station Admin</div>
+                  <div className={styles.userProfileEmail}>admin@batteryvital.local</div>
+                </div>
+
+                <div className={styles.userDropdownDivider} />
+                <div className={styles.dropdownSubheader}>My Monitored Devices</div>
+
+                {devices.map((d) => (
+                  <button
+                    key={d.id}
+                    className={`${styles.deviceItemBtn} ${d.active ? styles.deviceItemActive : ''}`}
+                    onClick={() => {
+                      setDevices((prev) =>
+                        prev.map((dev) => ({ ...dev, active: dev.id === d.id }))
+                      )
+                      setActiveDropdown(null)
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Radio size={12} color={d.active ? '#00E8A0' : 'var(--text-tertiary)'} />
+                      <div style={{ textAlign: 'left' }}>
+                        <div className={styles.deviceName}>{d.name}</div>
+                        <div className={styles.deviceMeta}>{d.id} • {d.voltage} ({d.soc}%)</div>
+                      </div>
+                    </div>
+                    {d.active && <Check size={14} color="#00E8A0" />}
+                  </button>
+                ))}
+
+                <button
+                  className={styles.addDeviceBtn}
+                  onClick={() => {
+                    setActiveDropdown(null)
+                    router.push('/settings?tab=battery')
+                  }}
+                >
+                  <PlusCircle size={14} />
+                  <span>Add New Battery Pack...</span>
+                </button>
+
+                <div className={styles.userDropdownDivider} />
+                <Link
+                  href="/settings"
+                  className={styles.userMenuLink}
+                  onClick={() => setActiveDropdown(null)}
+                >
+                  <Settings size={14} />
+                  <span>Preferences</span>
+                </Link>
+                <button
+                  className={styles.userMenuLink}
+                  onClick={() => {
+                    setActiveDropdown(null)
+                    if (confirm('Switch console profile?')) {
+                      window.location.reload()
+                    }
+                  }}
+                >
+                  <LogOut size={14} />
+                  <span>Switch Profile</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </nav>
+
+      {/* ========================================================================= */}
+      {/* 4. MOBILE SLIDE-OUT DRAWER (<768px)                                      */}
+      {/* ========================================================================= */}
+      {mobileMenuOpen && (
+        <div className={styles.mobileDrawerOverlay} onClick={() => setMobileMenuOpen(false)}>
+          <div className={styles.mobileDrawer} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.mobileDrawerHead}>
+              <div className={styles.brandGroup}>
+                <BatteryCharging size={20} color="var(--accent-primary)" />
+                <span className={styles.brandTitleText}>
+                  Battery <span className={styles.brandVitalText}>Vital</span>
+                </span>
+              </div>
+              <button
+                className={styles.mobileDrawerCloseBtn}
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Mobile Active Battery Card */}
+            <div
+              className={styles.mobileBatteryCard}
+              onClick={() => {
+                setMobileMenuOpen(false)
+                router.push('/')
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {getSocBatteryIcon(liveSoc)}
+                <div>
+                  <div className={styles.mobileBatteryName}>{batteryName}</div>
+                  <div className={styles.mobileBatterySpecs}>
+                    {Number(liveVoltage).toFixed(1)}V • {liveSoc}% SOC (Normal)
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Categorized Nav Sections */}
+            <div className={styles.mobileDrawerContent}>
+              <div className={styles.mobileSectionGroup}>
+                <div className={styles.mobileSectionHeader}>Monitoring</div>
+                <Link href="/" className={styles.mobileNavLink} onClick={() => setMobileMenuOpen(false)}>
+                  <Home size={16} /> <span>Dashboard</span>
+                </Link>
+                <Link href="/analytics" className={styles.mobileNavLink} onClick={() => setMobileMenuOpen(false)}>
+                  <Activity size={16} /> <span>Live Graphs</span>
+                </Link>
+                <Link href="/history?tab=trends" className={styles.mobileNavLink} onClick={() => setMobileMenuOpen(false)}>
+                  <TrendingUp size={16} /> <span>Historical Trends</span>
+                </Link>
+                <Link href="/history?tab=compare" className={styles.mobileNavLink} onClick={() => setMobileMenuOpen(false)}>
+                  <GitCompare size={16} /> <span>Compare Sessions</span>
+                </Link>
+              </div>
+
+              <div className={styles.mobileSectionGroup}>
+                <div className={styles.mobileSectionHeader}>Analysis &amp; Safety</div>
+                <Link href="/ai" className={styles.mobileNavLink} onClick={() => setMobileMenuOpen(false)}>
+                  <Bot size={16} /> <span>AI Insights</span>
+                </Link>
+                <Link href="/alerts" className={styles.mobileNavLink} onClick={() => setMobileMenuOpen(false)}>
+                  <Bell size={16} /> <span>Active Alerts</span>
+                  {unreadCount > 0 && <span className={styles.badgeCount}>{unreadCount}</span>}
+                </Link>
+                <button
+                  className={styles.mobileNavLinkBtn}
+                  onClick={() => {
+                    setMobileMenuOpen(false)
+                    if (onOpenPassport) onOpenPassport()
+                  }}
+                >
+                  <ShieldCheck size={16} /> <span>Battery Passport</span>
+                </button>
+              </div>
+
+              <div className={styles.mobileSectionGroup}>
+                <div className={styles.mobileSectionHeader}>System &amp; Controls</div>
+                <Link href="/settings?tab=battery" className={styles.mobileNavLink} onClick={() => setMobileMenuOpen(false)}>
+                  <Sliders size={16} /> <span>Battery Configuration</span>
+                </Link>
+                <Link href="/controls" className={styles.mobileNavLink} onClick={() => setMobileMenuOpen(false)}>
+                  <SlidersHorizontal size={16} /> <span>Controls &amp; Relays</span>
+                </Link>
+                <Link href="/diagnostics" className={styles.mobileNavLink} onClick={() => setMobileMenuOpen(false)}>
+                  <Cpu size={16} /> <span>Diagnostics</span>
+                </Link>
+                <Link href="/settings" className={styles.mobileNavLink} onClick={() => setMobileMenuOpen(false)}>
+                  <Settings size={16} /> <span>System Settings</span>
+                </Link>
+              </div>
+
+              <div className={styles.mobileSectionGroup}>
+                <div className={styles.mobileSectionHeader}>Help &amp; Documentation</div>
+                <Link href="/about" className={styles.mobileNavLink} onClick={() => setMobileMenuOpen(false)}>
+                  <HelpCircle size={16} /> <span>About Battery Vital</span>
+                </Link>
+                <button
+                  className={styles.mobileNavLinkBtn}
+                  onClick={() => {
+                    setMobileMenuOpen(false)
+                    if (onOpenOnboarding) onOpenOnboarding()
+                  }}
+                >
+                  <Sparkles size={16} /> <span>Quick Start Guide</span>
+                </button>
+                <button
+                  className={styles.mobileNavLinkBtn}
+                  onClick={() => {
+                    setMobileMenuOpen(false)
+                    if (onOpenManual) onOpenManual()
+                  }}
+                >
+                  <BookOpen size={16} /> <span>User Manual</span>
+                </button>
+                <button
+                  className={styles.mobileNavLinkBtn}
+                  onClick={() => {
+                    setMobileMenuOpen(false)
+                    if (onOpenWiring) onOpenWiring()
+                  }}
+                >
+                  <Cpu size={16} /> <span>Wiring Diagrams</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Mobile Footer */}
+            <div className={styles.mobileDrawerFooter}>
+              <button className={styles.mobileThemeToggleBtn} onClick={toggleTheme}>
+                {isDark ? <Sun size={16} color="#FFB800" /> : <Moon size={16} color="#38BDF8" />}
+                <span>{isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </header>
   )
 }

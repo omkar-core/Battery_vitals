@@ -208,7 +208,7 @@ export default function Dashboard() {
       : styles.safety_safe
 
   return (
-    <Layout connected={connected} mode={mode} lastSeen={lastSeen}>
+    <Layout connected={connected} mode={mode} lastSeen={lastSeen} data={data}>
       {/* Header with Title and 4-State Connection Indicator */}
       <div className={styles.header}>
         <div>
@@ -299,8 +299,9 @@ export default function Dashboard() {
 
       {!connected && data == null && (
         <div style={{ margin: '20px 0' }}>
-          <div className={styles.notice} style={{ marginBottom: 20 }}>
-            Initializing connection — rendering lazy skeleton placeholders while awaiting telemetry stream...
+          <div className={styles.notice} style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span className={styles.liveDotConnecting} />
+            <span><strong>Loading live data from Firebase...</strong> Awaiting real-time ESP32 telemetry frames.</span>
           </div>
           <div className={styles.metricsGrid} style={{ marginBottom: 20 }}>
             {Array.from({ length: 8 }).map((_, i) => (

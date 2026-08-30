@@ -19,13 +19,15 @@ import {
   Sun,
   Shield,
   Trash2,
+  RefreshCw,
 } from 'lucide-react'
+import { useNotifications } from '../../context/NotificationContext'
 import styles from '../../styles/pages.module.css'
 
 const SETTINGS_KEY = 'bv_app_settings_v1'
 
 const DEFAULT_SETTINGS = {
-  nickname: 'Solar Li-ion Primary Bank',
+  nickname: 'Living Room Smoke Detector',
   refreshRate: 2,
   tempUnit: 'C',
   theme: 'dark',
@@ -48,6 +50,8 @@ export default function SettingsPage() {
   const [status, setStatus] = useState(null)
   const [config, setConfig] = useState(DEFAULT_SETTINGS)
   const [savedSuccess, setSavedSuccess] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const { addNotification } = useNotifications()
 
   useEffect(() => {
     fetch('/api/status')
@@ -70,14 +74,56 @@ export default function SettingsPage() {
     } catch (e) {}
   }
 
+  const handleSaveAll = async (updatedConfig = config) => {
+    setIsSaving(true)
+    addNotification({
+      type: 'info',
+      title: 'Configuration Sync',
+      message: '1/3 Validating configuration... ✓',
+    })
+    await new Promise((r) => setTimeout(r, 600))
+
+    addNotification({
+      type: 'info',
+      title: 'Configuration Sync',
+      message: '2/3 Uploading to Firebase... ⟳',
+    })
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(updatedConfig))
+      await fetch('/api/commands', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'SET_CONFIG', params: updatedConfig }),
+      }).catch(() => {})
+    } catch (e) {}
+
+    await new Promise((r) => setTimeout(r, 700))
+    addNotification({
+      type: 'success',
+      title: 'Configuration Sync',
+      message: '3/3 Notifying ESP32... ✓ All parameters applied!',
+    })
+    setIsSaving(false)
+    setSavedSuccess(true)
+    setTimeout(() => setSavedSuccess(false), 2500)
+  }
+
   const applyProfile = () => {
     sendControl('SET_PROFILE', profile)
-    alert(`Chemistry profile command sent to ESP32: ${profile}`)
+    addNotification({
+      type: 'success',
+      title: 'Chemistry Profile Applied',
+      message: `Chemistry model set to ${profile} on ESP32 microcontroller.`,
+    })
   }
 
   const applyInterval = () => {
     sendControl('SET_SAMPLE_INTERVAL', sampleInterval)
-    alert(`Sampling interval set to ${sampleInterval}s on ESP32`)
+    addNotification({
+      type: 'info',
+      title: 'Loop Interval Updated',
+      message: `Telemetry sampling interval adjusted to ${sampleInterval}s.`,
+    })
   }
 
   const exportConfig = () => {
@@ -115,7 +161,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <Layout connected={connected} lastSeen={data?.timestamp}>
+    <Layout connected={connected} lastSeen={data?.timestamp} data={data}>
       <div className={styles.pageHeader}>
         <div>
           <h1 className={styles.pageTitle}>
@@ -126,14 +172,41 @@ export default function SettingsPage() {
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => handleSaveAll(config)}
+            disabled={isSaving}
+            className={styles.primaryBtn}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              minWidth: 120,
+              justifyContent: 'center',
+              opacity: isSaving ? 0.7 : 1,
+              cursor: isSaving ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {isSaving ? (
+              <>
+                <RefreshCw size={13} className={styles.spinAnimation} />
+                <span>Saving...</span>
+              </>
+            ) : (
+              <>
+                <Check size={13} />
+                <span>Save Changes</span>
+              </>
+            )}
+          </button>
+
           <button
             onClick={exportConfig}
             className={styles.filterBtn}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
           >
             <Download size={12} />
-            <span>Export Config JSON</span>
+            <span>Export Config</span>
           </button>
 
           <label

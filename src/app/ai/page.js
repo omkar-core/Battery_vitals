@@ -145,7 +145,7 @@ export default function AIPage() {
   }
 
   return (
-    <Layout connected={connected} lastSeen={data?.timestamp}>
+    <Layout connected={connected} lastSeen={data?.timestamp} data={data}>
       <div className={styles.pageHeader}>
         <div>
           <h1 className={styles.pageTitle}>

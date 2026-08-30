@@ -356,3 +356,533 @@
     min-width: 90px;
   }
 }
+
+/* ========================================================================= */
+/* ABOUT PAGE STYLES                                                         */
+/* ========================================================================= */
+.aboutContainer {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+  padding-bottom: 40px;
+}
+
+.aboutHero {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 30px 16px 10px;
+}
+
+.aboutBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  background: rgba(0, 232, 160, 0.1);
+  border: 1px solid rgba(0, 232, 160, 0.25);
+  color: #00E8A0;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  margin-bottom: 12px;
+}
+
+.aboutHeroTitle {
+  font-size: 38px;
+  font-weight: 900;
+  letter-spacing: -0.8px;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+  line-height: 1.15;
+}
+
+.aboutHeroSubtitle {
+  font-size: 16px;
+  color: var(--text-secondary);
+  max-width: 680px;
+  line-height: 1.5;
+  margin-bottom: 24px;
+}
+
+.aboutHeroCard {
+  width: 100%;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
+  padding: 20px 24px;
+  box-shadow: var(--shadow);
+}
+
+.aboutHeroCardInner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.aboutHeroSensorItem {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+}
+
+.aboutHeroIconBox {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: var(--bg-surface-raised);
+  border: 1px solid var(--border);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.aboutHeroSensorTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.aboutHeroSensorMeta {
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+.aboutHeroFlowArrow {
+  font-size: 20px;
+  color: var(--text-tertiary);
+  font-weight: 800;
+}
+
+.aboutSection {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.aboutSectionHeading {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  color: var(--text-primary);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.aboutSectionHeading::before {
+  content: '';
+  width: 4px;
+  height: 18px;
+  background: var(--accent-primary);
+  border-radius: 2px;
+}
+
+.aboutTextCard {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 22px 24px;
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+.aboutFeaturesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+.aboutFeatureCard {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.aboutFeatureCard:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-strong);
+}
+
+.aboutFeatureIconWrap {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--bg-surface-raised);
+  border: 1px solid;
+  display: grid;
+  place-items: center;
+  margin-bottom: 12px;
+}
+
+.aboutFeatureTitle {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.aboutFeatureDesc {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  line-height: 1.45;
+}
+
+.aboutStepsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.aboutStepCard {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.aboutStepNum {
+  font-size: 26px;
+  font-weight: 900;
+  font-family: var(--font-mono);
+  color: var(--accent-primary);
+  opacity: 0.8;
+  margin-bottom: 10px;
+}
+
+.aboutStepTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.aboutStepDesc {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.aboutArchitectureDiagram {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px 20px;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.archNode {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 12px;
+}
+
+.archNode strong {
+  color: var(--text-primary);
+}
+
+.archNode span {
+  color: var(--text-tertiary);
+  font-size: 10.5px;
+  font-family: var(--font-mono);
+}
+
+.archArrow {
+  color: var(--accent-primary);
+  font-weight: 800;
+  font-size: 18px;
+}
+
+.aboutBatteriesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 14px;
+}
+
+.aboutBatteryCard {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.aboutBatteryTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.aboutBatteryTitle {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.aboutBatteryBadge {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 100px;
+  background: rgba(0, 232, 160, 0.1);
+  color: #00E8A0;
+  border: 1px solid rgba(0, 232, 160, 0.25);
+  white-space: nowrap;
+}
+
+.aboutBatteryChemistry {
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+}
+
+.aboutBatteryVoltage {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.aboutTechGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.aboutTechCard {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+}
+
+.aboutTechCard h4 {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 8px 0 4px;
+}
+
+.aboutTechCard p {
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+  line-height: 1.4;
+}
+
+.aboutVersionCard {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px;
+}
+
+.aboutVersionItem {
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+}
+
+.aboutVersionItem span {
+  color: var(--text-tertiary);
+}
+
+.aboutVersionItem strong {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  margin-top: 2px;
+}
+
+.aboutActionBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: var(--bg-surface-raised);
+  border: 1px solid var(--border-strong);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.aboutActionSecondaryBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.faqList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.faqItem {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.faqQuestionBtn {
+  width: 100%;
+  padding: 14px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 13.5px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.faqAnswer {
+  padding: 0 18px 14px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.aboutContactGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.aboutContactCard {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+}
+
+.aboutContactCard h4 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 10px 0 4px;
+}
+
+.aboutContactCard p {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-bottom: 10px;
+}
+
+.aboutContactLink {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-primary);
+  text-decoration: none;
+  margin-top: auto;
+}
+
+@media (max-width: 860px) {
+  .aboutStepsGrid {
+    grid-template-columns: 1fr;
+  }
+  .aboutHeroCardInner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .aboutHeroFlowArrow {
+    display: none;
+  }
+}
+
+/* Chart Loading Panel & Progress Bar */
+.chartLoadingPanel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-surface);
+  border: 1px dashed var(--border-strong);
+  border-radius: 16px;
+  padding: 48px 24px;
+  margin-bottom: 20px;
+}
+
+.chartLoadingProgressBar {
+  width: 100%;
+  max-width: 320px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-top: 18px;
+  position: relative;
+}
+
+.chartLoadingProgressInner {
+  height: 100%;
+  width: 50%;
+  background: linear-gradient(90deg, #00E8A0, #38BDF8);
+  border-radius: 10px;
+  animation: chartLoadingMove 1.5s infinite ease-in-out;
+}
+
+@keyframes chartLoadingMove {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
+
+.spinAnimation {
+  animation: spinKeyframe 1s linear infinite;
+}
+
+@keyframes spinKeyframe {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+

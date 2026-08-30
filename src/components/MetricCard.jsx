@@ -1,5 +1,9 @@
-import styles from './components.module.css'
+'use client'
+
+import React from 'react'
+import Tooltip from './Tooltip'
 import { SkeletonBox } from './SkeletonLoader'
+import styles from './components.module.css'
 
 const CHIP_META = {
   OK: { label: 'OK', color: 'var(--state-safe)', bg: 'rgba(61, 220, 151, 0.12)' },
@@ -11,6 +15,17 @@ const CHIP_META = {
   ERR: { label: 'ERR', color: 'var(--state-critical)', bg: 'rgba(240, 71, 92, 0.14)' },
 }
 
+const DEFAULT_TOOLTIPS = {
+  soc: 'State of Charge - Percentage of battery capacity remaining',
+  voltage: 'Terminal Voltage - Live DC operating potential across cells',
+  current: 'Current Flow - Positive represents charging, negative indicates discharge load',
+  temperature: 'Cell Temperature - Monitored via high-precision thermal sensors',
+  bhi: 'Battery Health Index - Composite AI risk & safety score (0 = Perfect, 100 = Hazardous)',
+  'gas risk': 'Gas Sensor Index - Volatile organic and flammable smoke concentration (MQ-2/135)',
+  soh: 'State of Health - Retained usable capacity relative to factory nominal rating',
+  'internal resistance': 'Dynamic internal impedance in milliohms (mΩ) under active load',
+}
+
 export default function MetricCard({
   title,
   value,
@@ -20,11 +35,15 @@ export default function MetricCard({
   chip,
   delta,
   subtext,
+  tooltip,
   onClick,
 }) {
   const chipUpper = (chip || '').toUpperCase()
   const chipMeta = CHIP_META[chipUpper] || (chip ? { label: chipUpper, color, bg: `${color}1a` } : null)
   const isValueMissing = value == null || value === '' || value === '--'
+
+  const titleKey = (title || '').toLowerCase().trim()
+  const tooltipText = tooltip || DEFAULT_TOOLTIPS[titleKey] || `Real-time metric: ${title}`
 
   return (
     <div
@@ -33,14 +52,16 @@ export default function MetricCard({
       onClick={onClick}
     >
       <div className={styles.metricTop}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {Icon ? (
-            <span className={styles.metricIcon}>
-              <Icon size={16} color={color} />
-            </span>
-          ) : null}
-          <span className={styles.metricTitle}>{title}</span>
-        </div>
+        <Tooltip text={tooltipText}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'help' }}>
+            {Icon ? (
+              <span className={styles.metricIcon}>
+                <Icon size={16} color={color} />
+              </span>
+            ) : null}
+            <span className={styles.metricTitle}>{title}</span>
+          </div>
+        </Tooltip>
 
         {chipMeta ? (
           <span

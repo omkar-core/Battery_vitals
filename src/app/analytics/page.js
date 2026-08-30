@@ -90,7 +90,7 @@ export default function Analytics() {
   ]
 
   return (
-    <Layout connected={connected} lastSeen={data?.timestamp || data?.receivedAt}>
+    <Layout connected={connected} lastSeen={data?.timestamp || data?.receivedAt} data={data}>
       <div className={styles.pageHeader}>
         <div>
           <h1 className={styles.pageTitle}>
