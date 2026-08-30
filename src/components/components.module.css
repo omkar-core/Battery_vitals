@@ -1501,6 +1501,57 @@ html[data-theme="light"] .skeleton {
   border-color: var(--accent-primary);
 }
 
+/* Dark / Light Theme Toggle (sliding pill switch with emoji) */
+.themeToggle {
+  position: relative;
+  width: 60px;
+  height: 34px;
+  border-radius: 100px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.3s ease;
+  box-shadow: inset 0 1px 6px rgba(0, 0, 0, 0.35);
+}
+
+.themeToggleDark {
+  background: linear-gradient(135deg, #1e2a52, #0b1020);
+}
+
+.themeToggleLight {
+  background: linear-gradient(135deg, #ffe29a, #ffb703);
+}
+
+.themeToggle:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+  box-shadow: inset 0 1px 6px rgba(0, 0, 0, 0.35), 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+.themeKnob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.themeToggleLight .themeKnob {
+  transform: translateX(26px);
+}
+
+.themeKnob span {
+  line-height: 1;
+}
+
 .notifCountBadge {
   position: absolute;
   top: -4px;

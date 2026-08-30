@@ -5,9 +5,6 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   BatteryCharging,
-  Battery,
-  BatteryMedium,
-  BatteryLow,
   Activity,
   Bot,
   Bell,
@@ -21,7 +18,6 @@ import {
   Check,
   AlertTriangle,
   RefreshCw,
-  Search,
   BookOpen,
   HelpCircle,
   User,
@@ -52,7 +48,6 @@ export default function Header({
   lastSeen,
   telemetryData,
   onOpenPassport,
-  onOpenCommandPalette,
   onOpenOnboarding,
   onOpenManual,
   onOpenWiring,
@@ -76,14 +71,6 @@ export default function Header({
   const headerRef = useRef(null)
 
   // Current battery data (from telemetry or defaults matching specifications)
-  const activeDevice = devices.find((d) => d.active) || devices[0]
-  const liveVoltage = telemetryData?.battery?.voltage ?? telemetryData?.voltage ?? 8.7
-  const liveSoc = telemetryData?.battery?.soc ?? telemetryData?.soc ?? 72
-  const batteryName = activeDevice.name
-
-  // Sparkline data points for last 10 minutes (normalized points)
-  const sparklinePoints = [70, 71, 71, 72, 71, 72, 73, 72, 72, 72]
-
   // Dynamic connection badge calculation
   const [connInfo, setConnInfo] = useState(() => getConnectionState(lastSeen))
 
@@ -130,19 +117,6 @@ export default function Header({
     setActiveDropdown((prev) => (prev === name ? null : name))
   }
 
-  // Battery icon based on SOC percentage
-  const getSocBatteryIcon = (soc) => {
-    if (soc > 60) {
-      return <BatteryCharging size={20} color="#00E8A0" />
-    } else if (soc >= 20) {
-      return <BatteryMedium size={20} color="#FFB800" />
-    } else {
-      return <BatteryLow size={20} color="#FF2D55" />
-    }
-  }
-
-  const socColor = liveSoc > 60 ? '#00E8A0' : liveSoc >= 20 ? '#FFB800' : '#FF2D55'
-
   // Connection badge styling and icon
   const renderConnectionBadge = () => {
     if (!connected || connInfo.state === 'OFFLINE') {
@@ -187,7 +161,7 @@ export default function Header({
     <header className={styles.headerShell} ref={headerRef}>
       <div className={styles.headerContainer}>
         {/* ========================================================================= */}
-        {/* 1. LEFT SECTION: Logo + Tagline + Inline Battery Status Card             */}
+        {/* 1. LEFT SECTION: Logo + Tagline                                       */}
         {/* ========================================================================= */}
         <div className={styles.headerLeft}>
           {/* Mobile Hamburger Button */}
@@ -215,44 +189,6 @@ export default function Header({
             </div>
           </Link>
 
-          {/* Requirement #4: Inline Battery Status Card */}
-          <Tooltip text="Click to view live dashboard and telemetry curves" shortcut="Ctrl+D">
-            <div
-              className={styles.headerBatteryCard}
-              onClick={() => router.push('/')}
-              role="button"
-              tabIndex={0}
-              aria-label={`Current battery: ${batteryName}, ${liveVoltage}V, ${liveSoc}% SOC`}
-            >
-              <div className={styles.headerBatteryIconBox}>{getSocBatteryIcon(liveSoc)}</div>
-              <div className={styles.headerBatteryInfo}>
-                <div className={styles.headerBatteryName} title={batteryName}>
-                  {batteryName}
-                </div>
-                <div className={styles.headerBatteryMetrics}>
-                  <span className={styles.headerVoltage}>{Number(liveVoltage).toFixed(1)}V</span>
-                  <span className={styles.headerMetricSep}>•</span>
-                  <span className={styles.headerSoc} style={{ color: socColor }}>
-                    {liveSoc}% SOC
-                  </span>
-                </div>
-              </div>
-
-              {/* Tiny sparkline visualization */}
-              <div className={styles.headerSparkline} title="Last 10 minutes SOC trend">
-                <svg width="42" height="18" viewBox="0 0 42 18">
-                  <path
-                    d="M 2 12 L 6 10 L 11 11 L 16 9 L 21 10 L 26 8 L 31 7 L 36 8 L 40 7"
-                    fill="none"
-                    stroke={socColor}
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </div>
-            </div>
-          </Tooltip>
         </div>
 
         {/* ========================================================================= */}
@@ -639,22 +575,9 @@ export default function Header({
         </nav>
 
         {/* ========================================================================= */}
-        {/* 3. RIGHT SECTION: Status Badge + Search + Bell + Passport + User         */}
+        {/* 3. RIGHT SECTION: Status Badge + Bell + Passport + Theme + User      */}
         {/* ========================================================================= */}
         <div className={styles.headerRight}>
-          {/* Global Search / Command Palette Trigger */}
-          <Tooltip text="Quick search anything in system" shortcut="Ctrl+K">
-            <button
-              className={styles.searchTriggerBtn}
-              onClick={onOpenCommandPalette}
-              aria-label="Open Command Search (Ctrl+K)"
-            >
-              <Search size={14} />
-              <span className={styles.searchTriggerText}>Search...</span>
-              <kbd className={styles.searchKbd}>Ctrl+K</kbd>
-            </button>
-          </Tooltip>
-
           {/* Connection Status Badge (Requirement #2) */}
           <div className={styles.connectionBlock}>
             {renderConnectionBadge()}
@@ -695,11 +618,19 @@ export default function Header({
           {/* Dark / Light Theme Toggle */}
           <Tooltip text={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
             <button
-              className={styles.iconActionBtn}
+              className={`${styles.themeToggle} ${isDark ? styles.themeToggleDark : styles.themeToggleLight}`}
               onClick={toggleTheme}
-              aria-label="Toggle Theme"
+              aria-label={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              role="switch"
+              aria-checked={!isDark}
             >
-              {isDark ? <Sun size={17} color="#FFB800" /> : <Moon size={17} color="#38BDF8" />}
+              <span className={styles.themeKnob}>
+                {isDark ? (
+                  <>🌙</>
+                ) : (
+                  <>☀️</>
+                )}
+              </span>
             </button>
           </Tooltip>
 
@@ -806,25 +737,6 @@ export default function Header({
               >
                 <X size={20} />
               </button>
-            </div>
-
-            {/* Mobile Active Battery Card */}
-            <div
-              className={styles.mobileBatteryCard}
-              onClick={() => {
-                setMobileMenuOpen(false)
-                router.push('/')
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                {getSocBatteryIcon(liveSoc)}
-                <div>
-                  <div className={styles.mobileBatteryName}>{batteryName}</div>
-                  <div className={styles.mobileBatterySpecs}>
-                    {Number(liveVoltage).toFixed(1)}V • {liveSoc}% SOC (Normal)
-                  </div>
-                </div>
-              </div>
             </div>
 
             {/* Categorized Nav Sections */}
