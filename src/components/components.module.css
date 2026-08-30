@@ -302,6 +302,174 @@ html[data-theme="light"] .metricIcon {
   border-bottom: none;
 }
 
+/* ===== Battery Intelligence Center additions ===== */
+.aiFormLabel {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.aiStageList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+  max-width: 340px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.aiStageItem {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  opacity: 0;
+  animation: aiStageFade 0.4s ease forwards;
+}
+
+.aiStageItem:nth-child(1) { animation-delay: 0.2s; }
+.aiStageItem:nth-child(2) { animation-delay: 1.2s; }
+.aiStageItem:nth-child(3) { animation-delay: 2.4s; }
+.aiStageItem:nth-child(4) { animation-delay: 3.4s; }
+
+.aiStageDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #BF5AF2;
+  box-shadow: 0 0 8px rgba(191, 90, 242, 0.8);
+  animation: aiStagePulse 1s ease-in-out infinite;
+}
+
+@keyframes aiStageFade {
+  to { opacity: 1; }
+}
+
+@keyframes aiStagePulse {
+  0%, 100% { transform: scale(1); opacity: 0.7; }
+  50% { transform: scale(1.5); opacity: 1; }
+}
+
+.aiRiskRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  flex-wrap: wrap;
+}
+
+.aiRiskTrack {
+  height: 8px;
+  border-radius: 100px;
+  background: rgba(127, 139, 155, 0.18);
+  overflow: hidden;
+}
+
+.aiRiskFill {
+  height: 100%;
+  border-radius: 100px;
+  transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.aiBulletRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.aiBulletDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #38BDF8;
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+
+.aiAnomalyItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 7px 0;
+  font-size: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.aiAnomalyItem:last-child {
+  border-bottom: none;
+}
+
+.aiAnomalyBadge {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  padding: 2px 8px;
+  border-radius: 100px;
+  border: 1px solid;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.aiPriorityPill {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  padding: 3px 9px;
+  border-radius: 100px;
+  border: 1px solid;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.aiPredictionRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.aiInsufficientData {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(148, 163, 184, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aiStageItem {
+    animation: none;
+    opacity: 1;
+  }
+  .aiStageDot {
+    animation: none;
+  }
+  .aiRiskFill {
+    transition: none;
+  }
+  .aiBrainPulseIcon {
+    animation: none !important;
+  }
+}
+
 .brand {
   display: flex;
   align-items: center;
@@ -3419,6 +3587,22 @@ html[data-theme="light"] .skeleton {
   .connBadge {
     padding: 6px;
     border-radius: 50%;
+  }
+  .aiGrid {
+    grid-template-columns: 1fr;
+  }
+  .aiActions {
+    flex-direction: column;
+  }
+  .aiResultHero {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .aiRiskRow {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
   }
 }
 
