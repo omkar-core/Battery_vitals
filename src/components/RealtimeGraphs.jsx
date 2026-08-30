@@ -32,14 +32,14 @@ import styles from '../styles/pages.module.css'
 
 const TOOLTIP_STYLE = {
   contentStyle: {
-    background: 'rgba(10, 14, 28, 0.95)',
-    border: '1px solid rgba(255, 255, 255, 0.12)',
+    background: 'var(--tooltip-bg, rgba(10, 14, 28, 0.95))',
+    border: '1px solid var(--border-strong)',
     borderRadius: 10,
     fontSize: 12,
-    boxShadow: '0 8px 30px rgba(0,0,0,0.6)',
+    boxShadow: 'var(--shadow)',
     padding: '8px 12px',
   },
-  labelStyle: { color: '#94A3B8', fontWeight: 600, marginBottom: 4 },
+  labelStyle: { color: 'var(--text-tertiary)', fontWeight: 600, marginBottom: 4 },
   itemStyle: { fontSize: 11, padding: '2px 0' },
 }
 
@@ -134,7 +134,7 @@ export default function RealtimeGraphs({ rawData = [], liveState = {} }) {
           flexWrap: 'wrap',
           gap: 12,
           padding: '12px 18px',
-          background: 'rgba(18, 24, 40, 0.65)',
+          background: 'var(--bg-surface-raised)',
           backdropFilter: 'blur(12px)',
           border: '1px solid var(--border)',
           borderRadius: 'var(--radius-md)',
@@ -204,7 +204,7 @@ export default function RealtimeGraphs({ rawData = [], liveState = {} }) {
               fontWeight: 600,
               cursor: 'pointer',
               border: '1px solid var(--border)',
-              background: 'rgba(255, 255, 255, 0.04)',
+              background: 'var(--bg-surface)',
               color: 'var(--text-primary)',
             }}
           >
@@ -262,9 +262,9 @@ export default function RealtimeGraphs({ rawData = [], liveState = {} }) {
           </div>
           <ResponsiveContainer width="100%" height={230}>
             <LineChart data={chartData} margin={{ top: 10, right: 16, left: -10, bottom: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-              <XAxis dataKey="timeLabel" stroke="#64748B" fontSize={10} minTickGap={25} />
-              <YAxis stroke="#64748B" fontSize={10} domain={[9.5, 15.5]} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
+              <XAxis dataKey="timeLabel" stroke="var(--chart-axis)" fontSize={10} minTickGap={25} />
+              <YAxis stroke="var(--chart-axis)" fontSize={10} domain={[9.5, 15.5]} />
               <Tooltip {...TOOLTIP_STYLE} />
               {/* Safe Operating Zone Band */}
               <ReferenceArea
@@ -293,7 +293,7 @@ export default function RealtimeGraphs({ rawData = [], liveState = {} }) {
                 <Line
                   type="monotone"
                   dataKey="voltageCompare"
-                  stroke="#64748B"
+                  stroke="var(--chart-axis)"
                   strokeDasharray="3 3"
                   strokeWidth={1.5}
                   dot={false}
@@ -324,9 +324,9 @@ export default function RealtimeGraphs({ rawData = [], liveState = {} }) {
           </div>
           <ResponsiveContainer width="100%" height={210}>
             <LineChart data={chartData} margin={{ top: 10, right: 16, left: -10, bottom: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-              <XAxis dataKey="timeLabel" stroke="#64748B" fontSize={10} minTickGap={25} />
-              <YAxis stroke="#64748B" fontSize={10} domain={['auto', 'auto']} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
+              <XAxis dataKey="timeLabel" stroke="var(--chart-axis)" fontSize={10} minTickGap={25} />
+              <YAxis stroke="var(--chart-axis)" fontSize={10} domain={['auto', 'auto']} />
               <Tooltip {...TOOLTIP_STYLE} />
               <ReferenceLine y={0} stroke="#94A3B8" strokeWidth={1.5} />
               <ReferenceArea y1={0} y2={10} fill="#00E8A0" fillOpacity={0.04} />
@@ -363,8 +363,8 @@ export default function RealtimeGraphs({ rawData = [], liveState = {} }) {
           </div>
           <ResponsiveContainer width="100%" height={210}>
             <LineChart data={chartData} margin={{ top: 10, right: 16, left: -10, bottom: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-              <XAxis dataKey="timeLabel" stroke="#64748B" fontSize={10} minTickGap={25} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
+              <XAxis dataKey="timeLabel" stroke="var(--chart-axis)" fontSize={10} minTickGap={25} />
               <YAxis yAxisId="left" stroke="#FF2D55" fontSize={10} domain={[15, 75]} />
               <YAxis yAxisId="right" orientation="right" stroke="#00BFFF" fontSize={10} domain={[0, 100]} />
               <Tooltip {...TOOLTIP_STYLE} />
@@ -414,9 +414,9 @@ export default function RealtimeGraphs({ rawData = [], liveState = {} }) {
           </div>
           <ResponsiveContainer width="100%" height={210}>
             <LineChart data={chartData} margin={{ top: 10, right: 16, left: -10, bottom: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-              <XAxis dataKey="timeLabel" stroke="#64748B" fontSize={10} minTickGap={25} />
-              <YAxis stroke="#64748B" fontSize={10} domain={[0, 4000]} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
+              <XAxis dataKey="timeLabel" stroke="var(--chart-axis)" fontSize={10} minTickGap={25} />
+              <YAxis stroke="var(--chart-axis)" fontSize={10} domain={[0, 4000]} />
               <Tooltip {...TOOLTIP_STYLE} />
               {/* Threshold Bands */}
               <ReferenceArea y1={1500} y2={2200} fill="#FFD60A" fillOpacity={0.06} />
@@ -470,9 +470,9 @@ export default function RealtimeGraphs({ rawData = [], liveState = {} }) {
                   <stop offset="95%" stopColor="#00E8A0" stopOpacity={0.05} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-              <XAxis dataKey="timeLabel" stroke="#64748B" fontSize={10} minTickGap={25} />
-              <YAxis stroke="#64748B" fontSize={10} domain={[0, 100]} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
+              <XAxis dataKey="timeLabel" stroke="var(--chart-axis)" fontSize={10} minTickGap={25} />
+              <YAxis stroke="var(--chart-axis)" fontSize={10} domain={[0, 100]} />
               <Tooltip {...TOOLTIP_STYLE} />
               <ReferenceArea y1={0} y2={20} fill="#00E8A0" fillOpacity={0.04} />
               <ReferenceArea y1={20} y2={50} fill="#FFD60A" fillOpacity={0.06} />
@@ -511,9 +511,9 @@ export default function RealtimeGraphs({ rawData = [], liveState = {} }) {
           </div>
           <ResponsiveContainer width="100%" height={210}>
             <LineChart data={chartData} margin={{ top: 10, right: 16, left: -10, bottom: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-              <XAxis dataKey="timeLabel" stroke="#64748B" fontSize={10} minTickGap={25} />
-              <YAxis stroke="#64748B" fontSize={10} domain={[0, 105]} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
+              <XAxis dataKey="timeLabel" stroke="var(--chart-axis)" fontSize={10} minTickGap={25} />
+              <YAxis stroke="var(--chart-axis)" fontSize={10} domain={[0, 105]} />
               <Tooltip {...TOOLTIP_STYLE} />
               <ReferenceLine y={80} stroke="#FFD60A" strokeDasharray="3 3" label={{ value: '80% EOL Threshold', fill: '#FFD60A', fontSize: 9 }} />
               <ReferenceLine y={20} stroke="#FF6B35" strokeDasharray="3 3" label={{ value: '20% Low Cutoff', fill: '#FF6B35', fontSize: 9 }} />
@@ -564,8 +564,8 @@ export default function RealtimeGraphs({ rawData = [], liveState = {} }) {
                   <stop offset="95%" stopColor="#38BDF8" stopOpacity={0.02} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-              <XAxis dataKey="timeLabel" stroke="#64748B" fontSize={10} minTickGap={25} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
+              <XAxis dataKey="timeLabel" stroke="var(--chart-axis)" fontSize={10} minTickGap={25} />
               <YAxis yAxisId="left" stroke="#38BDF8" fontSize={10} />
               <YAxis yAxisId="right" orientation="right" stroke="#F472B6" fontSize={10} />
               <Tooltip {...TOOLTIP_STYLE} />
@@ -612,8 +612,8 @@ export default function RealtimeGraphs({ rawData = [], liveState = {} }) {
           </div>
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={chartData} margin={{ top: 10, right: 16, left: -10, bottom: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-              <XAxis dataKey="timeLabel" stroke="#64748B" fontSize={10} minTickGap={25} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
+              <XAxis dataKey="timeLabel" stroke="var(--chart-axis)" fontSize={10} minTickGap={25} />
               <YAxis yAxisId="ir" stroke="#A78BFA" fontSize={10} domain={['dataMin - 5', 'dataMax + 10']} />
               <YAxis yAxisId="tp" orientation="right" stroke="#FF2D55" fontSize={10} domain={[10, 70]} />
               <Tooltip {...TOOLTIP_STYLE} />

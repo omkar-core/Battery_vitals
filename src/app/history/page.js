@@ -280,7 +280,7 @@ export default function HistoryPage() {
           flexWrap: 'wrap',
           gap: 12,
           padding: '12px 18px',
-          background: 'rgba(18, 24, 40, 0.65)',
+          background: 'var(--bg-surface-raised)',
           border: '1px solid var(--border)',
           borderRadius: 'var(--radius-md)',
           marginBottom: 16,
@@ -425,8 +425,8 @@ export default function HistoryPage() {
                     flexWrap: 'wrap',
                     gap: 16,
                     padding: '16px 20px',
-                    background: 'linear-gradient(160deg, rgba(30, 40, 70, 0.35), rgba(18, 24, 40, 0.6))',
-                    border: `1px solid ${isCharge ? 'rgba(0, 232, 160, 0.25)' : 'rgba(255, 107, 53, 0.25)'}`,
+                    background: 'var(--card-bg-safe, var(--bg-surface))',
+                    border: `1px solid ${isCharge ? 'rgba(5, 150, 105, 0.3)' : 'rgba(234, 88, 12, 0.3)'}`,
                     borderRadius: 'var(--radius-md)',
                   }}
                 >
@@ -547,10 +547,10 @@ export default function HistoryPage() {
                   />
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: '#F4F6FB' }}>{ev.title}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{ev.title}</span>
                       <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{ev.time}</span>
                     </div>
-                    <div style={{ fontSize: 12, color: '#9AA7BF', marginTop: 2 }}>{ev.desc}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>{ev.desc}</div>
                   </div>
                   <span
                     className="chip"
@@ -592,16 +592,16 @@ export default function HistoryPage() {
                   key={i}
                   style={{
                     padding: 14,
-                    background: 'rgba(0, 0, 0, 0.25)',
-                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                    background: 'var(--bg-surface-raised)',
+                    border: '1px solid var(--border)',
                     borderRadius: 10,
                   }}
                 >
-                  <div style={{ fontSize: 12, fontWeight: 600, color: '#9AA7BF', marginBottom: 6 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
                     {c.metric}
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                    <span style={{ fontSize: 18, fontWeight: 800, color: '#F4F6FB', fontFamily: 'monospace' }}>
+                    <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'monospace' }}>
                       {c.thisWeek ?? '--'}
                     </span>
                     <span
@@ -617,7 +617,7 @@ export default function HistoryPage() {
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
                     First half: {c.lastWeek ?? '--'}
                   </div>
-                  <div style={{ fontSize: 10, color: '#64748B', marginTop: 6 }}>{c.note}</div>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 6 }}>{c.note}</div>
                 </div>
               ))}
             </div>

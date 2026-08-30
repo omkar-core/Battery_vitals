@@ -282,7 +282,7 @@ html[data-theme="light"] .metricIcon {
   background: rgba(255, 45, 85, 0.1);
   border-left: 3px solid #FF2D55;
   border-radius: 8px;
-  color: #ff94a8;
+  color: var(--state-critical);
   font-size: 12px;
   line-height: 1.5;
   margin-top: 8px;
@@ -369,8 +369,8 @@ html[data-theme="light"] .metricIcon {
 }
 
 .navLink:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  background: var(--icon-fill);
 }
 
 .navLinkActive {
@@ -406,7 +406,7 @@ html[data-theme="light"] .metricIcon {
   padding: 6px 13px;
   border-radius: 100px;
   border: 1px solid var(--border);
-  background: rgba(0, 0, 0, 0.35);
+  background: var(--bg-surface-raised);
   white-space: nowrap;
   transition: all 0.3s ease;
 }
@@ -489,7 +489,7 @@ html[data-theme="light"] .metricIcon {
 
 /* ===== MetricCard ===== */
 .metricCard {
-  background: linear-gradient(160deg, rgba(30, 40, 70, 0.4), rgba(18, 24, 40, 0.6));
+  background: var(--card-bg);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid var(--border);
@@ -512,7 +512,7 @@ html[data-theme="light"] .metricIcon {
 .metricCard:hover {
   transform: translateY(-3px);
   border-color: var(--border-strong);
-  box-shadow: 0 14px 40px -12px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--card-hover-shadow);
 }
 
 .metricTop {
@@ -528,7 +528,7 @@ html[data-theme="light"] .metricIcon {
   border-radius: 9px;
   display: grid;
   place-items: center;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--icon-fill);
   border: 1px solid var(--border);
 }
 
@@ -536,7 +536,7 @@ html[data-theme="light"] .metricIcon {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.6px;
-  color: var(--text-muted);
+  color: var(--text-tertiary);
   font-weight: 600;
 }
 
@@ -572,13 +572,20 @@ html[data-theme="light"] .metricIcon {
 
 /* ===== Chart ===== */
 .chartCard {
-  background: linear-gradient(160deg, rgba(30, 40, 70, 0.35), rgba(18, 24, 40, 0.55));
+  background: var(--card-bg-soft);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 18px;
   box-shadow: var(--shadow);
+  transition: transform 0.2s ease, border-color 0.2s, box-shadow 0.2s;
+}
+
+.chartCard:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-strong);
+  box-shadow: var(--card-hover-shadow);
 }
 
 .chartHeader {
@@ -717,13 +724,20 @@ html[data-theme="light"] .metricIcon {
 
 /* ===== AI ===== */
 .aiCard {
-  background: linear-gradient(160deg, rgba(30, 40, 70, 0.35), rgba(18, 24, 40, 0.55));
+  background: var(--card-bg-soft);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 18px;
   box-shadow: var(--shadow);
+  transition: transform 0.2s ease, border-color 0.2s, box-shadow 0.2s;
+}
+
+.aiCard:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-strong);
+  box-shadow: var(--card-hover-shadow);
 }
 
 .aiHeader {
@@ -763,18 +777,25 @@ html[data-theme="light"] .metricIcon {
 .secondaryBtn {
   padding: 10px 16px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border);
   background: transparent;
-  color: #94A3B8;
+  color: var(--text-secondary);
   font-size: 13px;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.secondaryBtn:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+  background: var(--bg-surface-hover);
 }
 
 .aiForm {
   margin-bottom: 12px;
   padding: 12px;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--bg-surface-raised);
+  border: 1px solid var(--border);
   border-radius: 8px;
 }
 
@@ -794,15 +815,15 @@ html[data-theme="light"] .metricIcon {
   font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #64748B;
+  color: var(--text-tertiary);
 }
 
 .aiInput {
   padding: 6px 8px;
   border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(0, 0, 0, 0.3);
-  color: #fff;
+  border: 1px solid var(--border-strong);
+  background: var(--input-bg);
+  color: var(--text-primary);
   font-family: monospace;
   font-size: 12px;
 }
@@ -822,9 +843,9 @@ html[data-theme="light"] .metricIcon {
   font-family: inherit;
   font-size: 12px;
   line-height: 1.6;
-  color: #CBD5E1;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  background: var(--bg-surface-raised);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 14px;
   max-height: 320px;
@@ -834,11 +855,11 @@ html[data-theme="light"] .metricIcon {
 
 .aiEmpty {
   padding: 20px;
-  color: #64748B;
+  color: var(--text-muted);
   font-size: 12px;
   text-align: center;
   border-radius: 8px;
-  border: 1px dashed rgba(255, 255, 255, 0.08);
+  border: 1px dashed var(--border-strong);
 }
 
 .spin {
@@ -853,13 +874,20 @@ html[data-theme="light"] .metricIcon {
 
 /* ===== Alerts ===== */
 .alertsCard {
-  background: linear-gradient(160deg, rgba(30, 40, 70, 0.35), rgba(18, 24, 40, 0.55));
+  background: var(--card-bg-soft);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 18px;
   box-shadow: var(--shadow);
+  transition: transform 0.2s ease, border-color 0.2s, box-shadow 0.2s;
+}
+
+.alertsCard:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-strong);
+  box-shadow: var(--card-hover-shadow);
 }
 
 .alertsList {
@@ -882,18 +910,18 @@ html[data-theme="light"] .metricIcon {
   display: flex;
   gap: 10px;
   padding: 10px 12px;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--bg-surface-raised);
+  border: 1px solid var(--border);
   border-radius: 10px;
 }
 
 .alertItem.dimmed {
-  opacity: 0.55;
+  opacity: 0.6;
 }
 
 .alertItem.unread {
-  border-color: rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--border-strong);
+  background: var(--icon-fill);
 }
 
 .alertSeverity {
@@ -929,7 +957,7 @@ html[data-theme="light"] .metricIcon {
 
 .alertMsg {
   font-size: 12px;
-  color: #CBD5E1;
+  color: var(--text-secondary);
 }
 
 .alertActions {
@@ -945,7 +973,7 @@ html[data-theme="light"] .metricIcon {
   padding: 4px 9px;
   border-radius: 7px;
   border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--bg-surface-raised);
   color: var(--text-secondary);
   font-size: 10.5px;
   cursor: pointer;
@@ -1226,7 +1254,7 @@ html[data-theme="light"] .skeleton {
 
 .navItemBtn:hover {
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--icon-fill);
 }
 
 .navItemActive {
@@ -1374,7 +1402,7 @@ html[data-theme="light"] .skeleton {
 .searchKbd {
   font-size: 9.5px;
   font-family: var(--font-mono);
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--bg-surface-raised);
   border: 1px solid var(--border-strong);
   border-radius: 4px;
   padding: 1px 5px;
@@ -2059,7 +2087,7 @@ html[data-theme="light"] .skeleton {
   font-size: 11px;
   font-weight: 600;
   color: var(--text-secondary);
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--bg-surface-raised);
   border: 1px solid var(--border);
   padding: 4px 10px;
   border-radius: 6px;
@@ -2145,8 +2173,8 @@ html[data-theme="light"] .skeleton {
 .tooltipKbd {
   font-size: 9px;
   font-family: var(--font-mono);
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: var(--bg-surface-raised);
+  border: 1px solid var(--border-strong);
   border-radius: 4px;
   padding: 1px 5px;
   color: var(--accent-primary);

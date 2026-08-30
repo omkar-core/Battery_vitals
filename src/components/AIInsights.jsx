@@ -269,7 +269,7 @@ export default function AIInsights({ analysis, loading = false, onAnalyze }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <RiskIcon size={20} color={riskMeta.color} />
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: '#fff' }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)' }}>
                     Diagnostic Evaluation Complete
                   </div>
                   <div style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>

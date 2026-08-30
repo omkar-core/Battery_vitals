@@ -60,7 +60,7 @@ src/
     Header.jsx, Layout.jsx, MetricCard.jsx, LiveChart.jsx,
     ControlPanel.jsx, AIInsights.jsx, AlertsList.jsx
 esp32/
-  BatteryVitals_v11.3.ino  # Industrial ESP32 firmware with Firebase RTDB push
+  BatteryVitals_v12.0.ino  # Industrial ESP32 firmware with Firebase RTDB push
 ```
 
 ### API Endpoints (`/api/*`)

@@ -78,6 +78,18 @@ html[data-theme="dark"] {
   --glow-blue: 0 0 16px rgba(79, 168, 255, 0.25);
   --input-bg: #181D25;
   --card-gradient: linear-gradient(180deg, #12161C, #0E1217);
+
+  /* ===== Semantic Glass / Card Surfaces (theme-aware) =====
+     Replaces hardcoded dark navy gradients that used to leak
+     into Light Mode and turn card text invisible. */
+  --card-bg: linear-gradient(160deg, rgba(30, 40, 70, 0.4), rgba(18, 24, 40, 0.6));
+  --card-bg-soft: linear-gradient(160deg, rgba(30, 40, 70, 0.35), rgba(18, 24, 40, 0.55));
+  --icon-fill: rgba(255, 255, 255, 0.05);
+  --overlay-fill: rgba(0, 0, 0, 0.3);
+  --card-hover-shadow: 0 14px 40px -12px rgba(0, 0, 0, 0.6);
+  --tooltip-bg: rgba(10, 14, 28, 0.96);
+  --chart-grid: rgba(255, 255, 255, 0.05);
+  --chart-axis: #64748B;
 }
 
 html[data-theme="light"] {
@@ -101,8 +113,8 @@ html[data-theme="light"] {
 
   --text-primary:      #0F172A;
   --text-secondary:    #334155;
-  --text-tertiary:     #64748B;
-  --text-muted:        #64748B;
+  --text-tertiary:     #475569;
+  --text-muted:        #526074;
 
   --accent-primary:    #059669;
   --accent-primary-dim:#047857;
@@ -132,6 +144,16 @@ html[data-theme="light"] {
   --glow-blue: 0 0 14px rgba(2, 132, 199, 0.2);
   --input-bg: #F8FAFC;
   --card-gradient: linear-gradient(180deg, #FFFFFF, #F8FAFC);
+
+  /* ===== Semantic Glass / Card Surfaces (theme-aware light) ===== */
+  --card-bg: linear-gradient(160deg, #FFFFFF, #F8FAFC);
+  --card-bg-soft: linear-gradient(160deg, #FFFFFF, #F3F6FA);
+  --icon-fill: rgba(15, 23, 42, 0.05);
+  --overlay-fill: rgba(15, 23, 42, 0.06);
+  --card-hover-shadow: 0 14px 34px -14px rgba(15, 23, 42, 0.18);
+  --tooltip-bg: rgba(255, 255, 255, 0.97);
+  --chart-grid: rgba(15, 23, 42, 0.08);
+  --chart-axis: #475569;
 }
 
 * {

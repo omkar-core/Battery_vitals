@@ -171,7 +171,7 @@ export default function AIPage() {
           flexDirection: 'column',
           minHeight: 460,
           border: '1px solid rgba(191, 90, 242, 0.3)',
-          background: 'linear-gradient(160deg, rgba(30, 24, 60, 0.4), rgba(12, 14, 28, 0.75))',
+          background: 'var(--card-bg)',
         }}
       >
         <div
@@ -179,7 +179,7 @@ export default function AIPage() {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+            borderBottom: '1px solid var(--border)',
             paddingBottom: 12,
             marginBottom: 14,
           }}
@@ -198,8 +198,8 @@ export default function AIPage() {
               <Bot size={18} color="#fff" />
             </div>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>Battery Vital AI Companion</div>
-              <div style={{ fontSize: 10, color: '#00E8A0' }}>Live Context: {data ? 'Synced' : 'Default Profile'}</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Battery Vital AI Companion</div>
+              <div style={{ fontSize: 10, color: 'var(--state-safe)' }}>Live Context: {data ? 'Synced' : 'Default Profile'}</div>
             </div>
           </div>
 
@@ -269,10 +269,10 @@ export default function AIPage() {
                     fontSize: 12.5,
                     lineHeight: 1.5,
                     background: isUser
-                      ? 'linear-gradient(120deg, rgba(0, 232, 160, 0.2), rgba(56, 189, 248, 0.15))'
-                      : 'rgba(255, 255, 255, 0.05)',
-                    border: `1px solid ${isUser ? 'rgba(0, 232, 160, 0.3)' : 'rgba(255, 255, 255, 0.08)'}`,
-                    color: isUser ? '#F4F6FB' : '#CBD5E1',
+                      ? 'linear-gradient(120deg, rgba(5, 150, 105, 0.14), rgba(2, 132, 199, 0.1))'
+                      : 'var(--bg-surface-raised)',
+                    border: `1px solid ${isUser ? 'rgba(5, 150, 105, 0.35)' : 'var(--border)'}`,
+                    color: isUser ? 'var(--text-primary)' : 'var(--text-secondary)',
                     whiteSpace: 'pre-wrap',
                   }}
                 >
@@ -368,9 +368,9 @@ export default function AIPage() {
               flex: 1,
               padding: '10px 14px',
               borderRadius: 10,
-              background: 'rgba(0, 0, 0, 0.35)',
+              background: 'var(--input-bg)',
               border: '1px solid var(--border)',
-              color: '#F4F6FB',
+              color: 'var(--text-primary)',
               fontSize: 13,
               outline: 'none',
             }}

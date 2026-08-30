@@ -149,7 +149,7 @@ export default function DiagnosticsPage() {
               }}
             >
               <Cpu size={24} color={conn.state === 'LIVE' ? '#00E8A0' : '#FF2D55'} />
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#fff', marginTop: 4 }}>ESP32 Node</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', marginTop: 4 }}>ESP32 Node</div>
               <div style={{ fontSize: 10, color: conn.color, fontWeight: 700, marginTop: 2 }}>
                 {conn.state}
               </div>
@@ -170,7 +170,7 @@ export default function DiagnosticsPage() {
               }}
             >
               <Radio size={24} color="#38BDF8" />
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#fff', marginTop: 4 }}>Firebase RTDB</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', marginTop: 4 }}>Firebase RTDB</div>
               <div style={{ fontSize: 10, color: '#38BDF8', fontWeight: 700, marginTop: 2 }}>
                 Real-Time Database
               </div>
@@ -191,7 +191,7 @@ export default function DiagnosticsPage() {
               }}
             >
               <Server size={24} color="#A78BFA" />
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#fff', marginTop: 4 }}>Admin SDK API</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', marginTop: 4 }}>Admin SDK API</div>
               <div style={{ fontSize: 10, color: '#A78BFA', fontWeight: 700, marginTop: 2 }}>
                 Next.js Backend
               </div>
@@ -214,7 +214,7 @@ export default function DiagnosticsPage() {
               }}
             >
               <Database size={24} color={healthInfo?.database === 'connected' ? '#00E8A0' : '#FFD60A'} />
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#fff', marginTop: 4 }}>MongoDB Atlas</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', marginTop: 4 }}>MongoDB Atlas</div>
               <div style={{ fontSize: 10, color: '#00E8A0', fontWeight: 700, marginTop: 2 }}>
                 Background Archive
               </div>
@@ -235,7 +235,7 @@ export default function DiagnosticsPage() {
               }}
             >
               <Activity size={24} color="#00E8A0" />
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#fff', marginTop: 4 }}>Client WebApp</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', marginTop: 4 }}>Client WebApp</div>
               <div style={{ fontSize: 10, color: '#00E8A0', fontWeight: 700, marginTop: 2 }}>
                 {mode === 'firebase' || mode === 'mqtt' ? 'Firebase Real-Time' : 'HTTP Polling'}
               </div>

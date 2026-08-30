@@ -83,7 +83,7 @@ export default function AlertsPage() {
             className={styles.filterBtn}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
           >
-            {soundEnabled ? <Volume2 size={13} color="#00E8A0" /> : <VolumeX size={13} />}
+            {soundEnabled ? <Volume2 size={13} color="var(--state-safe)" /> : <VolumeX size={13} />}
             <span>Sound {soundEnabled ? 'Active' : 'Muted'}</span>
           </button>
 
@@ -94,10 +94,10 @@ export default function AlertsPage() {
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
-              borderColor: pushEnabled ? '#00E8A0' : 'var(--border)',
+              borderColor: pushEnabled ? 'var(--state-safe)' : 'var(--border)',
             }}
           >
-            <Smartphone size={13} color={pushEnabled ? '#00E8A0' : '#94A3B8'} />
+            <Smartphone size={13} color={pushEnabled ? 'var(--state-safe)' : 'var(--text-muted)'} />
             <span>{pushEnabled ? 'Push Enabled' : 'Enable Push'}</span>
           </button>
         </div>
@@ -108,16 +108,16 @@ export default function AlertsPage() {
         <span className="chip">
           <BellRing size={12} /> {alerts.length} Total Logged
         </span>
-        <span className="chip" style={{ color: unacked > 0 ? '#FFD60A' : '#00E8A0' }}>
+        <span className="chip" style={{ color: unacked > 0 ? 'var(--state-caution)' : 'var(--state-safe)' }}>
           <Bell size={12} /> {unacked} Unacknowledged
         </span>
         {counts.CRITICAL ? (
-          <span className="chip" style={{ color: '#FF2D55', borderColor: 'rgba(255,45,85,0.5)' }}>
+          <span className="chip" style={{ color: 'var(--state-critical)', borderColor: 'rgba(255,45,85,0.5)' }}>
             {counts.CRITICAL} Critical Active
           </span>
         ) : null}
         {counts.WARNING ? (
-          <span className="chip" style={{ color: '#FF6B35', borderColor: 'rgba(255,107,53,0.5)' }}>
+          <span className="chip" style={{ color: 'var(--orange)', borderColor: 'rgba(255,107,53,0.5)' }}>
             {counts.WARNING} Warnings
           </span>
         ) : null}

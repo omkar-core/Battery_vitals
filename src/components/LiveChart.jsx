@@ -32,12 +32,13 @@ export default function LiveChart({ data, series = ['voltage', 'temperature', 's
       <div style={{ width: '100%', height }}>
         <ResponsiveContainer>
           <LineChart data={chartData} margin={{ top: 10, right: 16, left: 0, bottom: 6 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-            <XAxis dataKey="timeLabel" stroke="#64748B" fontSize={11} />
-            <YAxis stroke="#64748B" fontSize={11} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
+            <XAxis dataKey="timeLabel" stroke="var(--chart-axis)" fontSize={11} />
+            <YAxis stroke="var(--chart-axis)" fontSize={11} />
             <Tooltip
-              contentStyle={{ background: '#0D1421', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, fontSize: 12 }}
-              labelStyle={{ color: '#94A3B8' }}
+              contentStyle={{ background: 'var(--tooltip-bg)', border: '1px solid var(--border-strong)', borderRadius: 8, fontSize: 12 }}
+              labelStyle={{ color: 'var(--text-tertiary)' }}
+              itemStyle={{ color: 'var(--text-primary)' }}
             />
             <Legend />
             {series.map((s) => (

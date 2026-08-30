@@ -49,42 +49,42 @@ export default function Analytics() {
       title: 'Voltage',
       value: formatNumber(voltage, 2),
       unit: 'V',
-      color: '#FFD60A',
+      color: 'var(--state-caution)',
       subtext: 'Safe: 10.5V - 14.4V',
     },
     {
       title: 'Current Flow',
       value: formatNumber(current, 2),
       unit: 'A',
-      color: current < 0 ? '#FF6B35' : '#00E8A0',
+      color: current < 0 ? 'var(--state-critical)' : 'var(--state-safe)',
       subtext: current < 0 ? 'Discharging' : 'Charging',
     },
     {
       title: 'Cell Temp',
       value: formatNumber(temp, 1),
       unit: '°C',
-      color: '#FF2D55',
+      color: 'var(--state-critical)',
       subtext: 'Threshold < 50°C',
     },
     {
       title: 'SOC',
       value: formatNumber(soc, 0),
       unit: '%',
-      color: '#00E8A0',
+      color: 'var(--state-safe)',
       subtext: 'State of Charge',
     },
     {
       title: 'SOH',
       value: formatNumber(soh, 0),
       unit: '%',
-      color: '#38BDF8',
+      color: 'var(--state-info)',
       subtext: 'State of Health',
     },
     {
       title: 'Internal Res.',
       value: formatNumber(ir, 2),
       unit: 'mΩ',
-      color: '#A78BFA',
+      color: 'var(--purple)',
       subtext: 'Degradation Metric',
     },
   ]
@@ -107,7 +107,7 @@ export default function Analytics() {
           className={styles.filterBtn}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px' }}
         >
-          <FileSpreadsheet size={15} color="#00E8A0" />
+          <FileSpreadsheet size={15} color="var(--accent-primary)" />
           <span>Export Graph CSV</span>
         </button>
       </div>

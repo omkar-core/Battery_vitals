@@ -179,7 +179,7 @@ export default function BatteryTools({ currentVitals = {} }) {
               <div style={{ fontSize: 22, fontWeight: 800, color: '#00E8A0', fontFamily: 'monospace', marginTop: 4 }}>
                 ${costPerCycle.toFixed(3)}
               </div>
-              <div style={{ fontSize: 10, color: '#9AA7BF', marginTop: 4 }}>Based on {packKWh.toFixed(2)} kWh pack</div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>Based on {packKWh.toFixed(2)} kWh pack</div>
             </div>
 
             <div style={{ padding: 14, background: 'rgba(0,0,0,0.3)', borderRadius: 10, border: '1px solid rgba(56,189,248,0.2)' }}>
@@ -187,7 +187,7 @@ export default function BatteryTools({ currentVitals = {} }) {
               <div style={{ fontSize: 22, fontWeight: 800, color: '#38BDF8', fontFamily: 'monospace', marginTop: 4 }}>
                 ${annualCost.toFixed(2)} / yr
               </div>
-              <div style={{ fontSize: 10, color: '#9AA7BF', marginTop: 4 }}>{annualEnergyKWh.toFixed(0)} kWh cycled/year</div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>{annualEnergyKWh.toFixed(0)} kWh cycled/year</div>
             </div>
 
             <div style={{ padding: 14, background: 'rgba(0,0,0,0.3)', borderRadius: 10, border: '1px solid rgba(167,139,250,0.2)' }}>
@@ -195,7 +195,7 @@ export default function BatteryTools({ currentVitals = {} }) {
               <div style={{ fontSize: 22, fontWeight: 800, color: '#A78BFA', fontFamily: 'monospace', marginTop: 4 }}>
                 {carbonKgSavedPerYear.toFixed(1)} kg CO₂
               </div>
-              <div style={{ fontSize: 10, color: '#9AA7BF', marginTop: 4 }}>Clean cycling vs fossil baseline</div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>Clean cycling vs fossil baseline</div>
             </div>
 
             <div style={{ padding: 14, background: 'rgba(0,0,0,0.3)', borderRadius: 10, border: '1px solid rgba(255,214,10,0.2)' }}>
@@ -203,7 +203,7 @@ export default function BatteryTools({ currentVitals = {} }) {
               <div style={{ fontSize: 22, fontWeight: 800, color: '#FFD60A', fontFamily: 'monospace', marginTop: 4 }}>
                 {yearsToBreakEven} Years
               </div>
-              <div style={{ fontSize: 10, color: '#9AA7BF', marginTop: 4 }}>Vs purchasing replacement lead packs</div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>Vs purchasing replacement lead packs</div>
             </div>
           </div>
         </div>
@@ -273,8 +273,8 @@ export default function BatteryTools({ currentVitals = {} }) {
           <div
             style={{
               padding: 16,
-              background: 'rgba(0, 0, 0, 0.35)',
-              border: `1px solid ${simResults.thermalColor}44`,
+              background: 'var(--bg-surface-raised)',
+              border: `1px solid var(--border)`,
               borderRadius: 12,
               display: 'flex',
               justifyContent: 'space-around',
@@ -288,7 +288,7 @@ export default function BatteryTools({ currentVitals = {} }) {
               <div style={{ fontSize: 24, fontWeight: 800, color: '#38BDF8', fontFamily: 'monospace' }}>
                 {simResults.runTimeMinutes} min
               </div>
-              <div style={{ fontSize: 10, color: '#9AA7BF' }}>At {simCRate}C discharge</div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>At {simCRate}C discharge</div>
             </div>
 
             <div>
@@ -296,7 +296,7 @@ export default function BatteryTools({ currentVitals = {} }) {
               <div style={{ fontSize: 24, fontWeight: 800, color: '#00E8A0', fontFamily: 'monospace' }}>
                 {simResults.projectedCycles} cycles
               </div>
-              <div style={{ fontSize: 10, color: '#9AA7BF' }}>~{simResults.expectedLifespanYears} Years service</div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>~{simResults.expectedLifespanYears} Years service</div>
             </div>
 
             <div>
@@ -304,7 +304,7 @@ export default function BatteryTools({ currentVitals = {} }) {
               <div style={{ fontSize: 18, fontWeight: 800, color: simResults.thermalColor }}>
                 {simResults.thermalStress}
               </div>
-              <div style={{ fontSize: 10, color: '#9AA7BF' }}>Thermal &amp; current factor</div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Thermal &amp; current factor</div>
             </div>
           </div>
         </div>
@@ -328,12 +328,12 @@ export default function BatteryTools({ currentVitals = {} }) {
           <div
             style={{
               padding: 16,
-              background: 'rgba(0,0,0,0.3)',
+              background: 'var(--bg-surface-raised)',
               borderRadius: 10,
-              border: '1px solid rgba(255,255,255,0.06)',
+              border: '1px solid var(--border)',
             }}
           >
-            <div style={{ fontSize: 15, fontWeight: 800, color: '#F4F6FB', marginBottom: 10 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 10 }}>
               {selectedChem} Chemistry Profile Specifications
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, fontSize: 12 }}>
@@ -362,7 +362,7 @@ export default function BatteryTools({ currentVitals = {} }) {
                 </div>
               </div>
             </div>
-            <div style={{ marginTop: 12, fontSize: 12, color: '#CBD5E1', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: 10 }}>
+            <div style={{ marginTop: 12, fontSize: 12, color: 'var(--text-secondary)', borderTop: '1px solid var(--border)', paddingTop: 10 }}>
               <strong>Safety Rating:</strong> {CHEM_DATA[selectedChem].safetyRating}
               <br />
               <strong>Discharge Curve Behavior:</strong> {CHEM_DATA[selectedChem].curve}
@@ -377,8 +377,8 @@ export default function BatteryTools({ currentVitals = {} }) {
           <div
             style={{
               padding: 18,
-              background: 'linear-gradient(120deg, rgba(0, 232, 160, 0.10), rgba(56, 189, 248, 0.06))',
-              border: '1px solid rgba(0, 232, 160, 0.25)',
+              background: 'var(--bg-surface-raised)',
+              border: '1px solid rgba(5, 150, 105, 0.3)',
               borderRadius: 12,
               display: 'flex',
               justifyContent: 'space-between',
@@ -390,11 +390,11 @@ export default function BatteryTools({ currentVitals = {} }) {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Award size={20} color="#00E8A0" />
-                <span style={{ fontSize: 16, fontWeight: 800, color: '#fff' }}>
+                <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)' }}>
                   Live Health Benchmark
                 </span>
               </div>
-              <div style={{ fontSize: 12, color: '#CBD5E1', marginTop: 4 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>
                 Metrics below are derived exclusively from your device telemetry stream.
               </div>
             </div>
@@ -421,7 +421,7 @@ export default function BatteryTools({ currentVitals = {} }) {
               <div style={{ fontSize: 18, fontWeight: 800, color: '#00E8A0', marginTop: 4 }}>
                 {soh != null ? `${soh}%` : '--'}
               </div>
-              <div style={{ fontSize: 10, color: '#9AA7BF' }}>Reported by device calibration</div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Reported by device calibration</div>
             </div>
 
             <div style={{ padding: 12, background: 'rgba(0,0,0,0.3)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.05)' }}>
@@ -429,7 +429,7 @@ export default function BatteryTools({ currentVitals = {} }) {
               <div style={{ fontSize: 18, fontWeight: 800, color: '#FFD60A', marginTop: 4 }}>
                 {ir != null ? `${ir} mΩ` : '--'}
               </div>
-              <div style={{ fontSize: 10, color: '#9AA7BF' }}>INA219 coulomb-counter measurement</div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>INA219 coulomb-counter measurement</div>
             </div>
 
             <div style={{ padding: 12, background: 'rgba(0,0,0,0.3)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.05)' }}>
@@ -437,7 +437,7 @@ export default function BatteryTools({ currentVitals = {} }) {
               <div style={{ fontSize: 18, fontWeight: 800, color: '#38BDF8', marginTop: 4 }}>
                 {bhi != null ? `${bhi} / 100` : '--'}
               </div>
-              <div style={{ fontSize: 10, color: '#9AA7BF' }}>Risk score from live multisensor fusion</div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Risk score from live multisensor fusion</div>
             </div>
           </div>
         </div>

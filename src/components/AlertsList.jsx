@@ -142,13 +142,13 @@ export default function AlertsList({ alerts = [], loading, onRefresh }) {
             display: 'flex',
             alignItems: 'center',
             gap: 6,
-            background: 'rgba(0, 0, 0, 0.3)',
+            background: 'var(--input-bg)',
             border: '1px solid var(--border)',
             borderRadius: 8,
             padding: '5px 10px',
           }}
         >
-          <Search size={13} color="#94A3B8" />
+          <Search size={13} color="var(--text-muted)" />
           <input
             type="text"
             placeholder="Search alerts..."
@@ -157,7 +157,7 @@ export default function AlertsList({ alerts = [], loading, onRefresh }) {
             style={{
               background: 'transparent',
               border: 'none',
-              color: '#F4F6FB',
+              color: 'var(--text-primary)',
               fontSize: 12,
               outline: 'none',
               width: 130,
@@ -250,7 +250,7 @@ export default function AlertsList({ alerts = [], loading, onRefresh }) {
                         gap: 12,
                         marginTop: 6,
                         padding: '4px 8px',
-                        background: 'rgba(0, 0, 0, 0.3)',
+                        background: 'var(--bg-surface-raised)',
                         borderRadius: 6,
                         fontSize: 11,
                         fontFamily: 'monospace',

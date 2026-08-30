@@ -386,7 +386,7 @@ export default function Dashboard() {
           </span>
         )}
         {net.errors != null && (
-          <span className="chip" style={{ color: net.errors > 0 ? '#FF2D55' : '#00E8A0' }}>
+          <span className="chip" style={{ color: net.errors > 0 ? 'var(--state-critical)' : 'var(--state-safe)' }}>
             <RefreshCw size={12} /> Errors: {net.errors}
           </span>
         )}
@@ -578,18 +578,18 @@ export default function Dashboard() {
       {/* Sparkline Strip */}
       <div className={styles.metricsGrid} style={{ marginBottom: 16 }}>
         {[
-          { label: 'Voltage Trend', key: 'voltage', color: '#FFD60A' },
-          { label: 'Current Flow', key: 'current', color: '#FF6B35' },
-          { label: 'Power Draw', key: 'power', color: '#38BDF8' },
-          { label: 'SOC Shift', key: 'soc', color: '#00E8A0' },
-          { label: 'Thermal Profile', key: 'temperature', color: '#FF2D55' },
-          { label: 'BHI Risk', key: 'bhi', color: '#A78BFA' },
+          { label: 'Voltage Trend', key: 'voltage', color: 'var(--chart-3)' },
+          { label: 'Current Flow', key: 'current', color: 'var(--orange)' },
+          { label: 'Power Draw', key: 'power', color: 'var(--chart-2)' },
+          { label: 'SOC Shift', key: 'soc', color: 'var(--chart-1)' },
+          { label: 'Thermal Profile', key: 'temperature', color: 'var(--state-critical)' },
+          { label: 'BHI Risk', key: 'bhi', color: 'var(--chart-4)' },
         ].map((s) => (
           <div
             key={s.key}
             className={styles.metricCard}
             style={{
-              background: 'linear-gradient(160deg, rgba(30,40,70,0.28), rgba(18,24,40,0.45))',
+              background: 'var(--card-bg)',
               border: '1px solid var(--border)',
               borderRadius: 'var(--radius-md)',
               padding: '10px 12px',

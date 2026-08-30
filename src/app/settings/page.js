@@ -382,7 +382,7 @@ export default function SettingsPage() {
             />
             <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Enable Quiet Hours</span>
             {config.quietHours && (
-              <span style={{ fontSize: 11, color: '#9AA7BF', marginLeft: 8 }}>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 8 }}>
                 {config.quietStart} to {config.quietEnd}
               </span>
             )}
@@ -442,7 +442,7 @@ export default function SettingsPage() {
               🚀 Flashing &amp; Deployment Checklist
             </div>
             <ol style={{ fontSize: 11, color: 'var(--text-secondary)', paddingLeft: 18, lineHeight: 1.8 }}>
-              <li>Open <code>esp32/BatteryVitals_v11.3.ino</code> in Arduino IDE</li>
+              <li>Open <code>esp32/BatteryVitals_v12.0.ino</code> in Arduino IDE</li>
               <li>Install libraries: <code>Adafruit INA219</code>, <code>ArduinoJson</code></li>
               <li>Set WiFi SSID/Password &amp; Target Host: <code>https://battery-vitals.onrender.com</code></li>
               <li>Select Board: <code>ESP32 Dev Module</code>, Upload Speed: <code>921600 baud</code></li>
@@ -463,7 +463,7 @@ export default function SettingsPage() {
           <div className={styles.connItem}>
             <span>Firmware Revision</span>
             <span className={styles.mono} style={{ color: '#00E8A0' }}>
-              {data?.firmware || 'v11.3-render'}
+              {data?.firmware || 'v12.0-render'}
             </span>
           </div>
           <div className={styles.connItem}>

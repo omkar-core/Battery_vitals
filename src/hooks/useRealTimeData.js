@@ -55,7 +55,7 @@ function generateSimulatedFrame(stepCount = 0) {
     opDirection: op,
     resistance,
     profile: '12V-LiFePO4-SIM',
-    firmware: 'v11.3-simulated',
+    firmware: 'v12.0-simulated',
     uptimeMs: stepCount * 2500,
     uptime: stepCount * 2,
     ina_ok: true,

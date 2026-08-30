@@ -170,7 +170,7 @@ export default function ComingSoonPage() {
               key={feat.id}
               style={{
                 position: 'relative',
-                background: 'linear-gradient(160deg, rgba(30, 40, 70, 0.35), rgba(18, 24, 40, 0.65))',
+                background: 'var(--card-bg-safe, var(--bg-surface))',
                 border: '1px solid var(--border)',
                 borderRadius: 'var(--radius-md)',
                 padding: '20px 22px',
@@ -203,7 +203,7 @@ export default function ComingSoonPage() {
                     <span
                       className="chip"
                       style={{
-                        background: 'rgba(255, 255, 255, 0.05)',
+                        background: 'var(--bg-surface-raised)',
                         fontSize: 10,
                         color: 'var(--text-muted)',
                       }}
@@ -225,28 +225,28 @@ export default function ComingSoonPage() {
                   </div>
                 </div>
 
-                <h3 style={{ fontSize: 16, fontWeight: 800, color: '#F4F6FB', marginBottom: 8 }}>
+                <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 8 }}>
                   {feat.title}
                 </h3>
 
-                <p style={{ fontSize: 12.5, color: '#CBD5E1', lineHeight: 1.5, marginBottom: 10 }}>
+                <p style={{ fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 10 }}>
                   {feat.shows}
                 </p>
 
                 <div
                   style={{
                     padding: '8px 10px',
-                    background: 'rgba(0, 0, 0, 0.3)',
-                    border: '1px solid rgba(255, 255, 255, 0.04)',
+                    background: 'var(--bg-surface-raised)',
+                    border: '1px solid var(--border)',
                     borderRadius: 8,
                     fontSize: 11,
-                    color: 'var(--text-muted)',
+                    color: 'var(--text-secondary)',
                     marginBottom: 10,
                   }}
                 >
-                  <strong style={{ color: '#9AA7BF' }}>Hardware:</strong> {feat.hardware}
+                  <strong style={{ color: 'var(--text-primary)' }}>Hardware:</strong> {feat.hardware}
                   <br />
-                  <strong style={{ color: '#9AA7BF' }}>Use Case:</strong> {feat.useCase}
+                  <strong style={{ color: 'var(--text-primary)' }}>Use Case:</strong> {feat.useCase}
                 </div>
               </div>
 
@@ -257,11 +257,11 @@ export default function ComingSoonPage() {
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   paddingTop: 12,
-                  borderTop: '1px solid rgba(255, 255, 255, 0.05)',
+                  borderTop: '1px solid var(--border)',
                 }}
               >
                 <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                  Est. Availability: <strong style={{ color: '#fff' }}>{feat.availability}</strong>
+                  Est. Availability: <strong style={{ color: 'var(--text-primary)' }}>{feat.availability}</strong>
                 </span>
 
                 <button

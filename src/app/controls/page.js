@@ -129,7 +129,7 @@ export default function Controls() {
             {history.map((h, i) => (
               <div key={`${h.requestId}-${h.time}-${i}`} className={styles.commandItem}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span className={styles.mono} style={{ color: '#F4F6FB', fontWeight: 600 }}>
+                  <span className={styles.mono} style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
                     {h.name}
                   </span>
                   {h.value ? (
@@ -141,7 +141,7 @@ export default function Controls() {
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 11, color: '#9AA7BF', fontFamily: 'monospace' }}>
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace' }}>
                     {h.response}
                   </span>
                   <span className={styles.mono} style={{ fontSize: 10, minWidth: 'auto' }}>
