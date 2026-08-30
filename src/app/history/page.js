@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, Suspense } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import Layout from '../../components/Layout'
 import MetricCard from '../../components/MetricCard'
 import { useRealTimeData } from '../../hooks/useRealTimeData'
@@ -31,6 +32,18 @@ const AGG_OPTIONS = [
 ]
 
 export default function HistoryPage() {
+  return (
+    <Suspense fallback={<Layout><div style={{ padding: 40, textAlign: 'center' }}>Loading history...</div></Layout>}>
+      <HistoryInner />
+    </Suspense>
+  )
+}
+
+function HistoryInner() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const urlTab = searchParams?.get('tab')
+
   const { connected, data } = useRealTimeData()
   const [rows, setRows] = useState([])
   const [minutes, setMinutes] = useState(1440) // 24 hours default
@@ -39,6 +52,15 @@ export default function HistoryPage() {
   const [alerts, setAlerts] = useState([])
   const [loading, setLoading] = useState(false)
   const [activeTab, setActiveTab] = useState('readings') // 'readings', 'sessions', 'timeline', 'compare'
+
+  useEffect(() => {
+    if (!urlTab) return
+    const t = urlTab.toLowerCase()
+    if (t === 'trends' || t === 'timeline') setActiveTab('timeline')
+    else if (t === 'compare') setActiveTab('compare')
+    else if (t === 'sessions') setActiveTab('sessions')
+    else if (t === 'export' || t === 'readings') setActiveTab('readings')
+  }, [urlTab])
 
   useEffect(() => {
     setLoading(true)
@@ -334,7 +356,10 @@ export default function HistoryPage() {
         ].map((tab) => (
           <button
             key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => {
+              setActiveTab(tab.key)
+              router.replace(tab.key === 'readings' ? '/history' : `/history?tab=${tab.key}`, { scroll: false })
+            }}
             style={{
               padding: '8px 16px',
               borderRadius: 10,

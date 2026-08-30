@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import Layout from '../../components/Layout'
 import AIInsights from '../../components/AIInsights'
 import { useRealTimeData } from '../../hooks/useRealTimeData'
@@ -45,6 +46,18 @@ const PRIORITY_COLOR = { high: '#FF2D55', medium: '#FFD60A', low: '#00E8A0' }
 const STATUS_COLOR = { EMERGENCY: '#FF2D55', CRITICAL: '#FF2D55', WARNING: '#FF6B35', CAUTION: '#FFD60A', UNKNOWN: '#94A3B8', SAFE: '#00E8A0' }
 
 export default function AIPage() {
+  return (
+    <Suspense fallback={<Layout><div style={{ padding: 40, textAlign: 'center' }}>Loading AI Insights...</div></Layout>}>
+      <AIInner />
+    </Suspense>
+  )
+}
+
+function AIInner() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const urlTab = searchParams?.get('tab')
+
   const { connected, data } = useRealTimeData()
   const { diagnostic, diagnosticLoading, diagnosticError, runDiagnostic, fetchDiagnostics, deleteDiagnostic } = useAI()
 
@@ -63,11 +76,15 @@ export default function AIPage() {
   const [customResult, setCustomResult] = useState(null)
   const [customLoading, setCustomLoading] = useState(false)
 
-  // Read initial tab from ?tab= (header dropdown deep links)
+  // Read tab reactively from ?tab= (header dropdown deep links)
   useEffect(() => {
-    const t = new URLSearchParams(window.location.search).get('tab')
-    if (t && TABS.some((x) => x.id === t)) setTab(t)
-  }, [])
+    if (!urlTab) {
+      setTab('smart')
+      return
+    }
+    const match = TABS.find((x) => x.id === urlTab.toLowerCase())
+    if (match) setTab(match.id)
+  }, [urlTab])
 
   const refreshAnalyses = useCallback(async () => {
     setAnalysesLoading(true)
@@ -300,7 +317,10 @@ export default function AIPage() {
           return (
             <button
               key={t.id}
-              onClick={() => setTab(t.id)}
+              onClick={() => {
+                setTab(t.id)
+                router.replace(t.id === 'smart' ? '/ai' : `/ai?tab=${t.id}`, { scroll: false })
+              }}
               className={styles.filterBtn}
               style={{
                 padding: '7px 14px',

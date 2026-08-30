@@ -23,11 +23,15 @@ export async function GET(request) {
     mongoStatus = 'disconnected'
   }
 
-  try {
-    await adminDb.ref('.info/connected').once('value')
-    firebaseStatus = 'connected'
-  } catch (e) {
-    firebaseStatus = 'error'
+  if (adminDb) {
+    try {
+      await adminDb.ref('.info/connected').once('value')
+      firebaseStatus = 'connected'
+    } catch (e) {
+      firebaseStatus = 'error'
+    }
+  } else {
+    firebaseStatus = 'unconfigured'
   }
 
   return NextResponse.json({

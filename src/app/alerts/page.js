@@ -1,6 +1,6 @@
 'use client'
-
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, Suspense } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import Layout from '../../components/Layout'
 import AlertsList from '../../components/AlertsList'
 import { useRealTimeData } from '../../hooks/useRealTimeData'
@@ -11,15 +11,41 @@ import {
   VolumeX,
   Bell,
   Smartphone,
+  ShieldAlert,
+  Clock,
+  BarChart3,
+  CheckCircle2,
+  AlertTriangle,
 } from 'lucide-react'
 import styles from '../../styles/pages.module.css'
 
 export default function AlertsPage() {
+  return (
+    <Suspense fallback={<Layout><div style={{ padding: 40, textAlign: 'center' }}>Loading alerts...</div></Layout>}>
+      <AlertsInner />
+    </Suspense>
+  )
+}
+
+function AlertsInner() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const urlTab = searchParams?.get('tab')
+
   const { connected, data } = useRealTimeData()
   const [alerts, setAlerts] = useState([])
   const [loading, setLoading] = useState(false)
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [pushEnabled, setPushEnabled] = useState(false)
+  const [activeTab, setActiveTab] = useState('active') // 'active', 'history', 'analytics'
+
+  useEffect(() => {
+    if (!urlTab) return
+    const t = urlTab.toLowerCase()
+    if (t === 'history') setActiveTab('history')
+    else if (t === 'analytics') setActiveTab('analytics')
+    else if (t === 'active') setActiveTab('active')
+  }, [urlTab])
 
   const load = useCallback(() => {
     setLoading(true)
@@ -103,6 +129,45 @@ export default function AlertsPage() {
         </div>
       </div>
 
+      {/* Alert Navigation Tabs */}
+      <div className={styles.filters} style={{ marginBottom: 16 }}>
+        <button
+          className={`${styles.filterBtn} ${activeTab === 'active' ? styles.filterActive : ''}`}
+          onClick={() => {
+            setActiveTab('active')
+            router.replace('/alerts', { scroll: false })
+          }}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+        >
+          <ShieldAlert size={14} color="#FF2D55" />
+          <span>Active Alerts {unacked > 0 ? `(${unacked})` : ''}</span>
+        </button>
+
+        <button
+          className={`${styles.filterBtn} ${activeTab === 'history' ? styles.filterActive : ''}`}
+          onClick={() => {
+            setActiveTab('history')
+            router.replace('/alerts?tab=history', { scroll: false })
+          }}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+        >
+          <Clock size={14} color="#38BDF8" />
+          <span>Alert History ({alerts.length})</span>
+        </button>
+
+        <button
+          className={`${styles.filterBtn} ${activeTab === 'analytics' ? styles.filterActive : ''}`}
+          onClick={() => {
+            setActiveTab('analytics')
+            router.replace('/alerts?tab=analytics', { scroll: false })
+          }}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+        >
+          <BarChart3 size={14} color="#FFB800" />
+          <span>Incident Analytics</span>
+        </button>
+      </div>
+
       {/* Summary Chips Strip */}
       <div className={styles.toolbar}>
         <span className="chip">
@@ -123,7 +188,57 @@ export default function AlertsPage() {
         ) : null}
       </div>
 
-      <AlertsList alerts={alerts} loading={loading} onRefresh={load} />
+      {/* Tab 1: Active Alerts */}
+      {activeTab === 'active' && (
+        <AlertsList
+          alerts={alerts.filter((a) => !a.acknowledged)}
+          loading={loading}
+          onRefresh={load}
+        />
+      )}
+
+      {/* Tab 2: Alert History */}
+      {activeTab === 'history' && (
+        <AlertsList
+          alerts={alerts}
+          loading={loading}
+          onRefresh={load}
+        />
+      )}
+
+      {/* Tab 3: Incident Analytics */}
+      {activeTab === 'analytics' && (
+        <div className={styles.card}>
+          <h3 className={styles.cardTitle} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <BarChart3 size={16} color="#FFB800" />
+            Safety Incident &amp; Severity Distribution Analytics
+          </h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, margin: '16px 0' }}>
+            <div style={{ padding: 16, background: 'var(--input-bg)', border: '1px solid var(--border)', borderRadius: 10 }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Total Incidents</div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-primary)', marginTop: 4 }}>{alerts.length}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>Events recorded</div>
+            </div>
+            <div style={{ padding: 16, background: 'var(--input-bg)', border: '1px solid var(--border)', borderRadius: 10 }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Critical Violations</div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: '#FF2D55', marginTop: 4 }}>{counts.CRITICAL || 0}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>High-hazard events</div>
+            </div>
+            <div style={{ padding: 16, background: 'var(--input-bg)', border: '1px solid var(--border)', borderRadius: 10 }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Safety Warnings</div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: '#FF6B35', marginTop: 4 }}>{counts.WARNING || 0}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>Pre-critical flags</div>
+            </div>
+            <div style={{ padding: 16, background: 'var(--input-bg)', border: '1px solid var(--border)', borderRadius: 10 }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Resolution Rate</div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: '#00E8A0', marginTop: 4 }}>
+                {alerts.length > 0 ? Math.round(((alerts.length - unacked) / alerts.length) * 100) : 100}%
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{alerts.length - unacked} of {alerts.length} acknowledged</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className={styles.note}>
         Alerts are evaluated directly on the ESP32 firmware and verified server-side against

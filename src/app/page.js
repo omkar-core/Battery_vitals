@@ -16,7 +16,6 @@ import MoodBadge from '../components/MoodBadge'
 import SkeletonLoader, { SkeletonMetric, SkeletonChart, SkeletonControl, SkeletonAI } from '../components/SkeletonLoader'
 import { useRealTimeData } from '../hooks/useRealTimeData'
 import { useAI } from '../hooks/useAI'
-import useTabTitle from '../hooks/useTabTitle'
 import {
   bhiStatus,
   safetyColor,
@@ -135,9 +134,6 @@ export default function Dashboard() {
   const cycles = live.cycles
   const efficiency = live.efficiency
   const rul = live.rul
-
-  // L18 - Browser tab live SOC (🔋 NN% | Battery Vital)
-  useTabTitle(soc)
 
   // L4 - Ticker items with deltas against the previous sample (real data only)
   const tickerItems = useMemo(() => {

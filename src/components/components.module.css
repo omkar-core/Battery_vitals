@@ -14,26 +14,6 @@
   box-shadow: var(--shadow);
 }
 
-.themeToggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--bg-card);
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.themeToggle:hover {
-  color: var(--text-primary);
-  border-color: var(--border-strong);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
-}
 
 .metricCard {
   background: var(--bg-surface);
@@ -1711,55 +1691,58 @@ html[data-theme="light"] .skeleton {
   border-color: var(--accent-primary);
 }
 
-/* Dark / Light Theme Toggle (sliding pill switch with emoji) */
+/* Dark / Light Theme Toggle (sliding pill switch with animated icons) */
 .themeToggle {
   position: relative;
-  width: 60px;
-  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  width: 58px;
+  height: 32px;
   border-radius: 100px;
   border: 1px solid var(--border);
   cursor: pointer;
   padding: 0;
-  transition: all 0.3s ease;
-  box-shadow: inset 0 1px 6px rgba(0, 0, 0, 0.35);
+  flex-shrink: 0 !important;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.3);
+  outline: none;
 }
 
 .themeToggleDark {
-  background: linear-gradient(135deg, #1e2a52, #0b1020);
+  background: linear-gradient(135deg, #18223c, #0b1020);
+  border-color: rgba(79, 168, 255, 0.25);
 }
 
 .themeToggleLight {
-  background: linear-gradient(135deg, #ffe29a, #ffb703);
+  background: linear-gradient(135deg, #fef3c7, #fde047);
+  border-color: rgba(217, 119, 6, 0.3);
 }
 
 .themeToggle:hover {
-  border-color: var(--border-strong);
+  border-color: var(--accent-primary);
   transform: translateY(-1px);
-  box-shadow: inset 0 1px 6px rgba(0, 0, 0, 0.35), 0 4px 14px rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
 .themeKnob {
   position: absolute;
   top: 3px;
   left: 3px;
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
   transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  flex-shrink: 0;
 }
 
 .themeToggleLight .themeKnob {
   transform: translateX(26px);
-}
-
-.themeKnob span {
-  line-height: 1;
+  background: #ffffff;
 }
 
 .notifCountBadge {
@@ -2433,6 +2416,7 @@ html[data-theme="light"] .skeleton {
 .tooltipContainer {
   position: relative;
   display: inline-flex;
+  flex-shrink: 0;
 }
 
 .tooltipBox {
@@ -3683,15 +3667,31 @@ html[data-theme="light"] .skeleton {
 /* ========================================================================= */
 /* MEDIA QUERIES FOR RESPONSIVE BREAKPOINTS                                  */
 /* ========================================================================= */
-@media (max-width: 1180px) {
+@media (max-width: 1400px) {
   .brandTagline {
+    display: none;
+  }
+}
+
+@media (max-width: 1240px) {
+  .clockText,
+  .lastUpdateLabel {
+    display: none;
+  }
+  .headerSparkline {
     display: none;
   }
   .headerBatteryCard {
     padding: 4px 8px;
   }
   .headerBatteryName {
-    max-width: 90px;
+    max-width: 80px;
+  }
+}
+
+@media (max-width: 1080px) {
+  .headerBatteryCard {
+    display: none;
   }
 }
 
@@ -3712,10 +3712,22 @@ html[data-theme="light"] .skeleton {
 }
 
 @media (max-width: 768px) {
+  .headerContainer {
+    padding: 0 10px;
+    gap: 8px;
+    height: 60px;
+  }
+  .headerLeft {
+    gap: 8px;
+  }
+  .headerRight {
+    gap: 6px;
+  }
   .headerBatteryCard {
     display: none;
   }
-  .lastUpdateLabel {
+  .lastUpdateLabel,
+  .clockText {
     display: none;
   }
   .connBadgeText {
@@ -3724,6 +3736,21 @@ html[data-theme="light"] .skeleton {
   .connBadge {
     padding: 6px;
     border-radius: 50%;
+  }
+  .themeToggle {
+    width: 50px;
+    height: 28px;
+    display: inline-flex !important;
+    flex-shrink: 0 !important;
+  }
+  .themeKnob {
+    width: 20px;
+    height: 20px;
+    top: 3px;
+    left: 3px;
+  }
+  .themeToggleLight .themeKnob {
+    transform: translateX(22px);
   }
   .aiGrid {
     grid-template-columns: 1fr;

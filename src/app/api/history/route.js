@@ -28,10 +28,18 @@ export async function GET(request) {
     try {
       const db = await getDB()
       const since = new Date(Date.now() - parsedMinutes * 60 * 1000)
+      const sinceMs = since.getTime()
 
       data = await db
         .collection('readings')
-        .find({ batteryId, timestamp: { $gte: since } })
+        .find({
+          batteryId,
+          $or: [
+            { timestamp: { $gte: since } },
+            { timestamp: { $gte: sinceMs } },
+            { receivedAt: { $gte: since.toISOString() } },
+          ],
+        })
         .sort({ timestamp: 1 })
         .limit(parsedLimit)
         .toArray()

@@ -70,8 +70,8 @@ export async function POST(request) {
 
     // Validate numeric bounds
     const voltage = sanitizeNumber(b.voltage, 0, 100)
-    const current = sanitizeNumber(b.current != null ? b.current / 1000 : null, -500, 500)
-    const power = sanitizeNumber(b.power != null ? b.power / 1000 : b.power, -5000, 5000)
+    const current = sanitizeNumber(b.current != null ? (Math.abs(b.current) > 30 ? b.current / 1000 : b.current) : null, -500, 500)
+    const power = sanitizeNumber(b.power != null ? (Math.abs(b.power) > 200 ? b.power / 1000 : b.power) : null, -5000, 5000)
     const soc = sanitizeNumber(b.soc, 0, 100)
     const sohValid = b.soh_valid === true || (b.soh_valid !== false && sanitizeNumber(b.resistance, 0, 1000) > 0)
     const soh = sohValid ? sanitizeNumber(b.soh, 0, 100) : null

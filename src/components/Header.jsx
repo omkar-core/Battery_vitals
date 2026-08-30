@@ -724,17 +724,6 @@ export default function Header({
             )}
           </div>
 
-          {/* Battery Passport Slide-out Button (Requirement #3, #7) */}
-          <Tooltip text="View Battery Passport &amp; verified digital twin">
-            <button
-              className={styles.iconActionBtn}
-              onClick={onOpenPassport}
-              aria-label="Open Battery Passport Slideout"
-            >
-              <ShieldCheck size={18} color="#00E8A0" />
-            </button>
-          </Tooltip>
-
           {/* Dark / Light Theme Toggle */}
           <Tooltip text={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
             <button
@@ -746,11 +735,22 @@ export default function Header({
             >
               <span className={styles.themeKnob}>
                 {isDark ? (
-                  <>🌙</>
+                  <Moon size={13} color="#38BDF8" />
                 ) : (
-                  <>☀️</>
+                  <Sun size={13} color="#D97706" />
                 )}
               </span>
+            </button>
+          </Tooltip>
+
+          {/* Battery Passport Slide-out Button (Requirement #3, #7) */}
+          <Tooltip text="View Battery Passport &amp; verified digital twin">
+            <button
+              className={styles.iconActionBtn}
+              onClick={onOpenPassport}
+              aria-label="Open Battery Passport Slideout"
+            >
+              <ShieldCheck size={18} color="#00E8A0" />
             </button>
           </Tooltip>
 

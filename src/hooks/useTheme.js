@@ -16,8 +16,20 @@ export function useTheme() {
         document.documentElement.setAttribute('data-theme', e.newValue)
       }
     }
+
+    const handleCustomChange = (e) => {
+      if (e.detail) {
+        setThemeState(e.detail)
+        document.documentElement.setAttribute('data-theme', e.detail)
+      }
+    }
+
     window.addEventListener('storage', handleStorage)
-    return () => window.removeEventListener('storage', handleStorage)
+    window.addEventListener('bv_theme_change', handleCustomChange)
+    return () => {
+      window.removeEventListener('storage', handleStorage)
+      window.removeEventListener('bv_theme_change', handleCustomChange)
+    }
   }, [])
 
   const toggleTheme = () => {
@@ -26,6 +38,7 @@ export function useTheme() {
     document.documentElement.setAttribute('data-theme', next)
     try {
       localStorage.setItem('bv_theme', next)
+      window.dispatchEvent(new CustomEvent('bv_theme_change', { detail: next }))
     } catch (e) {}
   }
 
@@ -34,6 +47,7 @@ export function useTheme() {
     document.documentElement.setAttribute('data-theme', newTheme)
     try {
       localStorage.setItem('bv_theme', newTheme)
+      window.dispatchEvent(new CustomEvent('bv_theme_change', { detail: newTheme }))
     } catch (e) {}
   }
 

@@ -39,10 +39,22 @@ export async function GET(request) {
         try {
           const [countDoc, latestDoc] = await Promise.all([
             db.collection(coll).countDocuments(q),
-            db.collection(coll).find(q).sort({ createdAt: -1 }).project({ createdAt: 1 }).limit(1).toArray().catch(() => []),
+            db.collection(coll)
+              .find(q)
+              .sort({ _id: -1 })
+              .project({ createdAt: 1, timestamp: 1, receivedAt: 1 })
+              .limit(1)
+              .toArray()
+              .catch(() => []),
           ])
           let lastRecorded = null
-          if (latestDoc && latestDoc.length) lastRecorded = new Date(latestDoc[0].createdAt).getTime()
+          if (latestDoc && latestDoc.length) {
+            const rawTs = latestDoc[0].timestamp ?? latestDoc[0].createdAt ?? latestDoc[0].receivedAt
+            if (rawTs) {
+              const ms = new Date(rawTs).getTime()
+              if (!Number.isNaN(ms)) lastRecorded = ms
+            }
+          }
           collectionsMeta[coll] = { documents: countDoc, lastRecorded }
         } catch (e) {
           collectionsMeta[coll] = { documents: null, lastRecorded: null }

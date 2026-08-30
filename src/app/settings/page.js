@@ -1,6 +1,6 @@
 'use client'
-
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import Layout from '../../components/Layout'
 import { useRealTimeData } from '../../hooks/useRealTimeData'
 import { useTheme } from '../../hooks/useTheme'
@@ -20,6 +20,8 @@ import {
   Shield,
   Trash2,
   RefreshCw,
+  Layers,
+  Wrench,
 } from 'lucide-react'
 import { useNotifications } from '../../context/NotificationContext'
 import styles from '../../styles/pages.module.css'
@@ -43,6 +45,30 @@ const DEFAULT_SETTINGS = {
 }
 
 export default function SettingsPage() {
+  return (
+    <Suspense fallback={<Layout><div style={{ padding: 40, textAlign: 'center' }}>Loading settings...</div></Layout>}>
+      <SettingsInner />
+    </Suspense>
+  )
+}
+
+function SettingsInner() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const urlTab = searchParams?.get('tab')
+
+  const [activeTab, setActiveTab] = useState('all') // 'all', 'general', 'battery', 'alerts', 'calibration', 'storage'
+
+  useEffect(() => {
+    if (!urlTab) return
+    const t = urlTab.toLowerCase()
+    if (t === 'battery') setActiveTab('battery')
+    else if (t === 'alerts' || t === 'notifications') setActiveTab('alerts')
+    else if (t === 'calibration' || t === 'hardware') setActiveTab('calibration')
+    else if (t === 'general') setActiveTab('general')
+    else if (t === 'storage') setActiveTab('storage')
+  }, [urlTab])
+
   const { connected, data, sendControl } = useRealTimeData()
   const { theme: activeTheme, setTheme } = useTheme()
   const [profile, setProfile] = useState('LI_ION')
@@ -240,12 +266,42 @@ export default function SettingsPage() {
         </div>
       )}
 
+      {/* Settings Navigation Tabs */}
+      <div className={styles.filters} style={{ marginBottom: 20 }}>
+        {[
+          { id: 'all', label: 'All Settings', icon: Layers },
+          { id: 'general', label: 'General', icon: Sliders },
+          { id: 'battery', label: 'Battery Chemistry', icon: Cpu },
+          { id: 'alerts', label: 'Alerts & Audio', icon: Bell },
+          { id: 'calibration', label: 'Hardware & Calibration', icon: Wrench },
+          { id: 'storage', label: 'Storage & Diagnostics', icon: HardDrive },
+        ].map((tab) => {
+          const Icon = tab.icon
+          const isActive = activeTab === tab.id
+          return (
+            <button
+              key={tab.id}
+              className={`${styles.filterBtn} ${isActive ? styles.filterActive : ''}`}
+              onClick={() => {
+                setActiveTab(tab.id)
+                router.replace(tab.id === 'all' ? '/settings' : `/settings?tab=${tab.id}`, { scroll: false })
+              }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <Icon size={14} />
+              <span>{tab.label}</span>
+            </button>
+          )
+        })}
+      </div>
+
       {/* 1. GENERAL SETTINGS */}
-      <div className={styles.card}>
-        <h3 className={styles.cardTitle} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Sliders size={16} color="#00E8A0" />
-          General Preferences
-        </h3>
+      {(activeTab === 'all' || activeTab === 'general') && (
+        <div className={styles.card}>
+          <h3 className={styles.cardTitle} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Sliders size={16} color="#00E8A0" />
+            General Preferences
+          </h3>
 
         <div className={styles.settingRow}>
           <span className={styles.settingLabel}>Device Nickname</span>
@@ -312,204 +368,215 @@ export default function SettingsPage() {
             </button>
           </div>
         </div>
-      </div>
+        </div>
+      )}
 
       {/* 2. CHEMISTRY PROFILE & HARDWARE SETTINGS */}
-      <div className={styles.card}>
-        <h3 className={styles.cardTitle} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Cpu size={16} color="#FFD60A" />
-          Hardware &amp; Battery Chemistry Model
-        </h3>
+      {(activeTab === 'all' || activeTab === 'battery') && (
+        <div className={styles.card}>
+          <h3 className={styles.cardTitle} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Cpu size={16} color="#FFD60A" />
+            Hardware &amp; Battery Chemistry Model
+          </h3>
 
-        <div className={styles.settingRow}>
-          <span className={styles.settingLabel}>Battery Chemistry</span>
-          <select className={styles.select} value={profile} onChange={(e) => setProfile(e.target.value)}>
-            <option value="LI_ION">Lithium-Ion (3.7V / 4.2V nominal)</option>
-            <option value="LIFEPO4">Lithium Iron Phosphate (LiFePO4 3.2V)</option>
-            <option value="LEAD_ACID">Lead-Acid (12.0V / 14.4V Float)</option>
-            <option value="AGM">Absorbent Glass Mat (AGM)</option>
-            <option value="GEL">Gel Cell Lead-Acid</option>
-          </select>
-          <button className={styles.primaryBtn} onClick={applyProfile}>
-            Apply to ESP32
-          </button>
-        </div>
+          <div className={styles.settingRow}>
+            <span className={styles.settingLabel}>Battery Chemistry</span>
+            <select className={styles.select} value={profile} onChange={(e) => setProfile(e.target.value)}>
+              <option value="LI_ION">Lithium-Ion (3.7V / 4.2V nominal)</option>
+              <option value="LIFEPO4">Lithium Iron Phosphate (LiFePO4 3.2V)</option>
+              <option value="LEAD_ACID">Lead-Acid (12.0V / 14.4V Float)</option>
+              <option value="AGM">Absorbent Glass Mat (AGM)</option>
+              <option value="GEL">Gel Cell Lead-Acid</option>
+            </select>
+            <button className={styles.primaryBtn} onClick={applyProfile}>
+              Apply to ESP32
+            </button>
+          </div>
 
-        <div className={styles.settingRow}>
-          <span className={styles.settingLabel}>ESP32 Loop Interval</span>
-          <input
-            type="range"
-            min="1"
-            max="15"
-            value={sampleInterval}
-            onChange={(e) => setSampleInterval(Number(e.target.value))}
-            className={styles.range}
-          />
-          <span className={styles.mono}>{sampleInterval}s</span>
-          <button className={styles.primaryBtn} onClick={applyInterval}>
-            Set Interval
-          </button>
+          <div className={styles.settingRow}>
+            <span className={styles.settingLabel}>ESP32 Loop Interval</span>
+            <input
+              type="range"
+              min="1"
+              max="15"
+              value={sampleInterval}
+              onChange={(e) => setSampleInterval(Number(e.target.value))}
+              className={styles.range}
+            />
+            <span className={styles.mono}>{sampleInterval}s</span>
+            <button className={styles.primaryBtn} onClick={applyInterval}>
+              Set Interval
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 3. ALERT PREFERENCES */}
-      <div className={styles.card}>
-        <h3 className={styles.cardTitle} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Bell size={16} color="#FF6B35" />
-          Alert &amp; Audio Notifications
-        </h3>
+      {(activeTab === 'all' || activeTab === 'alerts') && (
+        <div className={styles.card}>
+          <h3 className={styles.cardTitle} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Bell size={16} color="#FF6B35" />
+            Alert &amp; Audio Notifications
+          </h3>
 
-        <div className={styles.settingRow}>
-          <span className={styles.settingLabel}>Alert Chime Volume</span>
-          <input
-            type="range"
-            min="0"
-            max="100"
-            value={config.alertVolume}
-            onChange={(e) => saveSettings({ ...config, alertVolume: Number(e.target.value) })}
-            className={styles.range}
-          />
-          <span className={styles.mono}>{config.alertVolume}%</span>
-        </div>
-
-        <div className={styles.settingRow}>
-          <span className={styles.settingLabel}>Quiet Hours (Mute Audio)</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className={styles.settingRow}>
+            <span className={styles.settingLabel}>Alert Chime Volume</span>
             <input
-              type="checkbox"
-              checked={config.quietHours}
-              onChange={(e) => saveSettings({ ...config, quietHours: e.target.checked })}
+              type="range"
+              min="0"
+              max="100"
+              value={config.alertVolume}
+              onChange={(e) => saveSettings({ ...config, alertVolume: Number(e.target.value) })}
+              className={styles.range}
             />
-            <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Enable Quiet Hours</span>
-            {config.quietHours && (
-              <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 8 }}>
-                {config.quietStart} to {config.quietEnd}
-              </span>
-            )}
+            <span className={styles.mono}>{config.alertVolume}%</span>
+          </div>
+
+          <div className={styles.settingRow}>
+            <span className={styles.settingLabel}>Quiet Hours (Mute Audio)</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <input
+                type="checkbox"
+                checked={config.quietHours}
+                onChange={(e) => saveSettings({ ...config, quietHours: e.target.checked })}
+              />
+              <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Enable Quiet Hours</span>
+              {config.quietHours && (
+                <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 8 }}>
+                  {config.quietStart} to {config.quietEnd}
+                </span>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* 4. DATA RETENTION & CACHE */}
-      <div className={styles.card}>
-        <h3 className={styles.cardTitle} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <HardDrive size={16} color="#A78BFA" />
-          Data Retention &amp; Local Storage
-        </h3>
+      {(activeTab === 'all' || activeTab === 'storage') && (
+        <div className={styles.card}>
+          <h3 className={styles.cardTitle} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <HardDrive size={16} color="#A78BFA" />
+            Data Retention &amp; Local Storage
+          </h3>
 
-        <div className={styles.settingRow}>
-          <span className={styles.settingLabel}>MongoDB TTL Retention</span>
-          <span className={styles.mono}>90 Days (Automated Rolling Deletion)</span>
-        </div>
+          <div className={styles.settingRow}>
+            <span className={styles.settingLabel}>MongoDB TTL Retention</span>
+            <span className={styles.mono}>90 Days (Automated Rolling Deletion)</span>
+          </div>
 
-        <div className={styles.settingRow}>
-          <span className={styles.settingLabel}>Local Command &amp; Alert Cache</span>
-          <button
-            onClick={clearLocalCache}
-            className={styles.filterBtn}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#FF2D55' }}
-          >
-            <Trash2 size={12} />
-            <span>Clear Local Storage Cache</span>
-          </button>
+          <div className={styles.settingRow}>
+            <span className={styles.settingLabel}>Local Command &amp; Alert Cache</span>
+            <button
+              onClick={clearLocalCache}
+              className={styles.filterBtn}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#FF2D55' }}
+            >
+              <Trash2 size={12} />
+              <span>Clear Local Storage Cache</span>
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 5. ESP32 HARDWARE WIRING & FLASHING GUIDE (For Student Project Presentation) */}
-      <div className={styles.card}>
-        <h3 className={styles.cardTitle} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Cpu size={16} color="#00E8A0" />
-          ESP32 Hardware Pinout &amp; Flashing Guide (Student Project Reference)
-        </h3>
+      {(activeTab === 'all' || activeTab === 'calibration') && (
+        <div className={styles.card}>
+          <h3 className={styles.cardTitle} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Cpu size={16} color="#00E8A0" />
+            ESP32 Hardware Pinout &amp; Flashing Guide (Student Project Reference)
+          </h3>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14, marginBottom: 16 }}>
-          <div style={{ padding: 14, background: 'var(--input-bg)', border: '1px solid var(--border)', borderRadius: 10 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>
-              ⚡ Sensor &amp; Bus Pinout Mapping
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14, marginBottom: 16 }}>
+            <div style={{ padding: 14, background: 'var(--input-bg)', border: '1px solid var(--border)', borderRadius: 10 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>
+                ⚡ Sensor &amp; Bus Pinout Mapping
+              </div>
+              <ul style={{ fontSize: 11, color: 'var(--text-secondary)', paddingLeft: 18, lineHeight: 1.8 }}>
+                <li><strong>INA219 Power Shunt:</strong> SDA → GPIO 21, SCL → GPIO 22</li>
+                <li><strong>DHT11 Temp/Humidity:</strong> Data Pin → GPIO 4 (10k Pullup)</li>
+                <li><strong>MQ-2 Smoke/Gas Sensor:</strong> Analog Out → GPIO 34</li>
+                <li><strong>MQ-135 Air Quality Sensor:</strong> Analog Out → GPIO 35</li>
+                <li><strong>Status Indicator LEDs:</strong> Green → GPIO 14, Yellow → GPIO 26, Red → GPIO 27</li>
+                <li><strong>Emergency Alarm Buzzer:</strong> Positive → GPIO 25</li>
+              </ul>
             </div>
-            <ul style={{ fontSize: 11, color: 'var(--text-secondary)', paddingLeft: 18, lineHeight: 1.8 }}>
-              <li><strong>INA219 Power Shunt:</strong> SDA → GPIO 21, SCL → GPIO 22</li>
-              <li><strong>DHT11 Temp/Humidity:</strong> Data Pin → GPIO 4 (10k Pullup)</li>
-              <li><strong>MQ-2 Smoke/Gas Sensor:</strong> Analog Out → GPIO 34</li>
-              <li><strong>MQ-135 Air Quality Sensor:</strong> Analog Out → GPIO 35</li>
-              <li><strong>Status Indicator LEDs:</strong> Green → GPIO 14, Yellow → GPIO 26, Red → GPIO 27</li>
-              <li><strong>Emergency Alarm Buzzer:</strong> Positive → GPIO 25</li>
-            </ul>
-          </div>
 
-          <div style={{ padding: 14, background: 'var(--input-bg)', border: '1px solid var(--border)', borderRadius: 10 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>
-              🚀 Flashing &amp; Deployment Checklist
+            <div style={{ padding: 14, background: 'var(--input-bg)', border: '1px solid var(--border)', borderRadius: 10 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>
+                🚀 Flashing &amp; Deployment Checklist
+              </div>
+              <ol style={{ fontSize: 11, color: 'var(--text-secondary)', paddingLeft: 18, lineHeight: 1.8 }}>
+                <li>Open <code>esp32/BatteryVitals_v12.0.ino</code> in Arduino IDE</li>
+                <li>Install libraries: <code>Adafruit INA219</code>, <code>ArduinoJson</code></li>
+                <li>Set WiFi SSID/Password &amp; Target Host: <code>https://battery-vitals.onrender.com</code></li>
+                <li>Select Board: <code>ESP32 Dev Module</code>, Upload Speed: <code>921600 baud</code></li>
+                <li>Flash firmware and monitor Serial Output at <code>115200 baud</code></li>
+              </ol>
             </div>
-            <ol style={{ fontSize: 11, color: 'var(--text-secondary)', paddingLeft: 18, lineHeight: 1.8 }}>
-              <li>Open <code>esp32/BatteryVitals_v12.0.ino</code> in Arduino IDE</li>
-              <li>Install libraries: <code>Adafruit INA219</code>, <code>ArduinoJson</code></li>
-              <li>Set WiFi SSID/Password &amp; Target Host: <code>https://battery-vitals.onrender.com</code></li>
-              <li>Select Board: <code>ESP32 Dev Module</code>, Upload Speed: <code>921600 baud</code></li>
-              <li>Flash firmware and monitor Serial Output at <code>115200 baud</code></li>
-            </ol>
           </div>
         </div>
-      </div>
+      )}
 
       {/* 6. READ-ONLY SYSTEM DIAGNOSTICS INFO */}
-      <div className={styles.card}>
-        <h3 className={styles.cardTitle} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Shield size={16} color="#38BDF8" />
-          System Information (Read-Only)
-        </h3>
+      {(activeTab === 'all' || activeTab === 'storage' || activeTab === 'calibration') && (
+        <div className={styles.card}>
+          <h3 className={styles.cardTitle} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Shield size={16} color="#38BDF8" />
+            System Information (Read-Only)
+          </h3>
 
-        <div className={styles.connList}>
-          <div className={styles.connItem}>
-            <span>Firmware Revision</span>
-            <span className={styles.mono} style={{ color: '#00E8A0' }}>
-              {data?.firmware || 'v12.0-render'}
-            </span>
-          </div>
-          <div className={styles.connItem}>
-            <span>Hardware Platform</span>
-            <span className={styles.mono}>ESP32 Microcontroller</span>
-          </div>
-          <div className={styles.connItem}>
-            <span>Target Host URL</span>
-            <span className={styles.mono} style={{ color: '#38BDF8' }}>
-              https://battery-vitals.onrender.com
-            </span>
-          </div>
-          <div className={styles.connItem}>
-            <span>Device Identifier</span>
-            <span className={styles.mono}>{data?.deviceId || 'BV001'}</span>
-          </div>
-          <div className={styles.connItem}>
-            <span>Battery Pack Asset ID</span>
-            <span className={styles.mono}>{data?.batteryId || 'BAT001'}</span>
-          </div>
-          <div className={styles.connItem}>
-            <span>Active Chemistry Profile</span>
-            <span className={styles.mono}>
-              {data?.battery?.profile || '12V LiFePO4'}
-            </span>
-          </div>
-          <div className={styles.connItem}>
-            <span>MongoDB Atlas Cluster</span>
-            <span className={status?.mongodb?.connected ? styles.ok : styles.err}>
-              {status?.mongodb?.connected ? 'Connected & Indexed' : 'Connecting / Fallback'}
-            </span>
-          </div>
-          <div className={styles.connItem}>
-            <span>Firebase Realtime Database</span>
-            <span className={styles.mono} style={{ color: '#38BDF8' }}>
-              {status?.firebase?.url || 'https://batteryvital-default-rtdb.asia-southeast1.firebasedatabase.app'}
-            </span>
-          </div>
-          <div className={styles.connItem}>
-            <span>Google Gemini AI Engine</span>
-            <span className={status?.gemini?.configured ? styles.ok : styles.err}>
-              {status?.gemini?.configured ? 'Gemini 1.5 Flash Active' : 'API Key Active'}
-            </span>
+          <div className={styles.connList}>
+            <div className={styles.connItem}>
+              <span>Firmware Revision</span>
+              <span className={styles.mono} style={{ color: '#00E8A0' }}>
+                {data?.firmware || 'v12.0-render'}
+              </span>
+            </div>
+            <div className={styles.connItem}>
+              <span>Hardware Platform</span>
+              <span className={styles.mono}>ESP32 Microcontroller</span>
+            </div>
+            <div className={styles.connItem}>
+              <span>Target Host URL</span>
+              <span className={styles.mono} style={{ color: '#38BDF8' }}>
+                https://battery-vitals.onrender.com
+              </span>
+            </div>
+            <div className={styles.connItem}>
+              <span>Device Identifier</span>
+              <span className={styles.mono}>{data?.deviceId || 'BV001'}</span>
+            </div>
+            <div className={styles.connItem}>
+              <span>Battery Pack Asset ID</span>
+              <span className={styles.mono}>{data?.batteryId || 'BAT001'}</span>
+            </div>
+            <div className={styles.connItem}>
+              <span>Active Chemistry Profile</span>
+              <span className={styles.mono}>
+                {data?.battery?.profile || '12V LiFePO4'}
+              </span>
+            </div>
+            <div className={styles.connItem}>
+              <span>MongoDB Atlas Cluster</span>
+              <span className={status?.mongodb?.connected ? styles.ok : styles.err}>
+                {status?.mongodb?.connected ? 'Connected & Indexed' : 'Connecting / Fallback'}
+              </span>
+            </div>
+            <div className={styles.connItem}>
+              <span>Firebase Realtime Database</span>
+              <span className={styles.mono} style={{ color: '#38BDF8' }}>
+                {status?.firebase?.url || 'https://batteryvital-default-rtdb.asia-southeast1.firebasedatabase.app'}
+              </span>
+            </div>
+            <div className={styles.connItem}>
+              <span>Google Gemini AI Engine</span>
+              <span className={status?.gemini?.configured ? styles.ok : styles.err}>
+                {status?.gemini?.configured ? 'Gemini 1.5 Flash Active' : 'API Key Active'}
+              </span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </Layout>
   )
 }
