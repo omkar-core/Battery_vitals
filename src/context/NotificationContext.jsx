@@ -350,7 +350,21 @@ export function NotificationProvider({ children }) {
 export function useNotifications() {
   const ctx = useContext(NotificationContext)
   if (!ctx) {
-    throw new Error('useNotifications must be used within a NotificationProvider')
+    return {
+      toasts: [],
+      notifications: [],
+      unreadCount: 0,
+      soundEnabled: true,
+      desktopEnabled: false,
+      addNotification: () => {},
+      dismissToast: () => {},
+      markAllRead: () => {},
+      markAsRead: () => {},
+      muteForOneHour: () => {},
+      clearAllNotifications: () => {},
+      toggleSound: () => {},
+      requestDesktopPermission: async () => false,
+    }
   }
   return ctx
 }
