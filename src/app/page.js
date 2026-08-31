@@ -250,7 +250,7 @@ export default function Dashboard() {
           <h1 className={styles.pageTitle}>
             Live Battery <span className="gradText">Telemetry &amp; Vitals</span>
           </h1>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+          <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 4 }}>
             Real-time telemetry stream from ESP32 • Firebase Realtime Database • AI Predictive Safety
           </div>
         </div>
@@ -622,26 +622,21 @@ export default function Dashboard() {
         ].map((s) => (
           <div
             key={s.key}
-            className={styles.metricCard}
-            style={{
-              background: 'var(--card-bg)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-md)',
-              padding: '10px 12px',
-            }}
+            className={styles.sparklineMiniCard}
           >
             <div
               style={{
                 fontSize: 10,
                 color: 'var(--text-muted)',
                 textTransform: 'uppercase',
-                letterSpacing: 0.5,
+                letterSpacing: 0.6,
                 marginBottom: 4,
+                fontWeight: 600,
               }}
             >
               {s.label}
             </div>
-            <Sparkline data={sparkData} dataKey={s.key} color={s.color} height={30} />
+            <Sparkline data={sparkData} dataKey={s.key} color={s.color} height={32} />
           </div>
         ))}
       </div>

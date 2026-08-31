@@ -1,9 +1,10 @@
 .pageTitle {
-  font-size: 28px;
-  font-weight: 700;
+  font-size: 32px;
+  font-weight: 800;
   font-family: var(--font-display);
-  letter-spacing: -0.3px;
+  letter-spacing: -0.5px;
   color: var(--text-primary);
+  line-height: 1.15;
 }
 
 .header {
@@ -15,187 +16,271 @@
   gap: var(--space-4);
 }
 
+/* ===== Premium Live Badge ===== */
 .liveBadge {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 14px;
-  border-radius: 999px;
-  background: rgba(61, 220, 151, 0.1);
-  border: 1px solid rgba(61, 220, 151, 0.3);
+  padding: 7px 16px;
+  border-radius: 100px;
+  background: rgba(0, 232, 160, 0.08);
+  border: 1px solid rgba(0, 232, 160, 0.2);
   color: var(--state-safe);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   font-family: var(--font-body);
+  letter-spacing: 0.3px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .liveBadgeLive {
-  background: rgba(61, 220, 151, 0.12);
-  border-color: rgba(61, 220, 151, 0.35);
+  background: rgba(0, 232, 160, 0.1);
+  border-color: rgba(0, 232, 160, 0.28);
   color: var(--state-safe);
+  box-shadow: 0 0 20px rgba(0, 232, 160, 0.1);
 }
 
 .liveBadgeStale {
-  background: rgba(245, 185, 66, 0.12);
-  border-color: rgba(245, 185, 66, 0.35);
+  background: rgba(255, 184, 0, 0.1);
+  border-color: rgba(255, 184, 0, 0.28);
   color: var(--state-caution);
 }
 
 .liveBadgeOffline {
-  background: rgba(240, 71, 92, 0.12);
-  border-color: rgba(240, 71, 92, 0.35);
+  background: rgba(255, 45, 85, 0.1);
+  border-color: rgba(255, 45, 85, 0.28);
   color: var(--state-critical);
 }
 
 .liveBadgeConnecting {
-  background: rgba(79, 168, 255, 0.12);
-  border-color: rgba(79, 168, 255, 0.35);
+  background: rgba(56, 189, 248, 0.1);
+  border-color: rgba(56, 189, 248, 0.28);
   color: var(--state-info);
 }
 
 .liveBadgeSlow {
-  background: rgba(245, 185, 66, 0.12);
-  border-color: rgba(245, 185, 66, 0.45);
+  background: rgba(255, 184, 0, 0.08);
+  border-color: rgba(255, 184, 0, 0.3);
   color: var(--state-caution);
 }
 
 .liveBadgeNoData {
-  background: rgba(148, 163, 184, 0.12);
-  border-color: rgba(148, 163, 184, 0.35);
+  background: rgba(148, 163, 184, 0.08);
+  border-color: rgba(148, 163, 184, 0.2);
   color: var(--text-tertiary);
 }
 
 .liveDot {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: var(--state-safe);
-  box-shadow: var(--glow-green);
+  box-shadow: 0 0 8px rgba(0, 232, 160, 0.6);
   animation: livePulse 2s ease-in-out infinite;
 }
 
 .liveDotStale {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: var(--state-caution);
 }
 
 .liveDotSlow {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: var(--state-caution);
   animation: livePulse 1.2s ease-in-out infinite;
 }
 
 .liveDotNoData {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: var(--text-tertiary);
 }
 
 .liveDotOffline {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: var(--state-critical);
+  box-shadow: 0 0 8px rgba(255, 45, 85, 0.5);
 }
 
 .liveDotConnecting {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: var(--state-info);
   animation: livePulse 1.2s ease-in-out infinite;
 }
 
 @keyframes livePulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.4;
-  }
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
 }
 
 .notice {
-  padding: 12px 16px;
+  padding: 14px 18px;
   margin-bottom: var(--space-4);
   border-radius: var(--radius-md);
-  background: rgba(245, 185, 66, 0.08);
-  border: 1px solid var(--state-caution);
+  background: rgba(255, 184, 0, 0.06);
+  border: 1px solid rgba(255, 184, 0, 0.2);
   color: var(--state-caution);
   font-size: 13px;
   line-height: 1.5;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
-/* ===== Bento Grid System ===== */
+/* ===== Premium Bento Grid System ===== */
 .heroBento {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
-  gap: var(--space-4);
+  gap: 16px;
   margin-bottom: var(--space-5);
   position: relative;
 }
 
 .heroSafetyCard {
   grid-column: span 3;
-  background: var(--bg-surface);
+  background: var(--card-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   padding: var(--space-5);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   box-shadow: var(--shadow);
   position: relative;
+  overflow: hidden;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s, box-shadow 0.3s;
+}
+
+.heroSafetyCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0, 232, 160, 0.3), transparent);
+}
+
+.heroSafetyCard:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--card-hover-shadow);
+  border-color: var(--border-strong);
 }
 
 .heroSohCard {
   grid-column: span 3;
-  background: var(--bg-surface);
+  background: var(--card-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   padding: var(--space-5);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   box-shadow: var(--shadow);
+  overflow: hidden;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s, box-shadow 0.3s;
+}
+
+.heroSohCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.3), transparent);
+}
+
+.heroSohCard:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--card-hover-shadow);
+  border-color: var(--border-strong);
 }
 
 .heroSocCard {
   grid-column: span 3;
-  background: var(--bg-surface);
+  background: var(--card-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   padding: var(--space-5);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 12px;
   box-shadow: var(--shadow);
+  overflow: hidden;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s, box-shadow 0.3s;
+}
+
+.heroSocCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0, 232, 160, 0.3), transparent);
+}
+
+.heroSocCard:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--card-hover-shadow);
+  border-color: var(--border-strong);
 }
 
 .heroSparklineCard {
   grid-column: span 3;
-  background: var(--bg-surface);
+  background: var(--card-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   padding: var(--space-5);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   box-shadow: var(--shadow);
+  overflow: hidden;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s, box-shadow 0.3s;
+}
+
+.heroSparklineCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 184, 0, 0.3), transparent);
+}
+
+.heroSparklineCard:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--card-hover-shadow);
+  border-color: var(--border-strong);
 }
 
 .gaugeWrap {
   position: relative;
-  width: 140px;
-  height: 140px;
+  width: 150px;
+  height: 150px;
 }
 
 .gauge {
@@ -214,7 +299,8 @@
   fill: none;
   stroke-width: 10;
   stroke-linecap: round;
-  transition: stroke-dashoffset 0.8s ease, stroke 0.4s ease;
+  transition: stroke-dashoffset 0.8s cubic-bezier(0.16, 1, 0.3, 1), stroke 0.4s ease;
+  filter: drop-shadow(0 0 6px currentColor);
 }
 
 .gaugeCenter {
@@ -227,22 +313,23 @@
 }
 
 .gaugeScore {
-  font-size: 36px;
-  font-weight: 700;
+  font-size: 38px;
+  font-weight: 800;
   font-family: var(--font-display);
+  letter-spacing: -1px;
 }
 
 .gaugeLabel {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-tertiary);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .safetyBadge {
   padding: 8px 18px;
-  border-radius: 999px;
+  border-radius: 100px;
   border: 1.5px solid;
   font-size: 13px;
   font-weight: 700;
@@ -251,69 +338,71 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .safety_safe {
-  border-color: var(--state-safe);
-  background: rgba(61, 220, 151, 0.1);
+  border-color: rgba(0, 232, 160, 0.4);
+  background: rgba(0, 232, 160, 0.08);
   color: var(--state-safe);
 }
 
 .safety_caution {
-  border-color: var(--state-caution);
-  background: rgba(245, 185, 66, 0.1);
+  border-color: rgba(255, 184, 0, 0.4);
+  background: rgba(255, 184, 0, 0.08);
   color: var(--state-caution);
 }
 
 .safety_warning {
-  border-color: var(--state-caution);
-  background: rgba(245, 185, 66, 0.12);
+  border-color: rgba(255, 184, 0, 0.4);
+  background: rgba(255, 184, 0, 0.1);
   color: var(--state-caution);
 }
 
 .safety_critical {
-  border-color: var(--state-critical);
-  background: rgba(240, 71, 92, 0.15);
+  border-color: rgba(255, 45, 85, 0.5);
+  background: rgba(255, 45, 85, 0.12);
   color: var(--state-critical);
-  animation: criticalPulse 1.5s ease-in-out infinite;
+  animation: criticalPulse 2s ease-in-out infinite;
 }
 
 .safety_sensor_fault {
-  border-color: var(--state-caution);
+  border-color: rgba(255, 184, 0, 0.3);
   color: var(--state-caution);
-  background: rgba(245, 185, 66, 0.08);
+  background: rgba(255, 184, 0, 0.06);
 }
 
 @keyframes criticalPulse {
-  0%, 100% {
-    box-shadow: 0 0 12px rgba(240, 71, 92, 0.3);
-  }
-  50% {
-    box-shadow: 0 0 24px rgba(240, 71, 92, 0.6);
-  }
+  0%, 100% { box-shadow: 0 0 12px rgba(255, 45, 85, 0.2); }
+  50% { box-shadow: 0 0 28px rgba(255, 45, 85, 0.5); }
 }
 
 .opMode {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 12px;
-  border-radius: 999px;
+  padding: 5px 14px;
+  border-radius: 100px;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.04em;
   border: 1px solid var(--border-subtle);
   background: var(--bg-surface-raised);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .opCharging {
   color: var(--state-safe);
-  border-color: var(--state-safe);
+  border-color: rgba(0, 232, 160, 0.3);
+  background: rgba(0, 232, 160, 0.08);
 }
 
 .opDischarging {
   color: var(--state-critical);
-  border-color: var(--state-critical);
+  border-color: rgba(255, 45, 85, 0.3);
+  background: rgba(255, 45, 85, 0.08);
 }
 
 .opIdle {
@@ -321,38 +410,77 @@
   border-color: var(--border-subtle);
 }
 
+/* ===== Premium Metric Strip ===== */
 .metricStrip6 {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  gap: var(--space-4);
+  gap: 14px;
   margin-bottom: var(--space-4);
+}
+
+/* Sparkline mini cards strip */
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px;
+}
+
+.sparklineMiniCard {
+  background: var(--card-bg);
+  backdrop-filter: blur(14px) saturate(180%);
+  -webkit-backdrop-filter: blur(14px) saturate(180%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  box-shadow: var(--shadow);
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s, box-shadow 0.25s;
+}
+
+.sparklineMiniCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border-strong), transparent);
+  opacity: 0.4;
+}
+
+.sparklineMiniCard:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-strong);
+  box-shadow: var(--card-hover-shadow);
 }
 
 .profileStrip {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
   margin-bottom: var(--space-4);
   align-items: center;
 }
 
+/* ===== Premium Bento Layout ===== */
 .bento {
   display: grid;
   grid-template-columns: 2fr 1fr;
-  gap: var(--space-4);
+  gap: 16px;
   margin-bottom: var(--space-5);
 }
 
 .bentoRight {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: 16px;
 }
 
 .grid2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--space-4);
+  gap: 16px;
   margin-bottom: var(--space-5);
 }
 
@@ -361,64 +489,89 @@
   grid-template-columns: 1fr;
 }
 
+/* ===== Premium Banners ===== */
 .lockBanner {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 16px;
+  padding: 14px 18px;
   border-radius: var(--radius-md);
   margin-bottom: var(--space-4);
-  background: rgba(185, 140, 255, 0.1);
-  border: 1px solid var(--purple);
+  background: rgba(191, 90, 242, 0.08);
+  border: 1px solid rgba(191, 90, 242, 0.25);
   color: var(--purple);
   font-size: 13px;
   font-weight: 600;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .mqBanner {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 16px;
+  padding: 14px 18px;
   border-radius: var(--radius-md);
   margin-bottom: var(--space-4);
-  background: rgba(245, 185, 66, 0.08);
-  border: 1px solid var(--state-caution);
+  background: rgba(255, 184, 0, 0.06);
+  border: 1px solid rgba(255, 184, 0, 0.2);
   color: var(--state-caution);
   font-size: 13px;
+  font-weight: 500;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
-/* L1 - Energy flow strip */
+/* ===== Energy Flow & Instrument Panel ===== */
 .energyFlowRow {
   margin-bottom: var(--space-4);
 }
 
-/* K3 - Instrument panel (needle gauges) */
 .instrumentRow {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--space-4);
+  gap: 16px;
   margin-bottom: var(--space-4);
 }
 
 .instrumentCard {
-  background: var(--bg-surface);
+  background: var(--card-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
   box-shadow: var(--shadow);
+  overflow: hidden;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s, box-shadow 0.3s;
+}
+
+.instrumentCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(191, 90, 242, 0.2), transparent);
+}
+
+.instrumentCard:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--card-hover-shadow);
+  border-color: var(--border-strong);
 }
 
 /* ===== Responsive Breakpoints ===== */
 @media (max-width: 1024px) {
   .heroBento {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(6, 1fr);
   }
   .heroSafetyCard,
   .heroSohCard,
   .heroSocCard,
   .heroSparklineCard {
-    grid-column: span 12;
+    grid-column: span 3;
     height: auto;
   }
   .metricStrip6 {
@@ -430,9 +583,22 @@
 }
 
 @media (max-width: 768px) {
+  .pageTitle {
+    font-size: 24px;
+  }
+  .heroBento {
+    grid-template-columns: 1fr;
+  }
+  .heroSafetyCard,
+  .heroSohCard,
+  .heroSocCard,
+  .heroSparklineCard {
+    grid-column: span 1;
+  }
   .metricStrip6 {
     grid-template-columns: repeat(2, 1fr);
     overflow-x: auto;
+    scroll-snap-type: x mandatory;
   }
   .grid2 {
     grid-template-columns: 1fr;

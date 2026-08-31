@@ -245,17 +245,13 @@ export default function Header({
           </button>
 
           {/* Brand Logo & Updated Tagline */}
-          <Link href="/" className={styles.brandGroup} title="Battery Vital Mission Control">
+          <Link href="/" className={styles.brandGroup} title="Battery Vitals Home">
             <div className={styles.brandLogoIcon}>
               <BatteryCharging size={20} color="var(--accent-primary)" />
             </div>
             <div className={styles.brandTextGroup}>
               <div className={styles.brandTitleText}>
-                Battery <span className={styles.brandVitalText}>Vital</span>
-              </div>
-              {/* Requirement #1: Tagline replacement */}
-              <div className={styles.brandTagline}>
-                Smart Battery Monitoring System — Real-Time Protection for All Battery Types
+                Battery <span className={styles.brandVitalText}>Vitals</span>
               </div>
             </div>
           </Link>
@@ -845,7 +841,7 @@ export default function Header({
               <div className={styles.brandGroup}>
                 <BatteryCharging size={20} color="var(--accent-primary)" />
                 <span className={styles.brandTitleText}>
-                  Battery <span className={styles.brandVitalText}>Vital</span>
+                  Battery <span className={styles.brandVitalText}>Vitals</span>
                 </span>
               </div>
               <button
