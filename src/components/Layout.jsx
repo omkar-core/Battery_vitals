@@ -13,6 +13,7 @@ import ErrorBoundary from './ErrorBoundary'
 import CookieConsent from './CookieConsent'
 import { UserManualModal, WiringDiagramModal, VersionInfoModal } from './HelpModals'
 import ToastContainer from './ToastContainer'
+import MobileNav from './MobileNav'
 import { NotificationProvider, useNotifications } from '../context/NotificationContext'
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts'
 import useTabTitle from '../hooks/useTabTitle'
@@ -181,6 +182,9 @@ function LayoutInner({ children, connected, mode, lastSeen, data }) {
       <UserManualModal isOpen={manualOpen} onClose={() => setManualOpen(false)} />
       <WiringDiagramModal isOpen={wiringOpen} onClose={() => setWiringOpen(false)} />
       <VersionInfoModal isOpen={versionOpen} onClose={() => setVersionOpen(false)} />
+
+      {/* 12. Mobile Bottom Navigation Bar (Visible exclusively on mobile <768px) */}
+      <MobileNav />
     </div>
   )
 }

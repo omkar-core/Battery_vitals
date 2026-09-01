@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   Home,
+  BatteryCharging,
+  Wind,
   Activity,
   Bot,
   Bell,
@@ -15,24 +17,29 @@ import {
   Clock,
   Settings,
   HelpCircle,
+  Users,
   X,
+  Zap,
 } from 'lucide-react'
 import { useNotifications } from '../context/NotificationContext'
 
 const PRIMARY_MOBILE = [
   { key: '/', label: 'Live', icon: Home },
-  { key: '/analytics', label: 'Analytics', icon: Activity },
-  { key: '/ai', label: 'AI Insights', icon: Bot },
+  { key: '/battery', label: 'Battery', icon: Zap },
+  { key: '/environmental', label: 'Env', icon: Wind },
+  { key: '/ai', label: 'AI', icon: Bot },
   { key: '/alerts', label: 'Alerts', icon: Bell },
 ]
 
 const MORE_NAV = [
-  { key: '/settings', label: 'Battery Config', icon: Settings },
-  { key: '/controls', label: 'Controls & Relays', icon: SlidersHorizontal },
-  { key: '/diagnostics', label: 'Diagnostics & Flow', icon: Cpu },
+  { key: '/analytics', label: 'Live Graphs', icon: Activity },
+  { key: '/controls', label: 'Actuator Controls', icon: SlidersHorizontal },
+  { key: '/users', label: 'Users & Roles (RBAC)', icon: Users },
+  { key: '/diagnostics', label: 'Diagnostics', icon: Cpu },
+  { key: '/history?tab=trends', label: 'Historical Trends', icon: Clock },
+  { key: '/settings', label: 'Settings & Limits', icon: Settings },
   { key: '/passport', label: 'Battery Passport', icon: ShieldCheck },
-  { key: '/history', label: 'History & Export', icon: Clock },
-  { key: '/about', label: 'About & Help', icon: HelpCircle },
+  { key: '/about', label: 'About & Manual', icon: HelpCircle },
 ]
 
 export default function MobileNav() {
@@ -42,13 +49,38 @@ export default function MobileNav() {
 
   return (
     <>
+      <style jsx global>{`
+        .bv-mobile-bottom-nav {
+          display: none;
+        }
+        @media (max-width: 768px) {
+          .bv-mobile-bottom-nav {
+            display: grid !important;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: rgba(10, 14, 22, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid var(--border-subtle);
+            grid-template-columns: repeat(6, 1fr);
+            align-items: center;
+            z-index: 85;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.35);
+          }
+        }
+      `}</style>
+
       {openMore && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(11, 14, 18, 0.88)',
+            background: 'rgba(6, 9, 15, 0.85)',
             backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
             zIndex: 90,
             display: 'flex',
             flexDirection: 'column',
@@ -59,12 +91,14 @@ export default function MobileNav() {
         >
           <div
             style={{
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 16,
+              background: 'var(--bg-surface-raised)',
+              border: '1px solid var(--border-strong)',
+              borderRadius: 18,
               padding: '16px 14px',
               marginBottom: 64,
-              boxShadow: 'var(--shadow)',
+              boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
+              maxHeight: '75vh',
+              overflowY: 'auto',
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -79,7 +113,7 @@ export default function MobileNav() {
               }}
             >
               <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
-                System &amp; Help Modules
+                System Navigation
               </span>
               <button
                 onClick={() => setOpenMore(false)}
@@ -87,9 +121,14 @@ export default function MobileNav() {
                   background: 'none',
                   border: 'none',
                   color: 'var(--text-secondary)',
-                  padding: 4,
+                  padding: 6,
                   cursor: 'pointer',
+                  minHeight: 44,
+                  minWidth: 44,
+                  display: 'grid',
+                  placeItems: 'center',
                 }}
+                aria-label="Close more navigation menu"
               >
                 <X size={18} />
               </button>
@@ -97,7 +136,7 @@ export default function MobileNav() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               {MORE_NAV.map((n) => {
                 const Icon = n.icon
-                const active = pathname === n.key
+                const active = pathname === n.key.split('?')[0]
                 return (
                   <Link
                     key={n.key}
@@ -107,20 +146,18 @@ export default function MobileNav() {
                       display: 'flex',
                       alignItems: 'center',
                       gap: 8,
-                      padding: '12px 14px',
+                      padding: '12px 10px',
                       minHeight: 44,
-                      borderRadius: 8,
-                      background: active
-                        ? 'rgba(61, 220, 151, 0.12)'
-                        : 'var(--bg-surface-raised)',
-                      border: `1px solid ${active ? 'var(--accent-primary)' : 'var(--border-subtle)'}`,
-                      color: active ? 'var(--accent-primary)' : 'var(--text-primary)',
+                      borderRadius: 12,
+                      background: active ? 'rgba(0, 232, 160, 0.12)' : 'rgba(255,255,255,0.03)',
+                      color: active ? '#00E8A0' : 'var(--text-primary)',
+                      border: active ? '1px solid rgba(0, 232, 160, 0.3)' : '1px solid var(--border-subtle)',
                       fontSize: 12,
                       fontWeight: 600,
                       textDecoration: 'none',
                     }}
                   >
-                    <Icon size={16} />
+                    <Icon size={16} color={active ? '#00E8A0' : '#38BDF8'} />
                     <span>{n.label}</span>
                   </Link>
                 )
@@ -130,56 +167,73 @@ export default function MobileNav() {
         </div>
       )}
 
-      <nav className="mobileNav" aria-label="Primary bottom navigation">
-        <div className="mobileNavInner">
-          {PRIMARY_MOBILE.map((n) => {
-            const Icon = n.icon
-            const active = pathname === n.key
-            const isAlertTab = n.key === '/alerts'
-            return (
-              <Link
-                key={n.key}
-                href={n.key}
-                className={`mobileNavLink ${active ? 'mobileNavLinkActive' : ''}`}
-                aria-current={active ? 'page' : undefined}
-                style={{ minHeight: 44, position: 'relative' }}
-              >
-                <Icon size={18} />
-                <span>{n.label}</span>
-                {isAlertTab && unreadCount > 0 && (
-                  <span
-                    style={{
-                      position: 'absolute',
-                      top: 4,
-                      right: 14,
-                      background: '#FF2D55',
-                      color: '#fff',
-                      fontSize: 9,
-                      fontWeight: 800,
-                      borderRadius: 8,
-                      height: 14,
-                      minWidth: 14,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '0 3px',
-                    }}
-                  >
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                )}
-              </Link>
-            )
-          })}
-          <button
-            className={`mobileNavLink ${openMore ? 'mobileNavLinkActive' : ''}`}
-            onClick={() => setOpenMore(!openMore)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', minHeight: 44 }}
-          >
-            <MoreHorizontal size={18} />
-            <span>More</span>
-          </button>
-        </div>
+      <nav className="bv-mobile-bottom-nav" aria-label="Mobile Bottom Navigation">
+        {PRIMARY_MOBILE.map((item) => {
+          const Icon = item.icon
+          const active = pathname === item.key
+          const isAlerts = item.key === '/alerts'
+
+          return (
+            <Link
+              key={item.key}
+              href={item.key}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 2,
+                color: active ? '#00E8A0' : 'var(--text-secondary)',
+                textDecoration: 'none',
+                height: '100%',
+                minHeight: 44,
+                position: 'relative',
+              }}
+            >
+              <Icon size={18} />
+              <span style={{ fontSize: 10, fontWeight: active ? 700 : 500 }}>{item.label}</span>
+              {isAlerts && unreadCount > 0 && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: 6,
+                    right: '20%',
+                    background: '#FF2D55',
+                    color: '#fff',
+                    fontSize: 9,
+                    fontWeight: 700,
+                    borderRadius: 10,
+                    padding: '1px 5px',
+                    lineHeight: 1,
+                  }}
+                >
+                  {unreadCount}
+                </span>
+              )}
+            </Link>
+          )
+        })}
+
+        <button
+          onClick={() => setOpenMore(!openMore)}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 2,
+            color: openMore ? '#00E8A0' : 'var(--text-secondary)',
+            background: 'none',
+            border: 'none',
+            height: '100%',
+            minHeight: 44,
+            cursor: 'pointer',
+          }}
+          aria-label="More navigation links"
+        >
+          <MoreHorizontal size={18} />
+          <span style={{ fontSize: 10, fontWeight: 500 }}>More</span>
+        </button>
       </nav>
     </>
   )
