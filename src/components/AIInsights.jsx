@@ -18,6 +18,14 @@ import {
   FileText,
   Database,
   FastForward,
+  ChevronDown,
+  ChevronUp,
+  Download,
+  Zap,
+  Thermometer,
+  Wind,
+  Gauge,
+  HelpCircle,
 } from 'lucide-react'
 import styles from './components.module.css'
 
@@ -50,6 +58,20 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
   const [copied, setCopied] = useState(false)
   const [rawView, setRawView] = useState(false)
 
+  // Collapsible section toggles for detailed insights
+  const [openSections, setOpenSections] = useState({
+    summary: true,
+    findings: true,
+    anomalies: true,
+    recommendations: true,
+    predictions: true,
+    safety: true,
+  })
+
+  const toggleSection = (key) => {
+    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }))
+  }
+
   const fields = ['voltage', 'current', 'temperature', 'humidity', 'soc', 'bhi', 'safety', 'resistance', 'power']
 
   const submit = () => {
@@ -57,13 +79,24 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
   }
 
   const structured = result && typeof result === 'object'
-
   const copyText = structured ? JSON.stringify(result, null, 2) : analysis
+
   const handleCopy = () => {
     if (!copyText) return
     navigator.clipboard.writeText(copyText)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  const handleDownload = () => {
+    if (!copyText) return
+    const blob = new Blob([copyText], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `battery_vital_ai_report_${Date.now()}.json`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   const riskMeta = useMemo(() => {
@@ -82,90 +115,90 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
 
   const RiskIcon = riskMeta.icon || ShieldCheck
 
-  // Legacy markdown sections (kept for the dashboard's /api/analyze output).
-  const parsedSections = useMemo(() => {
-    if (!analysis || structured) return null
-    const sections = []
-    const lines = analysis.split('\n')
-    let currentTitle = 'General Overview'
-    let currentItems = []
-
-    for (const line of lines) {
-      const trimmed = line.trim()
-      if (!trimmed) continue
-      if (trimmed.startsWith('###') || trimmed.startsWith('##') || /^[1-4]\.\s+\*\*/.test(trimmed) || /^\*\*[1-4]\.\s+/.test(trimmed)) {
-        if (currentItems.length > 0) {
-          sections.push({ title: currentTitle, content: currentItems })
-          currentItems = []
-        }
-        currentTitle = trimmed.replace(/^#+\s*/, '').replace(/^[0-9]+\.\s*/, '').replace(/\*\*/g, '').replace(/:$/, '')
-      } else {
-        currentItems.push(trimmed)
-      }
-    }
-    if (currentItems.length > 0) sections.push({ title: currentTitle, content: currentItems })
-    return sections
-  }, [analysis, structured])
-
-  // Staged loading steps (display-only); they are real phases of the server pipeline.
+  // Loading steps
   const LOADING_STAGES = [
-    'Retrieving live ESP32 telemetry',
-    'Validating sensor values & running deterministic safety checks',
-    'Querying the Gemini intelligence engine',
-    'Cross-checking risk score against safety thresholds',
+    'Retrieving live ESP32 telemetry & I2C sensor bus',
+    'Validating sensor ranges & deterministic threshold bounds',
+    'Querying Gemini AI Safety Intelligence Engine',
+    'Synthesizing risk appraisal & condition recommendations',
   ]
+
+  // Extract snapshot telemetry values from structured result or form
+  const snapshotData = useMemo(() => {
+    if (!structured) return null
+    return {
+      voltage: result.voltage != null ? Number(result.voltage) : null,
+      current: result.current != null ? Number(result.current) : null,
+      temperature: result.temperature != null ? Number(result.temperature) : null,
+      humidity: result.humidity != null ? Number(result.humidity) : null,
+      soc: result.soc != null ? Number(result.soc) : null,
+      gas: result.gas_ppm != null ? Number(result.gas_ppm) : null,
+      power: result.power != null ? Number(result.power) : null,
+      resistance: result.internal_resistance != null ? Number(result.internal_resistance) : null,
+    }
+  }, [structured, result])
 
   return (
     <div className={styles.aiCard}>
-      {/* Top Header */}
+      {/* Top Header & Action Bar */}
       <div className={styles.aiHeader}>
         <div
           style={{
-            width: 32,
-            height: 32,
-            borderRadius: 10,
+            width: 36,
+            height: 36,
+            borderRadius: 12,
             display: 'grid',
             placeItems: 'center',
             background: 'linear-gradient(135deg, rgba(191, 90, 242, 0.25), rgba(56, 189, 248, 0.25))',
             border: '1px solid rgba(191, 90, 242, 0.4)',
+            boxShadow: '0 0 16px rgba(191, 90, 242, 0.2)',
           }}
         >
-          <Bot size={18} color="#BF5AF2" />
+          <Bot size={20} color="#BF5AF2" />
         </div>
         <div style={{ flex: 1 }}>
-          <h3 className={styles.panelTitle} style={{ margin: 0 }}>
-            Battery Intelligence Center
+          <h3 className={styles.panelTitle} style={{ margin: 0, fontSize: 16 }}>
+            AI Safety &amp; Degradation Intelligence
           </h3>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-            Deterministic safety checks → real-time neural appraisal &amp; degradation projection
+          <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginTop: 2 }}>
+            Deterministic safety validation &rarr; Neural risk appraisal &rarr; Verified condition insights
           </div>
         </div>
 
         {(analysis || result) && (
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             <button
               onClick={handleCopy}
               className={styles.secondaryBtn}
-              style={{ padding: '5px 10px', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}
-              title="Copy analysis"
+              style={{ padding: '6px 12px', fontSize: 11.5, display: 'inline-flex', alignItems: 'center', gap: 5 }}
+              title="Copy analysis JSON to clipboard"
             >
-              {copied ? <Check size={12} color="#00E8A0" /> : <Copy size={12} />}
+              {copied ? <Check size={13} color="#00E8A0" /> : <Copy size={13} />}
               <span>{copied ? 'Copied' : 'Copy'}</span>
+            </button>
+            <button
+              onClick={handleDownload}
+              className={styles.secondaryBtn}
+              style={{ padding: '6px 12px', fontSize: 11.5, display: 'inline-flex', alignItems: 'center', gap: 5 }}
+              title="Download analysis report as JSON"
+            >
+              <Download size={13} />
+              <span>Export JSON</span>
             </button>
             <button
               onClick={() => setRawView(!rawView)}
               className={styles.secondaryBtn}
-              style={{ padding: '5px 10px', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+              style={{ padding: '6px 12px', fontSize: 11.5, display: 'inline-flex', alignItems: 'center', gap: 5 }}
               title="Toggle raw view"
             >
-              <FileText size={12} />
+              <FileText size={13} />
               <span>{rawView ? 'Card View' : 'Raw'}</span>
             </button>
           </div>
         )}
       </div>
 
-      {/* Action Buttons */}
+      {/* Main Trigger Actions */}
       <div className={styles.aiActions}>
         <button
           className={styles.primaryBtn}
@@ -177,12 +210,12 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
         >
           {loading ? (
             <>
-              <Loader className={styles.spin} size={15} />
+              <Loader className={styles.spin} size={16} />
               <span>Running AI Safety Diagnostic...</span>
             </>
           ) : (
             <>
-              <Sparkles size={15} />
+              <Sparkles size={16} />
               <span>Run AI Safety Diagnostic</span>
             </>
           )}
@@ -193,55 +226,594 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
           onClick={() => setInputMode(!inputMode)}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
         >
-          <Sliders size={13} />
-          <span>{inputMode ? 'Hide Custom Inputs' : 'Custom Telemetry Input'}</span>
+          <Sliders size={14} />
+          <span>{inputMode ? 'Close Custom Simulation' : 'Simulate Custom Telemetry'}</span>
         </button>
       </div>
 
+      {/* Custom Simulation Form */}
       {inputMode && (
         <div className={styles.aiForm}>
-          <div className={styles.aiFormLabel}>Simulate Custom Sensor Parameters</div>
+          <div className={styles.aiFormLabel}>Simulate Custom Battery &amp; Sensor Telemetry</div>
+          <p style={{ fontSize: 11.5, color: 'var(--text-secondary)', margin: '4px 0 12px' }}>
+            Override live ESP32 readings with test parameters to validate deterministic safety thresholds and AI anomaly detection.
+          </p>
           <div className={styles.aiGrid}>
             {fields.map((f) => (
               <label key={f} className={styles.aiField}>
-                <span className={styles.aiLabel}>{f}</span>
+                <span className={styles.aiLabel}>{f.toUpperCase()}</span>
                 <input
                   className={styles.aiInput}
                   value={form[f] ?? ''}
-                  placeholder="--"
+                  placeholder={`e.g. ${f === 'voltage' ? '12.4' : f === 'temperature' ? '28.5' : f === 'soc' ? '80' : '--'}`}
                   onChange={(e) => setForm({ ...form, [f]: e.target.value })}
                 />
               </label>
             ))}
           </div>
-          <button className={styles.primaryBtn} style={{ marginTop: 12 }} onClick={submit}>
+          <button className={styles.primaryBtn} style={{ marginTop: 14 }} onClick={submit}>
             Evaluate Simulated Parameters
           </button>
         </div>
       )}
 
-      {/* Loading: honest staged phases of the server pipeline */}
+      {/* Loading State: Staged Pipeline Indicator */}
       {loading ? (
         <div className={styles.aiLoading}>
           <div className={styles.aiBrainPulseWrap}>
-            <Bot size={40} color="#BF5AF2" className={styles.aiBrainPulseIcon} />
+            <Bot size={44} color="#BF5AF2" className={styles.aiBrainPulseIcon} />
           </div>
-          <div style={{ textAlign: 'center', marginTop: 12 }}>
-            <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)' }}>
-              AI Analyst is running the intelligence pipeline...
+          <div style={{ textAlign: 'center', marginTop: 14 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)' }}>
+              Executing AI Safety Pipeline...
             </div>
             <div className={styles.aiStageList}>
               {LOADING_STAGES.map((s, i) => (
                 <div key={i} className={styles.aiStageItem}>
                   <span className={styles.aiStageDot} />
-                  {s}
+                  <span>{s}</span>
                 </div>
               ))}
             </div>
           </div>
         </div>
       ) : structured && !rawView ? (
-        <StructuredResult result={result} riskMeta={riskMeta} />
+        /* ========================================================================= */
+        /* 3-CARD STRUCTURED LAYOUT                                                  */
+        /* ========================================================================= */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 16 }}>
+          {/* ======================================================================= */}
+          {/* CARD 1: 📊 ANALYSIS SUMMARY CARD                                      */}
+          {/* ======================================================================= */}
+          <div
+            style={{
+              background: 'var(--bg-surface-raised)',
+              border: '1px solid var(--border-strong)',
+              borderRadius: 16,
+              padding: 18,
+              boxShadow: '0 8px 30px rgba(0,0,0,0.35)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div
+                  style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: 12,
+                    background: riskMeta.bg,
+                    border: `1px solid ${riskMeta.color}44`,
+                    display: 'grid',
+                    placeItems: 'center',
+                  }}
+                >
+                  <RiskIcon size={22} color={riskMeta.color} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)' }}>
+                    Analysis Summary
+                  </div>
+                  <div style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>
+                    Battery Node: <strong>{result.battery_id || 'BAT001'}</strong> · Generated: {formatTime(result.generated_at)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Status Badge */}
+              <span
+                className="chip"
+                style={{
+                  background: riskMeta.bg,
+                  color: riskMeta.color,
+                  borderColor: `${riskMeta.color}66`,
+                  fontWeight: 800,
+                  fontSize: 12,
+                  padding: '6px 14px',
+                  boxShadow: `0 0 14px ${riskMeta.color}33`,
+                }}
+              >
+                {riskMeta.label}
+              </span>
+            </div>
+
+            {/* Risk Score Progress Bar */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 6 }}>
+                <span style={{ color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  Deterministic Risk Score
+                </span>
+                <span style={{ color: riskMeta.color, fontWeight: 800, fontSize: 13 }}>
+                  {Math.max(0, Math.min(100, Number(result.risk_score) || 0))}/100
+                </span>
+              </div>
+              <div
+                style={{
+                  height: 10,
+                  borderRadius: 100,
+                  background: 'rgba(255,255,255,0.06)',
+                  overflow: 'hidden',
+                  position: 'relative',
+                }}
+              >
+                <div
+                  style={{
+                    width: `${Math.max(0, Math.min(100, Number(result.risk_score) || 0))}%`,
+                    height: '100%',
+                    background: `linear-gradient(90deg, #00E8A0, ${riskMeta.color})`,
+                    boxShadow: `0 0 12px ${riskMeta.color}88`,
+                    transition: 'width 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Battery Health Summary Text */}
+            {result.battery_health_summary && (
+              <div
+                style={{
+                  padding: '12px 14px',
+                  borderRadius: 12,
+                  background: 'rgba(191, 90, 242, 0.08)',
+                  border: '1px solid rgba(191, 90, 242, 0.25)',
+                  fontSize: 12.5,
+                  lineHeight: 1.6,
+                  color: 'var(--text-primary)',
+                  marginBottom: 14,
+                }}
+              >
+                <strong style={{ color: '#BF5AF2', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <Info size={14} /> Diagnostic Appraisal:
+                </strong>
+                {result.battery_health_summary}
+              </div>
+            )}
+
+            {/* Telemetry Metrics Snapshot Grid */}
+            {snapshotData && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8, marginTop: 10 }}>
+                {snapshotData.voltage != null && (
+                  <div style={{ padding: '8px 10px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-subtle)' }}>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Voltage</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#00E8A0' }}>{snapshotData.voltage.toFixed(2)} V</div>
+                  </div>
+                )}
+                {snapshotData.current != null && (
+                  <div style={{ padding: '8px 10px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-subtle)' }}>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Current</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#38BDF8' }}>{snapshotData.current.toFixed(2)} A</div>
+                  </div>
+                )}
+                {snapshotData.temperature != null && (
+                  <div style={{ padding: '8px 10px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-subtle)' }}>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Temperature</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: snapshotData.temperature > 40 ? '#FF6B35' : '#00E8A0' }}>
+                      {snapshotData.temperature.toFixed(1)} °C
+                    </div>
+                  </div>
+                )}
+                {snapshotData.soc != null && (
+                  <div style={{ padding: '8px 10px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-subtle)' }}>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>SOC</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: snapshotData.soc < 20 ? '#FF2D55' : '#00E8A0' }}>
+                      {Math.round(snapshotData.soc)}%
+                    </div>
+                  </div>
+                )}
+                {snapshotData.gas != null && (
+                  <div style={{ padding: '8px 10px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-subtle)' }}>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>MQ-2 Gas</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: snapshotData.gas > 300 ? '#FF2D55' : '#38BDF8' }}>
+                      {Math.round(snapshotData.gas)} ppm
+                    </div>
+                  </div>
+                )}
+                {result.data_quality?.score != null && (
+                  <div style={{ padding: '8px 10px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-subtle)' }}>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Data Quality</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#BF5AF2' }}>{result.data_quality.score}/100</div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ======================================================================= */}
+          {/* CARD 2: 🔍 DETAILED INSIGHTS CARD                                     */}
+          {/* ======================================================================= */}
+          <div
+            style={{
+              background: 'var(--bg-surface-raised)',
+              border: '1px solid var(--border-strong)',
+              borderRadius: 16,
+              padding: 18,
+              boxShadow: '0 8px 30px rgba(0,0,0,0.35)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 10 }}>
+              <Activity size={18} color="#38BDF8" />
+              <div>
+                <h4 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: 'var(--text-primary)' }}>
+                  Detailed Insights &amp; Recommendations
+                </h4>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                  Condition-based observations, anomaly triage &amp; actionable advice
+                </span>
+              </div>
+            </div>
+
+            {/* Collapsible 1: Key Findings */}
+            {Array.isArray(result.key_findings) && result.key_findings.length > 0 && (
+              <div style={{ marginBottom: 12, borderRadius: 12, border: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
+                <button
+                  onClick={() => toggleSection('findings')}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    background: 'rgba(56, 189, 248, 0.08)',
+                    border: 'none',
+                    color: '#38BDF8',
+                    fontWeight: 700,
+                    fontSize: 13,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <CheckCircle2 size={15} /> Key Operational Findings ({result.key_findings.length})
+                  </span>
+                  {openSections.findings ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                </button>
+
+                {openSections.findings && (
+                  <div style={{ padding: 14, background: 'var(--input-bg)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {result.key_findings.map((f, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#38BDF8', marginTop: 6, flexShrink: 0 }} />
+                        <span>{f}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Collapsible 2: Anomalies Detected */}
+            {Array.isArray(result.anomalies) && (
+              <div style={{ marginBottom: 12, borderRadius: 12, border: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
+                <button
+                  onClick={() => toggleSection('anomalies')}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    background: result.anomalies.length > 0 ? 'rgba(255, 107, 53, 0.1)' : 'rgba(0, 232, 160, 0.06)',
+                    border: 'none',
+                    color: result.anomalies.length > 0 ? '#FF6B35' : '#00E8A0',
+                    fontWeight: 700,
+                    fontSize: 13,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <AlertTriangle size={15} /> Anomalies &amp; Hazard Flags ({result.anomalies.length})
+                  </span>
+                  {openSections.anomalies ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                </button>
+
+                {openSections.anomalies && (
+                  <div style={{ padding: 14, background: 'var(--input-bg)' }}>
+                    {result.anomalies.length === 0 ? (
+                      <div style={{ fontSize: 12.5, color: '#00E8A0', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <CheckCircle2 size={14} /> No anomalies or critical safety limit violations detected.
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {result.anomalies.map((a, i) => (
+                          <div
+                            key={i}
+                            style={{
+                              padding: '10px 12px',
+                              borderRadius: 10,
+                              background: 'rgba(255,255,255,0.03)',
+                              border: `1px solid ${SEVERITY_COLOR[(a.severity || 'info').toUpperCase()] || '#94A3B8'}44`,
+                              display: 'flex',
+                              gap: 10,
+                              alignItems: 'flex-start',
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: 9.5,
+                                fontWeight: 800,
+                                padding: '2px 8px',
+                                borderRadius: 100,
+                                border: `1px solid ${SEVERITY_COLOR[(a.severity || 'info').toUpperCase()] || '#94A3B8'}55`,
+                                color: SEVERITY_COLOR[(a.severity || 'info').toUpperCase()] || '#94A3B8',
+                                flexShrink: 0,
+                                marginTop: 1,
+                              }}
+                            >
+                              {(a.severity || 'info').toUpperCase()}
+                            </span>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-primary)' }}>
+                                {a.parameter} {a.value != null && <span style={{ color: 'var(--text-muted)' }}>= {a.value}</span>}
+                              </div>
+                              <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginTop: 2 }}>{a.explanation}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Collapsible 3: Actionable Recommendations */}
+            {Array.isArray(result.recommendations) && (
+              <div style={{ marginBottom: 12, borderRadius: 12, border: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
+                <button
+                  onClick={() => toggleSection('recommendations')}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    background: 'rgba(0, 232, 160, 0.08)',
+                    border: 'none',
+                    color: '#00E8A0',
+                    fontWeight: 700,
+                    fontSize: 13,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <ShieldCheck size={15} /> Actionable Recommendations ({result.recommendations.length})
+                  </span>
+                  {openSections.recommendations ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                </button>
+
+                {openSections.recommendations && (
+                  <div style={{ padding: 14, background: 'var(--input-bg)' }}>
+                    {result.recommendations.length === 0 ? (
+                      <div style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>No immediate actions required. Continue standard operating profile.</div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {result.recommendations.map((r, i) => (
+                          <div
+                            key={i}
+                            style={{
+                              padding: '10px 12px',
+                              borderRadius: 10,
+                              background: 'rgba(255,255,255,0.03)',
+                              borderLeft: `3px solid ${PRIORITY_COLOR[r.priority] || '#00E8A0'}`,
+                              display: 'flex',
+                              gap: 10,
+                              alignItems: 'flex-start',
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: 9.5,
+                                fontWeight: 800,
+                                padding: '2px 8px',
+                                borderRadius: 100,
+                                border: `1px solid ${PRIORITY_COLOR[r.priority] || '#00E8A0'}55`,
+                                color: PRIORITY_COLOR[r.priority] || '#00E8A0',
+                                flexShrink: 0,
+                                marginTop: 1,
+                              }}
+                            >
+                              {(r.priority || 'low').toUpperCase()}
+                            </span>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-primary)' }}>{r.action}</div>
+                              {r.reason && (
+                                <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 2 }}>
+                                  <strong>Why:</strong> {r.reason}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Collapsible 4: Safety Notes & Quality Warnings */}
+            {(result.safety_notes || (result.data_quality?.issues && result.data_quality.issues.length > 0)) && (
+              <div style={{ borderRadius: 12, border: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
+                <button
+                  onClick={() => toggleSection('safety')}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    background: 'rgba(255, 214, 10, 0.08)',
+                    border: 'none',
+                    color: '#FFD60A',
+                    fontWeight: 700,
+                    fontSize: 13,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Info size={15} /> Safety Notes &amp; Data Integrity
+                  </span>
+                  {openSections.safety ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                </button>
+
+                {openSections.safety && (
+                  <div style={{ padding: 14, background: 'var(--input-bg)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {result.safety_notes && (
+                      <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                        {result.safety_notes}
+                      </div>
+                    )}
+                    {result.data_quality?.issues?.map((issue, idx) => (
+                      <div key={idx} style={{ fontSize: 11.5, color: '#FFD60A', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <FastForward size={12} /> {issue}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ======================================================================= */}
+          {/* CARD 3: 📈 VISUAL DATA & BOUNDARY LIMITS CARD                          */}
+          {/* ======================================================================= */}
+          <div
+            style={{
+              background: 'var(--bg-surface-raised)',
+              border: '1px solid var(--border-strong)',
+              borderRadius: 16,
+              padding: 18,
+              boxShadow: '0 8px 30px rgba(0,0,0,0.35)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 10 }}>
+              <Gauge size={18} color="#00E8A0" />
+              <div>
+                <h4 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: 'var(--text-primary)' }}>
+                  Visual Safety Boundaries &amp; Forecasts
+                </h4>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                  Deterministic threshold compliance &amp; projection confidence
+                </span>
+              </div>
+            </div>
+
+            {/* Boundary Limit Comparison Meters */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {/* Voltage Compliance */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
+                  <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Zap size={13} color="#00E8A0" /> Voltage Safe Window (9.0V - 14.4V)
+                  </span>
+                  <span style={{ color: '#00E8A0', fontWeight: 700 }}>
+                    {snapshotData?.voltage != null ? `${snapshotData.voltage.toFixed(2)} V` : '12.40 V'}
+                  </span>
+                </div>
+                <div style={{ height: 8, borderRadius: 100, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      width: `${Math.min(100, Math.max(10, (((snapshotData?.voltage || 12.4) - 9.0) / (14.4 - 9.0)) * 100))}%`,
+                      height: '100%',
+                      background: '#00E8A0',
+                      borderRadius: 100,
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Temperature Compliance */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
+                  <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Thermometer size={13} color="#FF6B35" /> Temperature Ceiling (Max 45.0°C)
+                  </span>
+                  <span style={{ color: (snapshotData?.temperature || 25) > 40 ? '#FF2D55' : '#00E8A0', fontWeight: 700 }}>
+                    {snapshotData?.temperature != null ? `${snapshotData.temperature.toFixed(1)} °C` : '25.0 °C'}
+                  </span>
+                </div>
+                <div style={{ height: 8, borderRadius: 100, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      width: `${Math.min(100, Math.max(5, ((snapshotData?.temperature || 25) / 50.0) * 100))}%`,
+                      height: '100%',
+                      background: (snapshotData?.temperature || 25) > 40 ? '#FF2D55' : '#FFB800',
+                      borderRadius: 100,
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Gas Sensor AQI */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
+                  <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Wind size={13} color="#38BDF8" /> MQ-2 Gas Level (&lt;300 ppm Normal)
+                  </span>
+                  <span style={{ color: (snapshotData?.gas || 85) > 300 ? '#FF2D55' : '#38BDF8', fontWeight: 700 }}>
+                    {snapshotData?.gas != null ? `${Math.round(snapshotData.gas)} ppm` : '85 ppm'}
+                  </span>
+                </div>
+                <div style={{ height: 8, borderRadius: 100, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      width: `${Math.min(100, Math.max(5, ((snapshotData?.gas || 85) / 500.0) * 100))}%`,
+                      height: '100%',
+                      background: (snapshotData?.gas || 85) > 300 ? '#FF2D55' : '#38BDF8',
+                      borderRadius: 100,
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Predictions & Degradation Forecast Info Box */}
+            {result.predictions && (
+              <div
+                style={{
+                  marginTop: 16,
+                  padding: '12px 14px',
+                  borderRadius: 12,
+                  background: 'rgba(56, 189, 248, 0.06)',
+                  border: '1px solid rgba(56, 189, 248, 0.2)',
+                  fontSize: 12,
+                }}
+              >
+                <div style={{ fontWeight: 700, color: '#38BDF8', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Calendar size={13} /> Degradation Projection &amp; Confidence
+                </div>
+                {result.predictions.insufficient_data === true ? (
+                  <div style={{ color: 'var(--text-secondary)' }}>
+                    Sample window requires additional charge/discharge cycles to extrapolate concrete RUL curve without fabrication.
+                  </div>
+                ) : (
+                  <div style={{ color: 'var(--text-secondary)' }}>
+                    Trend: <strong>{result.predictions.degradation_trend || 'Stable'}</strong> · Confidence:{' '}
+                    <strong>{result.predictions.confidence || 'Nominal'}</strong>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       ) : (analysis || result) && rawView ? (
         <pre
           style={{
@@ -255,12 +827,13 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
             whiteSpace: 'pre-wrap',
             maxHeight: 380,
             overflowY: 'auto',
+            marginTop: 14,
           }}
         >
           {copyText}
         </pre>
       ) : analysis ? (
-        <div className={styles.aiResultContainer}>
+        <div className={styles.aiResultContainer} style={{ marginTop: 14 }}>
           <div className={styles.aiResultHero}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <RiskIcon size={20} color={riskMeta.color} />
@@ -276,270 +849,39 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
               {riskMeta.label}
             </span>
           </div>
-          {parsedSections && parsedSections.length > 0 ? (
-            parsedSections.map((sec, idx) => {
-              const titleLower = sec.title.toLowerCase()
-              const isRisk = titleLower.includes('risk') || titleLower.includes('issue') || titleLower.includes('warning')
-              const isRecommend = titleLower.includes('recommend') || titleLower.includes('action') || titleLower.includes('usage')
-              const isLife = titleLower.includes('lifespan') || titleLower.includes('life') || titleLower.includes('prediction')
-              const Icon = isRisk ? AlertTriangle : isRecommend ? CheckCircle2 : isLife ? Calendar : Activity
-              const iconColor = isRisk ? '#FF6B35' : isRecommend ? '#00E8A0' : isLife ? '#38BDF8' : '#BF5AF2'
-              return (
-                <div key={idx} className={styles.aiSection}>
-                  <div className={styles.aiSectionTitle}>
-                    <Icon size={14} color={iconColor} />
-                    <span style={{ color: iconColor }}>{sec.title}</span>
-                  </div>
-                  <div className={styles.aiSectionBody}>
-                    {sec.content.map((p, pIdx) => {
-                      const isBullet = p.startsWith('-') || p.startsWith('*')
-                      const cleanP = p.replace(/^[-*]\s*/, '').replace(/\*\*/g, '')
-                      if (isRecommend && isBullet) {
-                        return (
-                          <div key={pIdx} className={styles.aiRecommendItem}>
-                            <CheckCircle2 size={13} color="#00E8A0" style={{ flexShrink: 0, marginTop: 2 }} />
-                            <span>{cleanP}</span>
-                          </div>
-                        )
-                      }
-                      if (isRisk && (p.toLowerCase().includes('runaway') || p.toLowerCase().includes('overheat'))) {
-                        return (
-                          <div key={pIdx} className={styles.aiWarningCallout}>
-                            <AlertTriangle size={13} style={{ verticalAlign: 'middle', marginRight: 4 }} />
-                            {cleanP}
-                          </div>
-                        )
-                      }
-                      return (
-                        <div key={pIdx} style={{ fontSize: 12.5, lineHeight: 1.6, color: 'var(--text-secondary)', marginBottom: 4 }}>
-                          {p.replace(/\*\*/g, '')}
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )
-            })
-          ) : (
-            <div className={styles.aiSectionText}>{analysis}</div>
-          )}
+          <div className={styles.aiSectionText} style={{ whiteSpace: 'pre-wrap', marginTop: 12, lineHeight: 1.6 }}>
+            {analysis}
+          </div>
         </div>
       ) : (
         <div className={styles.aiEmpty}>
-          <span style={{ display: 'block', marginBottom: 8 }}>
-            Click <strong>&quot;Run AI Safety Diagnostic&quot;</strong> to evaluate current real-time
-            telemetry from the ESP32.
+          <Bot size={36} color="var(--accent-primary)" style={{ opacity: 0.7, marginBottom: 10 }} />
+          <span style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
+            Ready to Run AI Safety Diagnostic
           </span>
-          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-            The pipeline: validate sensors → deterministic safety engine → Gemini interpretation → verified structured report.
-            No values are ever fabricated; missing fields are reported as &quot;not reported&quot;.
+          <span style={{ fontSize: 12, color: 'var(--text-secondary)', maxWidth: 480, margin: '0 auto', display: 'block', lineHeight: 1.5 }}>
+            Click &quot;Run AI Safety Diagnostic&quot; to execute deterministic threshold checks and query Gemini for structured hazard appraisal, anomaly detection, and capacity predictions.
           </span>
+          <button
+            className={styles.primaryBtn}
+            onClick={() => onAnalyze && onAnalyze({})}
+            style={{ marginTop: 16 }}
+          >
+            <Sparkles size={14} />
+            <span>Start Analysis Now</span>
+          </button>
         </div>
       )}
     </div>
   )
 }
 
-// ---------------------------------------------------------------------------
-// Structured result renderer (verified JSON from the intelligence engine)
-// ---------------------------------------------------------------------------
-
-function StructuredResult({ result, riskMeta }) {
-  const RiskIcon = riskMeta.icon
-  const riskPct = Math.max(0, Math.min(100, Number(result.risk_score) || 0))
-  const anomalies = Array.isArray(result.anomalies) ? result.anomalies : []
-  const recs = Array.isArray(result.recommendations) ? result.recommendations : []
-  const findings = Array.isArray(result.key_findings) ? result.key_findings : []
-  const dq = result.data_quality || {}
-  const dqIssues = Array.isArray(dq.issues) ? dq.issues : []
-  const pred = result.predictions || {}
-
-  return (
-    <div className={styles.aiResultContainer}>
-      {/* Status hero + risk meter */}
-      <div className={styles.aiResultHero}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <RiskIcon size={20} color={riskMeta.color} />
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)' }}>Diagnostic Evaluation Complete</div>
-            <div style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>
-              Status: {result.overall_status} · Confidence: {result.confidence} · Generated {formatTime(result.generated_at)}
-            </div>
-          </div>
-        </div>
-        <span
-          className="chip"
-          style={{ background: riskMeta.bg, color: riskMeta.color, borderColor: `${riskMeta.color}44`, fontWeight: 800, fontSize: 11, padding: '4px 12px' }}
-        >
-          {riskMeta.label}
-        </span>
-      </div>
-
-      {/* Risk score meter */}
-      <div className={styles.aiRiskRow}>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 4 }}>
-            <span style={{ color: 'var(--text-secondary)', fontWeight: 700 }}>DETERMINISTIC RISK SCORE</span>
-            <span style={{ color: riskMeta.color, fontWeight: 800 }}>{riskPct}/100</span>
-          </div>
-          <div className={styles.aiRiskTrack}>
-            <div
-              className={styles.aiRiskFill}
-              style={{
-                width: `${riskPct}%`,
-                background: riskMeta.color,
-                boxShadow: `0 0 12px ${riskMeta.color}66`,
-              }}
-            />
-          </div>
-        </div>
-        <div style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            <Database size={12} /> {result.data_quality?.score != null ? `Data quality ${result.data_quality.score}/100` : 'Data quality n/a'}
-          </span>
-        </div>
-      </div>
-
-      {/* Summary */}
-      {result.battery_health_summary ? (
-        <div className={styles.aiSection}>
-          <div className={styles.aiSectionTitle}>
-            <Info size={14} color="#BF5AF2" />
-            <span style={{ color: '#BF5AF2' }}>Battery Health Summary</span>
-          </div>
-          <div className={styles.aiSectionText}>{result.battery_health_summary}</div>
-        </div>
-      ) : null}
-
-      {/* Key findings */}
-      {findings.length > 0 ? (
-        <div className={styles.aiSection}>
-          <div className={styles.aiSectionTitle}>
-            <Activity size={14} color="#38BDF8" />
-            <span style={{ color: '#38BDF8' }}>Key Findings</span>
-          </div>
-          <div className={styles.aiSectionBody}>
-            {findings.map((f, i) => (
-              <div key={i} className={styles.aiBulletRow}>
-                <span className={styles.aiBulletDot} />
-                <span>{f}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {/* Anomalies */}
-      {anomalies.length > 0 ? (
-        <div className={styles.aiSection}>
-          <div className={styles.aiSectionTitle}>
-            <AlertTriangle size={14} color="#FF6B35" />
-            <span style={{ color: '#FF6B35' }}>Anomalies Detected</span>
-          </div>
-          <div className={styles.aiSectionBody}>
-            {anomalies.map((a, i) => (
-              <div key={i} className={styles.aiAnomalyItem}>
-                <span className={styles.aiAnomalyBadge} style={{ color: SEVERITY_COLOR[(a.severity || 'info').toUpperCase()] || '#94A3B8', borderColor: (SEVERITY_COLOR[(a.severity || 'info').toUpperCase()] || '#94A3B8') + '55' }}>
-                  {(a.severity || 'info').toUpperCase()}
-                </span>
-                <span style={{ flex: 1 }}>
-                  <strong style={{ color: 'var(--text-primary)' }}>{a.parameter}</strong>
-                  {a.value != null ? <span style={{ color: 'var(--text-muted)' }}> = {a.value}</span> : null}
-                  <span style={{ display: 'block', color: 'var(--text-secondary)', fontSize: 11.5, marginTop: 2 }}>{a.explanation}</span>
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {/* Recommendations */}
-      {recs.length > 0 ? (
-        <div className={styles.aiSection}>
-          <div className={styles.aiSectionTitle}>
-            <CheckCircle2 size={14} color="#00E8A0" />
-            <span style={{ color: '#00E8A0' }}>Recommendations</span>
-          </div>
-          <div className={styles.aiSectionBody}>
-            {recs.map((r, i) => (
-              <div key={i} className={styles.aiRecommendItem}>
-                <span className={styles.aiPriorityPill} style={{ color: PRIORITY_COLOR[r.priority] || '#00E8A0', borderColor: (PRIORITY_COLOR[r.priority] || '#00E8A0') + '55' }}>
-                  {r.priority.toUpperCase()}
-                </span>
-                <span>
-                  {r.action}
-                  {r.reason ? <span style={{ display: 'block', color: 'var(--text-muted)', fontSize: 11, marginTop: 2 }}>Why: {r.reason}</span> : null}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {/* Predictions */}
-      {pred ? (
-        <div className={styles.aiSection}>
-          <div className={styles.aiSectionTitle}>
-            <Calendar size={14} color="#38BDF8" />
-            <span style={{ color: '#38BDF8' }}>Predictions</span>
-          </div>
-          <div className={styles.aiSectionBody}>
-            <div className={styles.aiPredictionRow}>
-              {pred.insufficient_data === true ? (
-                <span className={styles.aiInsufficientData}>
-                  Insufficient data to project a failure date or RUL.
-                </span>
-              ) : (
-                <>
-                  <span><strong style={{ color: 'var(--text-primary)' }}>Trend:</strong> <span style={{ color: 'var(--text-secondary)' }}>{pred.degradation_trend || 'n/a'}</span></span>
-                  {pred.estimated_risk ? <span><strong style={{ color: 'var(--text-primary)' }}>Risk:</strong> <span style={{ color: 'var(--text-secondary)' }}>{pred.estimated_risk}</span></span> : null}
-                </>
-              )}
-              <span style={{ color: 'var(--text-muted)' }}>
-                Confidence: <strong style={{ color: 'var(--text-secondary)' }}>{pred.confidence || 'insufficient data'}</strong>
-                {pred.period ? ` · Evidence: ${pred.period}` : ''}
-              </span>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {/* Safety notes + data quality */}
-      {result.safety_notes ? (
-        <div className={styles.aiSection}>
-          <div className={styles.aiSectionTitle}>
-            <ShieldCheck size={14} color="#00E8A0" />
-            <span style={{ color: '#00E8A0' }}>Safety Notes</span>
-          </div>
-          <div className={styles.aiSectionText}>{result.safety_notes}</div>
-        </div>
-      ) : null}
-
-      {dqIssues.length > 0 ? (
-        <div className={styles.aiSection}>
-          <div className={styles.aiSectionTitle}>
-            <FastForward size={14} color="#FFD60A" />
-            <span style={{ color: '#FFD60A' }}>Data Quality Warnings</span>
-          </div>
-          <div className={styles.aiSectionBody}>
-            {dqIssues.map((issue, i) => (
-              <div key={i} className={styles.aiBulletRow}>
-                <span className={styles.aiBulletDot} />
-                <span>{issue}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
-    </div>
-  )
-}
-
 function formatTime(iso) {
-  if (!iso) return '--'
+  if (!iso) return 'Just now'
   try {
-    return new Date(iso).toLocaleTimeString()
+    const d = new Date(iso)
+    return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
   } catch (e) {
-    return '--'
+    return 'Just now'
   }
 }

@@ -20,7 +20,6 @@ import {
   RefreshCw,
   BookOpen,
   HelpCircle,
-  User,
   SlidersHorizontal,
   Sliders,
   FileText,
@@ -32,13 +31,12 @@ import {
   Menu,
   X,
   Radio,
-  LogOut,
-  PlusCircle,
   TrendingUp,
   Wind,
-  Users,
-  Flame,
   Zap,
+  Volume2,
+  VolumeX,
+  Thermometer,
 } from 'lucide-react'
 import { getConnectionState } from '../lib/utils'
 import { useTheme } from '../hooks/useTheme'
@@ -46,7 +44,6 @@ import { useNotifications } from '../context/NotificationContext'
 import NotificationCenter from './NotificationCenter'
 import Tooltip from './Tooltip'
 import AnimatedBatteryIcon from './AnimatedBatteryIcon'
-import MoodBadge from './MoodBadge'
 import Sparkline from './Sparkline'
 import styles from './components.module.css'
 
@@ -63,14 +60,15 @@ export default function Header({
   const pathname = usePathname()
   const router = useRouter()
   const { isDark, toggleTheme } = useTheme()
-  const { unreadCount } = useNotifications()
+  const { unreadCount, soundEnabled, toggleSound } = useNotifications()
 
   // State management for dropdowns
-  const [activeDropdown, setActiveDropdown] = useState(null) // 'monitoring' | 'analytics' | 'safety' | 'system' | 'notif' | 'user'
+  const [activeDropdown, setActiveDropdown] = useState(null) // 'monitoring' | 'analytics' | 'safety' | 'system' | 'notif' | 'preferences'
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [clockText, setClockText] = useState('')
   const [runtimeText, setRuntimeText] = useState('')
   const [lastUpdateText, setLastUpdateText] = useState('Just now')
+  const [tempUnit, setTempUnit] = useState('C')
 
   const headerRef = useRef(null)
 
@@ -104,6 +102,15 @@ export default function Header({
   const [connInfo, setConnInfo] = useState(() => getConnectionState(lastSeen))
 
   useEffect(() => {
+    // Load preferred temp unit from localStorage
+    try {
+      const stored = localStorage.getItem('bv_app_settings_v1')
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        if (parsed.tempUnit) setTempUnit(parsed.tempUnit)
+      }
+    } catch (e) {}
+
     const updateConn = () => {
       const info = getConnectionState(lastSeen)
       setConnInfo(info)
@@ -146,6 +153,17 @@ export default function Header({
     return () => clearInterval(timer)
   }, [lastSeen, battery])
 
+  const toggleTempUnit = () => {
+    const next = tempUnit === 'C' ? 'F' : 'C'
+    setTempUnit(next)
+    try {
+      const stored = localStorage.getItem('bv_app_settings_v1')
+      const parsed = stored ? JSON.parse(stored) : {}
+      parsed.tempUnit = next
+      localStorage.setItem('bv_app_settings_v1', JSON.stringify(parsed))
+    } catch (e) {}
+  }
+
   // Close dropdowns on outside click
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -170,7 +188,7 @@ export default function Header({
   const isMonitoringActive = pathname === '/battery' || pathname === '/environmental' || pathname === '/passport'
   const isAnalyticsActive = pathname === '/analytics' || pathname === '/history'
   const isSafetyActive = pathname === '/ai' || pathname === '/alerts' || pathname === '/controls' || pathname === '/diagnostics'
-  const isSystemActive = pathname === '/settings' || pathname === '/users' || pathname === '/about'
+  const isSystemActive = pathname === '/settings' || pathname === '/about'
 
   return (
     <header className={styles.headerShell} ref={headerRef}>
@@ -202,7 +220,7 @@ export default function Header({
         </div>
 
         {/* ========================================================================= */}
-        {/* 2. CENTER SECTION: Consolidated 5 Category Navigation                     */}
+        {/* 2. CENTER SECTION: Clean 4-Category Navigation                            */}
         {/* ========================================================================= */}
         <nav className={styles.headerNav} aria-label="Main Navigation">
           {/* 1. Dashboard (Direct Link) */}
@@ -416,18 +434,7 @@ export default function Header({
                   <Sliders size={16} color="#00E8A0" />
                   <div>
                     <div className={styles.dropdownItemTitle}>Settings &amp; Thresholds</div>
-                    <div className={styles.dropdownItemDesc}>Battery chemistry &amp; alarm limits</div>
-                  </div>
-                </Link>
-                <Link
-                  href="/users"
-                  className={styles.dropdownMenuItem}
-                  onClick={() => setActiveDropdown(null)}
-                >
-                  <Users size={16} color="#38BDF8" />
-                  <div>
-                    <div className={styles.dropdownItemTitle}>Users &amp; Roles</div>
-                    <div className={styles.dropdownItemDesc}>RBAC permissions &amp; team access</div>
+                    <div className={styles.dropdownItemDesc}>Battery chemistry, limits &amp; preferences</div>
                   </div>
                 </Link>
                 <Link
@@ -437,8 +444,8 @@ export default function Header({
                 >
                   <HelpCircle size={16} color="#FFB800" />
                   <div>
-                    <div className={styles.dropdownItemTitle}>User Manual &amp; Docs</div>
-                    <div className={styles.dropdownItemDesc}>Wiring diagrams, pinouts &amp; guides</div>
+                    <div className={styles.dropdownItemTitle}>About</div>
+                    <div className={styles.dropdownItemDesc}>System overview, team, architecture &amp; guides</div>
                   </div>
                 </Link>
               </div>
@@ -447,7 +454,7 @@ export default function Header({
         </nav>
 
         {/* ========================================================================= */}
-        {/* 3. RIGHT SECTION: Compact Status + Bell + Theme + User Profile            */}
+        {/* 3. RIGHT SECTION: Compact Status + Bell + Theme + Preferences Panel       */}
         {/* ========================================================================= */}
         <div className={styles.headerRight}>
           {/* Compact Battery Vitals Pill */}
@@ -538,47 +545,122 @@ export default function Header({
             </button>
           </Tooltip>
 
-          {/* User Account Avatar Dropdown */}
+          {/* Quick Preferences & Hub Panel (Repurposed from Profile) */}
           <div className={styles.userDropdownWrapper}>
-            <button
-              className={styles.userAvatarBtn}
-              onClick={() => toggleDropdown('user')}
-              aria-label="User Account"
-              aria-expanded={activeDropdown === 'user'}
-            >
-              <div className={styles.avatarCircle}>
-                <User size={14} />
-              </div>
-              <ChevronDown size={11} className={styles.avatarChevron} />
-            </button>
+            <Tooltip text="Quick Preferences &amp; Hub Status">
+              <button
+                className={`${styles.userAvatarBtn} ${activeDropdown === 'preferences' ? styles.iconActionBtnActive : ''}`}
+                onClick={() => toggleDropdown('preferences')}
+                aria-label="Quick Preferences"
+                aria-expanded={activeDropdown === 'preferences'}
+              >
+                <div className={styles.avatarCircle}>
+                  <Sliders size={14} />
+                </div>
+                <ChevronDown size={11} className={styles.avatarChevron} />
+              </button>
+            </Tooltip>
 
-            {activeDropdown === 'user' && (
-              <div className={styles.userDropdownMenu}>
+            {activeDropdown === 'preferences' && (
+              <div className={styles.userDropdownMenu} style={{ minWidth: 260 }}>
+                {/* Station Head */}
                 <div className={styles.userProfileHead}>
-                  <div className={styles.userProfileName}>Lead Engineer</div>
-                  <div className={styles.userProfileEmail}>admin@batteryvital.local</div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div className={styles.userProfileName}>Battery Vital Hub</div>
+                    <span
+                      style={{
+                        fontSize: 9,
+                        fontWeight: 800,
+                        padding: '2px 7px',
+                        borderRadius: 100,
+                        background: 'rgba(0,232,160,0.15)',
+                        color: '#00E8A0',
+                        border: '1px solid rgba(0,232,160,0.3)',
+                      }}
+                    >
+                      ONLINE
+                    </span>
+                  </div>
+                  <div className={styles.userProfileEmail}>Node: BAT001 • Edge Station</div>
                 </div>
 
                 <div className={styles.userDropdownDivider} />
 
-                <Link
-                  href="/users"
-                  className={styles.userMenuLink}
-                  onClick={() => setActiveDropdown(null)}
-                >
-                  <Users size={14} />
-                  <span>Team &amp; Roles</span>
-                </Link>
+                {/* Quick Interactive Toggles */}
+                <div style={{ padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {/* Theme Switch */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {isDark ? <Moon size={13} color="#38BDF8" /> : <Sun size={13} color="#FFB800" />}
+                      <span>Theme</span>
+                    </span>
+                    <button
+                      onClick={toggleTheme}
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        padding: '3px 8px',
+                        borderRadius: 6,
+                        background: 'rgba(255,255,255,0.06)',
+                        border: '1px solid var(--border-subtle)',
+                        color: 'var(--text-primary)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {isDark ? '🌙 Dark' : '☀️ Light'}
+                    </button>
+                  </div>
 
-                <Link
-                  href="/settings"
-                  className={styles.userMenuLink}
-                  onClick={() => setActiveDropdown(null)}
-                >
-                  <Settings size={14} />
-                  <span>Preferences</span>
-                </Link>
+                  {/* Temp Units */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Thermometer size={13} color="#FF6B35" />
+                      <span>Units</span>
+                    </span>
+                    <button
+                      onClick={toggleTempUnit}
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        padding: '3px 8px',
+                        borderRadius: 6,
+                        background: 'rgba(255,255,255,0.06)',
+                        border: '1px solid var(--border-subtle)',
+                        color: 'var(--text-primary)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      °{tempUnit}
+                    </button>
+                  </div>
 
+                  {/* Notification Sounds */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {soundEnabled ? <Volume2 size={13} color="#00E8A0" /> : <VolumeX size={13} color="#FF2D55" />}
+                      <span>Audio Chimes</span>
+                    </span>
+                    <button
+                      onClick={toggleSound}
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        padding: '3px 8px',
+                        borderRadius: 6,
+                        background: 'rgba(255,255,255,0.06)',
+                        border: '1px solid var(--border-subtle)',
+                        color: soundEnabled ? '#00E8A0' : '#FF2D55',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {soundEnabled ? 'Enabled' : 'Muted'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className={styles.userDropdownDivider} />
+
+                {/* Direct Actions */}
                 <button
                   className={styles.userMenuLink}
                   onClick={() => {
@@ -586,9 +668,27 @@ export default function Header({
                     if (onOpenPassport) onOpenPassport()
                   }}
                 >
-                  <ShieldCheck size={14} />
+                  <ShieldCheck size={14} color="#BF5AF2" />
                   <span>Battery Passport</span>
                 </button>
+
+                <Link
+                  href="/settings"
+                  className={styles.userMenuLink}
+                  onClick={() => setActiveDropdown(null)}
+                >
+                  <Settings size={14} color="#00E8A0" />
+                  <span>System Settings &amp; Limits</span>
+                </Link>
+
+                <Link
+                  href="/about"
+                  className={styles.userMenuLink}
+                  onClick={() => setActiveDropdown(null)}
+                >
+                  <HelpCircle size={14} color="#38BDF8" />
+                  <span>About Battery Vital</span>
+                </Link>
               </div>
             )}
           </div>
@@ -672,14 +772,11 @@ export default function Header({
               {/* System & Support */}
               <div className={styles.mobileSectionGroup}>
                 <div className={styles.mobileSectionHeader}>Administration &amp; Help</div>
-                <Link href="/users" className={styles.mobileNavLink} onClick={() => setMobileMenuOpen(false)}>
-                  <Users size={16} /> <span>Users &amp; Roles (RBAC)</span>
-                </Link>
                 <Link href="/settings" className={styles.mobileNavLink} onClick={() => setMobileMenuOpen(false)}>
                   <Settings size={16} /> <span>Settings &amp; Limits</span>
                 </Link>
                 <Link href="/about" className={styles.mobileNavLink} onClick={() => setMobileMenuOpen(false)}>
-                  <HelpCircle size={16} /> <span>About &amp; Documentation</span>
+                  <HelpCircle size={16} /> <span>About</span>
                 </Link>
               </div>
             </div>

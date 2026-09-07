@@ -1,17 +1,22 @@
 import { MongoClient } from 'mongodb'
 
-// Fallback MongoDB connection string if process.env.MONGODB_URI is missing or malformed
-const DEFAULT_MONGODB_URI = 'mongodb+srv://omkar:omkar12345@cluster0.bzbhymi.mongodb.net/BatteryVitals?retryWrites=true&w=majority&appName=Cluster0'
-
 function getCleanUri() {
-  let envUri = process.env.MONGODB_URI || DEFAULT_MONGODB_URI
-  // Fix accidental trailing '>' or typos in URI (e.g. omkar12345> -> omkar12345)
-  envUri = envUri.replace('omkar12345>', 'omkar12345')
-  if (!envUri.includes('/BatteryVitals')) {
-    envUri = envUri.replace('.net/?', '.net/BatteryVitals?')
+  const envUri = process.env.MONGODB_URI
+  if (!envUri) {
+    // SECURITY: never provide a hardcoded credential fallback.
+    // If MONGODB_URI is absent, every route's try/catch will degrade gracefully.
+    console.error(
+      '[MongoDB] MONGODB_URI environment variable is not set. ' +
+      'Database operations will fail until it is configured in .env.local or your deployment secrets.'
+    )
+    return null
   }
-  return envUri
+  // Ensure the database name segment is present
+  return envUri.includes('/BatteryVitals')
+    ? envUri
+    : envUri.replace(/\.net\/\?/, '.net/BatteryVitals?')
 }
+
 
 let clientPromise = null
 
@@ -19,6 +24,8 @@ function getClientPromise() {
   if (clientPromise) return clientPromise
 
   const uri = getCleanUri()
+  if (!uri) return null  // MONGODB_URI not configured; callers handle null gracefully
+
   const options = {
     maxPoolSize: 10,
     minPoolSize: 2,

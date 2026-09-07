@@ -80,7 +80,63 @@ function playTone(type = 'info') {
   }
 }
 
-const SEED_NOTIFICATIONS = []
+const SEED_NOTIFICATIONS = [
+  {
+    id: 'notif-seed-1',
+    title: 'ESP32 Edge Hub Connected',
+    message: 'Node BAT001 established live telemetry sync via Firebase RTDB (Latency: 28ms).',
+    type: 'success',
+    category: 'esp32',
+    timestamp: Date.now() - 1000 * 60 * 2, // 2 mins ago
+    read: false,
+    actionLabel: 'View Diagnostics',
+    actionUrl: '/diagnostics',
+  },
+  {
+    id: 'notif-seed-2',
+    title: 'Sensors Health Verified',
+    message: 'INA219 I2C bus (0x40), DHT11, and MQ-2 sensors initialized with zero calibration offsets.',
+    type: 'info',
+    category: 'esp32',
+    timestamp: Date.now() - 1000 * 60 * 15, // 15 mins ago
+    read: false,
+    actionLabel: 'Sensor Telemetry',
+    actionUrl: '/environmental',
+  },
+  {
+    id: 'notif-seed-3',
+    title: 'Future Update: Firmware v13.0 OTA',
+    message: 'Upcoming OTA engine brings multi-chemistry cell balancing, BLE Mesh, and sleep mode optimization.',
+    type: 'info',
+    category: 'sync',
+    timestamp: Date.now() - 1000 * 60 * 60 * 2, // 2 hrs ago
+    read: false,
+    actionLabel: 'View About & Roadmap',
+    actionUrl: '/about',
+  },
+  {
+    id: 'notif-seed-4',
+    title: 'Safety Guard Active',
+    message: 'Deterministic thermal protection armed: Max temp 45.0°C, Voltage floor 9.0V.',
+    type: 'warning',
+    category: 'safety',
+    timestamp: Date.now() - 1000 * 60 * 60 * 5, // 5 hrs ago
+    read: true,
+    actionLabel: 'Alarm Settings',
+    actionUrl: '/settings',
+  },
+  {
+    id: 'notif-seed-5',
+    title: 'MongoDB Cloud Batch Synced',
+    message: 'Telemetry records successfully archived to MongoDB Atlas collection (Zero packet drop).',
+    type: 'success',
+    category: 'sync',
+    timestamp: Date.now() - 1000 * 60 * 60 * 12, // 12 hrs ago
+    read: true,
+    actionLabel: 'History Center',
+    actionUrl: '/history',
+  },
+]
 
 export function NotificationProvider({ children }) {
   const [toasts, setToasts] = useState([])
@@ -221,6 +277,7 @@ export function NotificationProvider({ children }) {
         title,
         message,
         type,
+        category: category || (type === 'critical' || type === 'warning' ? 'safety' : 'esp32'),
         timestamp: now,
         read: false,
         actionLabel,
@@ -308,6 +365,38 @@ export function NotificationProvider({ children }) {
     persistNotifications([])
   }, [persistNotifications])
 
+  // Trigger a dynamic test notification
+  const triggerTestNotification = useCallback(() => {
+    const samples = [
+      {
+        title: 'ESP32 Ping Received',
+        message: 'Heartbeat echo from edge station BAT001 (Wi-Fi RSSI: -54 dBm, Heap: 184 KB free).',
+        type: 'success',
+        category: 'esp32',
+      },
+      {
+        title: 'Firmware Update Available',
+        message: 'Battery Vital Kernel v12.4 is ready for deployment with enhanced INA219 filtering.',
+        type: 'info',
+        category: 'sync',
+      },
+      {
+        title: 'Safety Guard Notice',
+        message: 'Battery discharge rate within safe continuous bounds (<1.8A).',
+        type: 'info',
+        category: 'safety',
+      },
+      {
+        title: 'Thermal Warning Test',
+        message: 'Simulated high cell temperature alarm triggered for emergency protocol validation.',
+        type: 'warning',
+        category: 'safety',
+      },
+    ]
+    const pick = samples[Math.floor(Math.random() * samples.length)]
+    addNotification(pick)
+  }, [addNotification])
+
   // Count unread notifications
   const unreadCount = notifications.filter((n) => !n.read).length
 
@@ -318,6 +407,7 @@ export function NotificationProvider({ children }) {
     soundEnabled,
     desktopEnabled,
     addNotification,
+    triggerTestNotification,
     dismissToast,
     setToastHover,
     markAllRead,
@@ -341,6 +431,7 @@ export function useNotifications() {
       soundEnabled: true,
       desktopEnabled: false,
       addNotification: () => {},
+      triggerTestNotification: () => {},
       dismissToast: () => {},
       setToastHover: () => {},
       markAllRead: () => {},

@@ -3,6 +3,7 @@ import { getDB } from '../../../lib/mongodb'
 import { setAdminCommand, getAdminCommand } from '../../../lib/firebaseAdmin'
 import { checkRateLimit, getClientIp } from '../../../lib/rateLimit'
 import { sanitizeString } from '../../../lib/security'
+import { canControlHardware } from '../../../lib/permissions'
 
 const DEFAULT = { auto_mode: true, red_led: false, yellow_led: false, green_led: true, buzzer: false }
 
@@ -53,11 +54,20 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
     }
 
+    // RBAC: only operators and admins may toggle hardware actuators (RULES.md §4).
+    const role = request.headers.get('x-user-role') || 'viewer'
+    if (!canControlHardware(role)) {
+      return NextResponse.json(
+        { error: 'Forbidden: hardware control requires operator or admin role.' },
+        { status: 403 }
+      )
+    }
+
     const body = await request.json().catch(() => ({}))
     const batteryId = sanitizeString(body?.batteryId || 'BAT001', 30)
     const allowed = ['auto_mode', 'red_led', 'yellow_led', 'green_led', 'buzzer']
     const update = { updatedAt: Date.now() }
-    
+
     for (const k of allowed) {
       if (body[k] !== undefined) update[k] = Boolean(body[k])
     }
@@ -83,3 +93,4 @@ export async function POST(request) {
     return NextResponse.json({ success: true, commands: DEFAULT })
   }
 }
+

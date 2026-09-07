@@ -4,6 +4,7 @@ import { getLatestTelemetry, updateLatestTelemetry } from '../../../lib/firebase
 import { checkRateLimit, getClientIp } from '../../../lib/rateLimit'
 import { sanitizeString, sanitizeNumber, secureErrorResponse } from '../../../lib/security'
 import { telemetryShape } from '../data/route'
+import { validateTelemetry, computeSafety } from '../../../lib/batterySafety'
 
 export const dynamic = 'force-dynamic'
 
@@ -113,6 +114,25 @@ export async function POST(request) {
       receivedAt: now.toISOString(),
     }
 
+    // -------------------------------------------------------------------------
+    // DETERMINISTIC SAFETY ENRICHMENT (Gap 7 — RULES.md §2).
+    // Run the physics-based engine and merge safetyState + riskScore into every
+    // document that is written to Firebase and MongoDB. Downstream consumers
+    // (dashboards, history charts, AI diagnostics) use these pre-computed fields
+    // directly instead of re-running the engine independently.
+    // -------------------------------------------------------------------------
+    const { clean: cleanDoc, issues: validationIssues } = validateTelemetry(document)
+    const safetyResult = computeSafety(cleanDoc)
+    document.safetyState = safetyResult.state
+    document.riskScore = safetyResult.score
+    document.safetyViolations = safetyResult.violations.map((v) => v.rule?.code).filter(Boolean)
+    if (validationIssues.some((i) => i.code !== 'ok')) {
+      document.validationIssues = validationIssues
+        .filter((i) => i.code !== 'ok')
+        .map((i) => ({ field: i.field, code: i.code }))
+    }
+    // -------------------------------------------------------------------------
+
     // 1. Update Real-Time Layer (Firebase Realtime Database)
     await updateLatestTelemetry(batteryId, document)
 
@@ -129,7 +149,7 @@ export async function POST(request) {
       console.warn('MongoDB persist in telemetry POST failed:', dbErr.message)
     }
 
-    return NextResponse.json({ success: true, ts: now.getTime() })
+    return NextResponse.json({ success: true, ts: now.getTime(), safetyState: safetyResult.state, riskScore: safetyResult.score })
   } catch (error) {
     console.error('telemetry post error:', error)
     return NextResponse.json({ success: true, ts: Date.now() })

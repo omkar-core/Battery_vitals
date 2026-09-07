@@ -4,6 +4,7 @@ import { analyzeBatteryData, predictFailure, askBatteryAssistant } from '../../.
 import { getLatestTelemetry } from '../../../lib/firebaseAdmin'
 import { checkRateLimit, getClientIp } from '../../../lib/rateLimit'
 import { sanitizeString, secureErrorResponse } from '../../../lib/security'
+import { validateTelemetry, computeSafety } from '../../../lib/batterySafety'
 
 export const dynamic = 'force-dynamic'
 
@@ -68,6 +69,16 @@ export async function POST(request) {
       )
     }
 
+    // -------------------------------------------------------------------------
+    // DETERMINISTIC SAFETY ENGINE — runs before every Gemini call.
+    // Per RULES.md §2: AI can never bypass or downgrade the deterministic verdict.
+    // -------------------------------------------------------------------------
+    const { clean, issues: validationIssues } = validateTelemetry(latest)
+    const safety = computeSafety(clean)
+    // Inject the authoritative safety state so Gemini receives it in context.
+    latest = { ...latest, _safetyState: safety.state, _riskScore: safety.score }
+    // -------------------------------------------------------------------------
+
     let analysis = ''
 
     // 1. Conversational Chatbot Question
@@ -84,31 +95,54 @@ export async function POST(request) {
           .sort({ timestamp: -1 })
           .limit(50)
           .toArray()
-      } catch (e) {}
+      } catch (e) { /* history unavailable — predictFailure handles empty array */ }
       analysis = await predictFailure(history)
     } else {
       // 3. Standard Structured Health Analysis
       analysis = await analyzeBatteryData(latest)
     }
 
-    // Save prediction record if database is reachable
+    // -------------------------------------------------------------------------
+    // Persist prediction record using the authoritative deterministic risk score.
+    // Gap 5: riskScore comes from computeSafety, not raw bhi.
+    //         analysis stored as-is (structured object or string), not truncated.
+    // -------------------------------------------------------------------------
     try {
       const db = await getDB()
-      const bhi = latest.bhi ?? null
-      const riskLevel = bhi == null ? null : bhi >= 75 ? 'CRITICAL' : bhi >= 55 ? 'WARNING' : bhi >= 30 ? 'CAUTION' : 'INFO'
+      const riskScore = safety.score
+      const riskLevel =
+        safety.state === 'EMERGENCY' ? 'EMERGENCY'
+        : safety.state === 'CRITICAL' ? 'CRITICAL'
+        : safety.state === 'WARNING' ? 'WARNING'
+        : safety.state === 'CAUTION' ? 'CAUTION'
+        : 'INFO'
+
+      // Store structured object if analysis is a JSON object; otherwise store text.
+      const analysisPayload =
+        analysis && typeof analysis === 'object'
+          ? analysis
+          : { text: sanitizeString(String(analysis), 5000) }
+
       await db.collection('predictions').insertOne({
         batteryId: latest.batteryId || batteryId,
         question: question || null,
         riskLevel,
-        riskScore: bhi ?? null,
-        analysis: sanitizeString(analysis, 2000),
+        riskScore,
+        safetyState: safety.state,
+        safetyViolations: safety.violations.map((v) => v.rule?.code).filter(Boolean),
+        validationIssues: validationIssues.filter((i) => i.code !== 'ok').map((i) => i.code),
+        analysis: analysisPayload,
         timestamp: new Date(),
       })
-    } catch (e) {}
+    } catch (e) {
+      console.warn('[analyze] prediction persistence failed:', e.message)
+    }
 
     return NextResponse.json({
       success: true,
       analysis,
+      safetyState: safety.state,
+      riskScore: safety.score,
       timestamp: new Date().toISOString(),
     })
   } catch (error) {

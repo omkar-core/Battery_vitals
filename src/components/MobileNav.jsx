@@ -17,7 +17,6 @@ import {
   Clock,
   Settings,
   HelpCircle,
-  Users,
   X,
   Zap,
 } from 'lucide-react'
@@ -34,12 +33,11 @@ const PRIMARY_MOBILE = [
 const MORE_NAV = [
   { key: '/analytics', label: 'Live Graphs', icon: Activity },
   { key: '/controls', label: 'Actuator Controls', icon: SlidersHorizontal },
-  { key: '/users', label: 'Users & Roles (RBAC)', icon: Users },
   { key: '/diagnostics', label: 'Diagnostics', icon: Cpu },
   { key: '/history?tab=trends', label: 'Historical Trends', icon: Clock },
   { key: '/settings', label: 'Settings & Limits', icon: Settings },
   { key: '/passport', label: 'Battery Passport', icon: ShieldCheck },
-  { key: '/about', label: 'About & Manual', icon: HelpCircle },
+  { key: '/about', label: 'About', icon: HelpCircle },
 ]
 
 export default function MobileNav() {

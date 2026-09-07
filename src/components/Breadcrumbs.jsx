@@ -16,7 +16,7 @@ const ROUTE_NAME_MAP = {
   passport: 'Battery Passport',
   history: 'History & Export',
   settings: 'System & Settings',
-  about: 'About Battery Vital',
+  about: 'About',
 }
 
 const TAB_NAME_MAP = {
