@@ -3,8 +3,12 @@ import { getDB } from '../../../lib/mongodb'
 import { analyzeBatteryData, predictFailure, askBatteryAssistant } from '../../../lib/gemini'
 import { getLatestTelemetry } from '../../../lib/firebaseAdmin'
 import { checkRateLimit, getClientIp } from '../../../lib/rateLimit'
-import { sanitizeString, secureErrorResponse } from '../../../lib/security'
+import { sanitizeString } from '../../../lib/security'
+import { requirePermission } from '../../../lib/auth'
+import { PERMISSIONS } from '../../../lib/permissions'
 import { validateTelemetry, computeSafety } from '../../../lib/batterySafety'
+import { handleError } from '../../../lib/errorHandler'
+import { loadEngineConfig, loadEngineConfigForDevice } from '../../../lib/safetyConfig'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,6 +23,8 @@ export async function POST(request) {
     if (!rateCheck.success) {
       return NextResponse.json({ error: 'AI analysis rate limit exceeded. Please wait 1 minute.' }, { status: 429 })
     }
+
+    await requirePermission(request, PERMISSIONS.ACCESS_AI)
 
     const body = await request.json().catch(() => ({}))
     const batteryId = sanitizeString(body.batteryId || 'BAT001', 30)
@@ -70,11 +76,11 @@ export async function POST(request) {
     }
 
     // -------------------------------------------------------------------------
-    // DETERMINISTIC SAFETY ENGINE — runs before every Gemini call.
-    // Per RULES.md §2: AI can never bypass or downgrade the deterministic verdict.
+    // DETERMINISTIC SAFETY ENGINE â€” runs before every Gemini call.
+    // Per RULES.md Â§2: AI can never bypass or downgrade the deterministic verdict.
     // -------------------------------------------------------------------------
     const { clean, issues: validationIssues } = validateTelemetry(latest)
-    const safety = computeSafety(clean)
+    const safety = computeSafety(clean, await loadEngineConfigForDevice(batteryId).catch(() => loadEngineConfig()))
     // Inject the authoritative safety state so Gemini receives it in context.
     latest = { ...latest, _safetyState: safety.state, _riskScore: safety.score }
     // -------------------------------------------------------------------------
@@ -95,7 +101,7 @@ export async function POST(request) {
           .sort({ timestamp: -1 })
           .limit(50)
           .toArray()
-      } catch (e) { /* history unavailable — predictFailure handles empty array */ }
+      } catch (e) { /* history unavailable â€” predictFailure handles empty array */ }
       analysis = await predictFailure(history)
     } else {
       // 3. Standard Structured Health Analysis
@@ -147,6 +153,6 @@ export async function POST(request) {
     })
   } catch (error) {
     console.error('Analysis error:', error)
-    return secureErrorResponse(error.message)
+    return handleError(error, request)
   }
 }

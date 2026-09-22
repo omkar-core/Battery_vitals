@@ -1,111 +1,82 @@
 import { NextResponse } from 'next/server'
 import { getLatestTelemetry } from '../../../lib/firebaseAdmin'
 import { getDB } from '../../../lib/mongodb'
+import { validateTelemetry, computeSafety } from '../../../lib/batterySafety'
+import { checkRateLimit, getClientIp } from '../../../lib/rateLimit'
+import { sanitizeString } from '../../../lib/security'
+import { handleError } from '../../../lib/errorHandler'
+import { TelemetryNotFoundError } from '../../../lib/errors'
+import { loadEngineConfigForDevice } from '../../../lib/safetyConfig'
+import { getActiveDeployment } from '../../../lib/profileStore'
 
 export const dynamic = 'force-dynamic'
 
+// Anomalies are derived from the deterministic safety engine only. No sensor
+// values, ranges, or severities are invented when telemetry is absent.
 export async function GET(request) {
   try {
+    const ip = getClientIp(request)
+    const rateCheck = checkRateLimit(`anomalies_get_${ip}`, 60, 60000)
+    if (!rateCheck.success) {
+      return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
+    }
+
     const { searchParams } = new URL(request.url)
-    const batteryId = searchParams.get('batteryId') || 'BAT001'
+    const batteryId = sanitizeString(searchParams.get('batteryId') || 'BAT001', 30)
 
     let latest = await getLatestTelemetry(batteryId)
     if (!latest) {
       try {
         const db = await getDB()
         latest = await db.collection('live_data').findOne({ batteryId })
-      } catch (e) {}
+      } catch (e) {
+        console.warn('MongoDB anomalies fallback failed:', e.message)
+      }
+    }
+    if (!latest) throw new TelemetryNotFoundError(batteryId, 'latest')
+
+    const { clean } = validateTelemetry(latest)
+    const engineCfg = await loadEngineConfigForDevice(batteryId)
+    const safety = computeSafety(clean, engineCfg)
+    const deployment = await getActiveDeployment(batteryId)
+    const pv = deployment?.profile?.voltage
+    const voltageRange = pv
+      ? `${pv.minOperating}V – ${pv.maxAllowed}V`
+      : `${engineCfg.voltage?.critLow ?? '?'}V – ${engineCfg.voltage?.critHigh ?? '?'}V`
+    const now = Date.now()
+
+    const severityMap = {
+      EMERGENCY: 'CRITICAL',
+      CRITICAL: 'CRITICAL',
+      WARNING: 'HIGH',
+      CAUTION: 'MEDIUM',
     }
 
-    const b = latest?.battery || latest || {}
-    const env = latest?.environmental || latest || {}
-    const anomalies = []
-
-    const v = b.voltage != null ? Number(b.voltage) : 12.6
-    const i = b.current != null ? Number(b.current) : 0.0
-    const temp = env.temperature != null ? Number(env.temperature) : 25.0
-    const mq2 = env.mq2 != null ? Number(env.mq2) : (env.gasIndex?.mq2 != null ? Number(env.gasIndex.mq2) : 320)
-
-    // Voltage Drop / Spike check
-    if (v < 11.0) {
-      anomalies.push({
-        id: `anom_v_low_${Date.now()}`,
-        parameter: 'Voltage',
-        type: 'UNDERVOLTAGE_DRIFT',
-        severity: 'HIGH',
-        detectedValue: `${v.toFixed(2)}V`,
-        expectedRange: '11.5V – 14.4V',
-        confidence: 0.94,
-        description: 'Significant voltage depression detected under moderate load.',
-        timestamp: new Date().toISOString(),
-      })
-    } else if (v > 14.5) {
-      anomalies.push({
-        id: `anom_v_high_${Date.now()}`,
-        parameter: 'Voltage',
-        type: 'OVERVOLTAGE_SURGE',
-        severity: 'CRITICAL',
-        detectedValue: `${v.toFixed(2)}V`,
-        expectedRange: '11.5V – 14.4V',
-        confidence: 0.98,
-        description: 'Charging overvoltage surge risks damaging cell chemistry.',
-        timestamp: new Date().toISOString(),
-      })
-    }
-
-    // High current draw
-    if (Math.abs(i) > 12.0) {
-      anomalies.push({
-        id: `anom_i_high_${Date.now()}`,
-        parameter: 'Current',
-        type: 'OVERCURRENT_SPIKE',
-        severity: 'HIGH',
-        detectedValue: `${i.toFixed(2)}A`,
-        expectedRange: '±8.0A',
-        confidence: 0.91,
-        description: 'Abnormal high current draw detected.',
-        timestamp: new Date().toISOString(),
-      })
-    }
-
-    // Thermal delta
-    if (temp > 40.0) {
-      anomalies.push({
-        id: `anom_temp_high_${Date.now()}`,
-        parameter: 'Temperature',
-        type: 'THERMAL_EXCURSION',
-        severity: temp > 45 ? 'CRITICAL' : 'MEDIUM',
-        detectedValue: `${temp.toFixed(1)}°C`,
-        expectedRange: '15°C – 35°C',
-        confidence: 0.96,
-        description: 'Battery ambient temperature exceeding standard dissipation threshold.',
-        timestamp: new Date().toISOString(),
-      })
-    }
-
-    // Gas anomaly
-    if (mq2 > 600) {
-      anomalies.push({
-        id: `anom_gas_high_${Date.now()}`,
-        parameter: 'MQ-2 Gas / Smoke',
-        type: 'GAS_CONCENTRATION_JUMP',
-        severity: mq2 > 800 ? 'CRITICAL' : 'HIGH',
-        detectedValue: `${Math.round(mq2)} ppm`,
-        expectedRange: '< 400 ppm',
-        confidence: 0.99,
-        description: 'Rapid increase in combustible gas or smoke signature.',
-        timestamp: new Date().toISOString(),
-      })
-    }
+    const anomalies = safety.violations.map((v) => ({
+      id: `anom_${v.rule.code}_${now}`,
+      parameter: v.rule.field,
+      type: v.rule.code.toUpperCase(),
+      severity: severityMap[v.state] || 'MEDIUM',
+      detectedValue: v.rule.value,
+      expectedRange: v.rule.field === 'voltage' ? voltageRange : null,
+      confidence: 0.9,
+      description: v.rule.message,
+      timestamp: new Date(now).toISOString(),
+      code: v.rule.code,
+    }))
 
     return NextResponse.json({
       batteryId,
       count: anomalies.length,
       anomalies,
-      systemHealthState: anomalies.length === 0 ? 'NORMAL' : anomalies.some((a) => a.severity === 'CRITICAL') ? 'HAZARDOUS' : 'ATTENTION_REQUIRED',
-      checkedAt: new Date().toISOString(),
+      systemHealthState: anomalies.length === 0
+        ? 'NORMAL'
+        : anomalies.some((a) => a.severity === 'CRITICAL')
+          ? 'HAZARDOUS'
+          : 'ATTENTION_REQUIRED',
+      checkedAt: new Date(now).toISOString(),
     })
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to evaluate anomalies', details: error.message }, { status: 500 })
+    return handleError(error, request)
   }
 }

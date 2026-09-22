@@ -5,6 +5,11 @@ import { checkRateLimit, getClientIp } from '../../../lib/rateLimit'
 import { sanitizeString, sanitizeNumber, secureErrorResponse } from '../../../lib/security'
 import { telemetryShape } from '../data/route'
 import { validateTelemetry, computeSafety } from '../../../lib/batterySafety'
+import { ValidationError } from '../../../lib/errors'
+import { handleError } from '../../../lib/errorHandler'
+import { TelemetryPayloadSchema } from '../../../lib/schemas'
+import { TelemetryNotFoundError } from '../../../lib/errors'
+import { loadEngineConfig, loadEngineConfigForDevice } from '../../../lib/safetyConfig'
 
 export const dynamic = 'force-dynamic'
 
@@ -37,7 +42,7 @@ export async function GET(request) {
     }
 
     if (!data) {
-      return NextResponse.json({ message: 'No data yet' })
+      throw new TelemetryNotFoundError(batteryId, 'latest')
     }
 
     return NextResponse.json(telemetryShape(data), {
@@ -45,7 +50,7 @@ export async function GET(request) {
     })
   } catch (error) {
     console.error('telemetry get error:', error)
-    return NextResponse.json({ message: 'No data yet' })
+    return handleError(error, request)
   }
 }
 
@@ -58,10 +63,34 @@ export async function POST(request) {
     }
 
     const body = await request.json().catch(() => ({}))
+
+    // Layer 21: Device Authentication Guard
+    const providedToken = request.headers.get('x-device-token') || body.device_token || body.deviceToken
+    const expectedToken = process.env.DEVICE_AUTH_TOKEN || 'bv_dev_sec_7f9a2b1c'
+    if (process.env.DEVICE_AUTH_TOKEN && providedToken !== expectedToken) {
+      return NextResponse.json({ error: 'Unauthorized device: invalid device authentication token' }, { status: 401 })
+    }
+
     const b = body.battery || body
     const g = body.gas || {}
     const e = body.environment || {}
     const n = body.network || {}
+
+    // Zod gateway validation (VALIDATION.md Â§4.1): the documented flat ingest shape
+    // `{ deviceId, voltage, current, temperature, ... }` is typed and range-checked
+    // here. The layered ESP32 packet (`{ battery, gas, environment, network }`) is
+    // additionally sanitized by the deterministic engine below.
+    const isFlatIngest =
+      !body.battery &&
+      (body.voltage !== undefined || body.current !== undefined || body.temperature !== undefined || body.mq2 !== undefined || body.mq135 !== undefined)
+    if (isFlatIngest) {
+      const parsed = TelemetryPayloadSchema.safeParse(body)
+      if (!parsed.success) {
+        const issue = parsed.error.issues[0]
+        throw new ValidationError(issue?.message || 'Invalid telemetry payload', issue?.path?.join('.') || 'body')
+      }
+    }
+
     const batteryId = sanitizeString(body.batteryId || 'BAT001', 30)
     const now = new Date()
 
@@ -112,20 +141,44 @@ export async function POST(request) {
       },
       timestamp: now.getTime(),
       receivedAt: now.toISOString(),
+      dV_dt: sanitizeNumber(b.dV_dt ?? body.dV_dt, -60, 60),
+      dT_dt: sanitizeNumber(b.dT_dt ?? body.dT_dt, -60, 60),
+      mq2_rise: sanitizeNumber(b.mq2_rise ?? body.mq2_rise, -20000, 20000),
+      energyWh: sanitizeNumber(b.energyWh ?? body.energyWh, 0, 1000000),
+      cycles: sanitizeNumber(b.cycles ?? body.cycles, 0, 100000),
+      errors: sanitizeNumber(b.errors ?? body.errors, 0, 4294967295),
     }
 
     // -------------------------------------------------------------------------
-    // DETERMINISTIC SAFETY ENRICHMENT (Gap 7 — RULES.md §2).
+    // DETERMINISTIC SAFETY ENRICHMENT (Gap 7 â€” RULES.md Â§2).
     // Run the physics-based engine and merge safetyState + riskScore into every
     // document that is written to Firebase and MongoDB. Downstream consumers
     // (dashboards, history charts, AI diagnostics) use these pre-computed fields
     // directly instead of re-running the engine independently.
     // -------------------------------------------------------------------------
     const { clean: cleanDoc, issues: validationIssues } = validateTelemetry(document)
-    const safetyResult = computeSafety(cleanDoc)
+    const safetyResult = computeSafety(cleanDoc, await loadEngineConfigForDevice(batteryId).catch(() => loadEngineConfig()))
     document.safetyState = safetyResult.state
     document.riskScore = safetyResult.score
     document.safetyViolations = safetyResult.violations.map((v) => v.rule?.code).filter(Boolean)
+    // Pre-connection validation: never assume chemistry from voltage. Without
+    // a deployed profile the pack is UNKNOWN_BATTERY; outside the expected
+    // band it is PROFILE_MISMATCH and must not look like normal monitoring.
+    try {
+      const { getActiveDeployment } = await import('../../../lib/profileStore')
+      const { validatePreConnection } = await import('../../../lib/batteryProfiles')
+      const deployment = await getActiveDeployment(batteryId)
+      document.profileId = deployment?.profileId || null
+      document.profileVersion = deployment?.configVersion || null
+      const pre = validatePreConnection(voltage, deployment?.profile)
+      document.profileState = pre.state
+      if (!pre.ok) {
+        document.safetyViolations = [...(document.safetyViolations || []), pre.state.toLowerCase()]
+        document.validationIssues = [...(document.validationIssues || []), { field: 'profile', code: pre.state.toLowerCase() }]
+      }
+    } catch (e) {
+      console.warn('profile pre-connection check failed:', e.message)
+    }
     if (validationIssues.some((i) => i.code !== 'ok')) {
       document.validationIssues = validationIssues
         .filter((i) => i.code !== 'ok')
@@ -152,6 +205,6 @@ export async function POST(request) {
     return NextResponse.json({ success: true, ts: now.getTime(), safetyState: safetyResult.state, riskScore: safetyResult.score })
   } catch (error) {
     console.error('telemetry post error:', error)
-    return NextResponse.json({ success: true, ts: Date.now() })
+    return handleError(error, request)
   }
 }

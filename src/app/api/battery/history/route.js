@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getDB } from '../../../../lib/mongodb'
 import { checkRateLimit, getClientIp } from '../../../../lib/rateLimit'
+import { sanitizeString } from '../../../../lib/security'
+import { handleError } from '../../../../lib/errorHandler'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,8 +15,9 @@ export async function GET(request) {
     }
 
     const { searchParams } = new URL(request.url)
-    const batteryId = searchParams.get('batteryId') || 'BAT001'
-    const limit = Math.min(parseInt(searchParams.get('limit') || '100', 10), 500)
+    const batteryId = sanitizeString(searchParams.get('batteryId') || 'BAT001', 30)
+    const rawLimit = Number.parseInt(searchParams.get('limit') || '100', 10)
+    const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(1, rawLimit), 500) : 100
 
     let records = []
     try {
@@ -25,18 +28,22 @@ export async function GET(request) {
         .sort({ timestamp: -1 })
         .limit(limit)
         .toArray()
-    } catch (e) {}
+    } catch (e) {
+      console.warn('MongoDB battery/history query failed:', e.message)
+    }
 
-    // Transform records
+    // Map honestly: a missing reading is null, never an invented default.
     const formatted = records.reverse().map((r, i) => {
       const b = r.battery || r
+      const voltage = b.voltage != null ? Number(b.voltage) : null
+      const current = b.current != null ? Number(b.current) : null
       return {
         timestamp: r.timestamp || r.createdAt || Date.now(),
-        voltage: b.voltage != null ? Number(b.voltage) : 12.6,
-        current: b.current != null ? Number(b.current) : 0,
-        power: b.power != null ? Number(b.power) : 0,
-        soc: b.soc != null ? Number(b.soc) : 85,
-        soh: b.soh != null ? Number(b.soh) : 98,
+        voltage,
+        current,
+        power: b.power != null ? Number(b.power) : null,
+        soc: b.soc != null ? Number(b.soc) : null,
+        soh: b.soh != null ? Number(b.soh) : null,
       }
     })
 
@@ -46,6 +53,6 @@ export async function GET(request) {
       readings: formatted,
     })
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch battery history', details: error.message }, { status: 500 })
+    return handleError(error, request)
   }
 }

@@ -217,8 +217,14 @@ function HistoryInner() {
       },
       {
         metric: 'Peak Cell Temperature',
-        thisWeek: Math.max(...second.map((x) => x.temperature).filter((v) => v != null)),
-        lastWeek: Math.max(...first.map((x) => x.temperature).filter((v) => v != null)),
+        thisWeek: (() => {
+          const vals = second.map((x) => x.temperature).filter((v) => v != null)
+          return vals.length ? Math.max(...vals) : null
+        })(),
+        lastWeek: (() => {
+          const vals = first.map((x) => x.temperature).filter((v) => v != null)
+          return vals.length ? Math.max(...vals) : null
+        })(),
         improveDown: true,
         suffix: '°C',
         note: 'Maximum recorded temperature in each half',

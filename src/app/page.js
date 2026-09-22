@@ -16,6 +16,7 @@ import MoodBadge from '../components/MoodBadge'
 import SkeletonLoader, { SkeletonMetric, SkeletonChart, SkeletonControl, SkeletonAI } from '../components/SkeletonLoader'
 import { useRealTimeData } from '../hooks/useRealTimeData'
 import { useAI } from '../hooks/useAI'
+import { useActiveProfile } from '../hooks/useActiveProfile'
 import {
   bhiStatus,
   safetyColor,
@@ -56,6 +57,7 @@ const CIRC = 2 * Math.PI * 82
 export default function Dashboard() {
   const { data, history, connected, mode, error, sendControl } = useRealTimeData()
   const { analysis, loading, runAnalysis } = useAI()
+  const { voltageBand } = useActiveProfile(data?.batteryId || data?.battery?.batteryId || 'BAT001')
   const [commands, setCommands] = useState({ auto_mode: true })
   const [alerts, setAlerts] = useState([])
   const [alertsLoading, setAlertsLoading] = useState(false)
@@ -185,8 +187,8 @@ export default function Dashboard() {
 
   const phase = data?.battery?.phase ?? data?.phase
   const ddLock = data?.battery?.ddLock ?? data?.ddLock
-  const gasWarm = data?.gas?.warm ?? data?.warm
-  const gasWRem = data?.gas?.wRem ?? data?.wRem
+  const gasWarm = data?.gasIndex?.warm ?? data?.gas?.warm ?? data?.warm
+  const gasWRem = data?.gasIndex?.wRem ?? data?.gas?.wRem ?? data?.wRem
 
   const lastSeen = data?.timestamp || data?.receivedAt || data?.ts
 
@@ -441,7 +443,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyBetween: 'space-between', marginTop: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 20 }}>
             <span className={`${styles.opMode} ${op === 'CHARGING' ? styles.opCharging : op === 'DISCHARGING' ? styles.opDischarging : styles.opIdle}`}>
               {op === 'CHARGING' ? <ArrowUpRight size={14} /> : op === 'DISCHARGING' ? <ArrowDownRight size={14} /> : <Minus size={14} />}
               Mode: {op}
@@ -508,7 +510,7 @@ export default function Dashboard() {
           color="var(--state-caution)"
           icon={Gauge}
           chip={voltageChip}
-          subtext="Nominal 10.5V–14.4V"
+          subtext={voltageBand ? `Safe: ${voltageBand}` : 'Deploy a profile for band'}
         />
         <MetricCard
           title="Current"

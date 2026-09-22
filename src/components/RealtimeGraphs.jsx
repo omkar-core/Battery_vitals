@@ -43,7 +43,9 @@ const TOOLTIP_STYLE = {
   itemStyle: { fontSize: 11, padding: '2px 0' },
 }
 
-export default function RealtimeGraphs({ rawData = [], liveState = {} }) {
+export default function RealtimeGraphs({ rawData = [], liveState = {}, profileBand }) {
+  const vLo = profileBand?.minOperating ?? 10.5
+  const vHi = profileBand?.maxAllowed ?? 14.4
   const [timeRange, setTimeRange] = useState('1H') // 1H, 6H, 24H, 7D, 30D
   const [compareMode, setCompareMode] = useState(false)
   const [activeTab, setActiveTab] = useState('all') // 'all' or specific chart id
@@ -253,10 +255,10 @@ export default function RealtimeGraphs({ rawData = [], liveState = {} }) {
                 </span>
               )}
               <span className={styles.legendItem} style={{ color: '#00E8A0' }}>
-                Safe (10.5V - 14.4V)
+                Safe ({vLo}V - {vHi}V)
               </span>
               <span className={styles.legendItem} style={{ color: '#FF2D55' }}>
-                Cutoff (&lt;10.5V / &gt;14.4V)
+                Cutoff (&lt;{vLo}V / &gt;{vHi}V)
               </span>
             </div>
           </div>
@@ -268,19 +270,19 @@ export default function RealtimeGraphs({ rawData = [], liveState = {} }) {
               <Tooltip {...TOOLTIP_STYLE} />
               {/* Safe Operating Zone Band */}
               <ReferenceArea
-                y1={10.5}
-                y2={14.4}
+                y1={vLo}
+                y2={vHi}
                 fill="#00E8A0"
                 fillOpacity={0.05}
                 stroke="#00E8A0"
                 strokeOpacity={0.2}
               />
               {/* Overvoltage Critical Band */}
-              <ReferenceArea y1={14.4} y2={15.5} fill="#FF2D55" fillOpacity={0.08} />
+              <ReferenceArea y1={vHi} y2={vHi + 1.1} fill="#FF2D55" fillOpacity={0.08} />
               {/* Undervoltage Critical Band */}
-              <ReferenceArea y1={9.5} y2={10.5} fill="#FF2D55" fillOpacity={0.08} />
-              <ReferenceLine y={10.5} stroke="#FF2D55" strokeDasharray="4 4" label={{ value: 'Min 10.5V', fill: '#FF2D55', fontSize: 10 }} />
-              <ReferenceLine y={14.4} stroke="#FFD60A" strokeDasharray="4 4" label={{ value: 'Max 14.4V', fill: '#FFD60A', fontSize: 10 }} />
+              <ReferenceArea y1={vLo - 1.0} y2={vLo} fill="#FF2D55" fillOpacity={0.08} />
+              <ReferenceLine y={vLo} stroke="#FF2D55" strokeDasharray="4 4" label={{ value: `Min ${vLo}V`, fill: '#FF2D55', fontSize: 10 }} />
+              <ReferenceLine y={vHi} stroke="#FFD60A" strokeDasharray="4 4" label={{ value: `Max ${vHi}V`, fill: '#FFD60A', fontSize: 10 }} />
               <Line
                 type="monotone"
                 dataKey="voltage"

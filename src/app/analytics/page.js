@@ -6,12 +6,14 @@ import MetricCard from '../../components/MetricCard'
 import HealthScore from '../../components/HealthScore'
 import RealtimeGraphs from '../../components/RealtimeGraphs'
 import { useRealTimeData } from '../../hooks/useRealTimeData'
+import { useActiveProfile } from '../../hooks/useActiveProfile'
 import { normalizeTelemetry, formatNumber, safetyColor, safetyLabel, bhiStatus, exportToCSV } from '../../lib/utils'
 import { FileSpreadsheet } from 'lucide-react'
 import styles from '../../styles/pages.module.css'
 
 export default function Analytics() {
   const { data, history, connected } = useRealTimeData()
+  const { profile: activeProfile, voltageBand } = useActiveProfile(data?.batteryId || 'BAT001')
 
   const live = data
   const bhi = live?.risk?.bhi ?? live?.bhi
@@ -52,7 +54,7 @@ export default function Analytics() {
       value: formatNumber(voltage, 2),
       unit: 'V',
       color: 'var(--state-caution)',
-      subtext: 'Safe: 10.5V - 14.4V',
+      subtext: voltageBand ? `Safe: ${voltageBand}` : 'Deploy a profile for band',
     },
     {
       title: 'Current Flow',
@@ -91,6 +93,28 @@ export default function Analytics() {
     },
   ]
 
+  const [aiSummary, setAiSummary] = useState(null)
+  const [aiLoading, setAiLoading] = useState(false)
+
+  const handleGenerateAISummary = async () => {
+    setAiLoading(true)
+    try {
+      const res = await fetch('/api/ai/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ batteryId: data?.batteryId || 'BAT001', period: 'weekly' }),
+      })
+      const json = await res.json()
+      if (res.ok && json.narrative) {
+        setAiSummary(json)
+      }
+    } catch (e) {
+      console.warn('AI Summary failed:', e.message)
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
   return (
     <Layout connected={connected} lastSeen={data?.timestamp || data?.receivedAt} data={data}>
       <div className={styles.pageHeader}>
@@ -104,15 +128,43 @@ export default function Analytics() {
           </p>
         </div>
 
-        <button
-          onClick={handleExportCSV}
-          className={styles.filterBtn}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px' }}
-        >
-          <FileSpreadsheet size={15} color="var(--accent-primary)" />
-          <span>Export Graph CSV</span>
-        </button>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <button
+            onClick={handleGenerateAISummary}
+            disabled={aiLoading}
+            className={styles.filterBtn}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderColor: 'rgba(191,90,242,0.4)', color: '#BF5AF2' }}
+          >
+            <span>{aiLoading ? '✨ Summarizing...' : '✨ Generate AI Summary'}</span>
+          </button>
+
+          <button
+            onClick={handleExportCSV}
+            className={styles.filterBtn}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px' }}
+          >
+            <FileSpreadsheet size={15} color="var(--accent-primary)" />
+            <span>Export Graph CSV</span>
+          </button>
+        </div>
       </div>
+
+      {/* AI Trend Summary Banner if triggered */}
+      {aiSummary && (
+        <div style={{ padding: '14px 18px', background: '#0F1624', border: '1px solid rgba(191,90,242,0.3)', borderRadius: 12, marginBottom: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: '#BF5AF2', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              ✨ AI Operating Trend Summary
+            </span>
+            <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+              Grade: <strong style={{ color: 'var(--accent-primary)' }}>{aiSummary.grade || 'A'}</strong>
+            </span>
+          </div>
+          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: 'var(--text-secondary)' }}>
+            {aiSummary.narrative}
+          </p>
+        </div>
+      )}
 
       {/* Snapshot Vitals Grid */}
       <div className={styles.metricsGrid}>
@@ -134,7 +186,7 @@ export default function Analytics() {
       </div>
 
       {/* Complete 8 Real-Time Graphs Suite */}
-      <RealtimeGraphs rawData={normalizedHistory} liveState={live} />
+      <RealtimeGraphs rawData={normalizedHistory} liveState={live} profileBand={activeProfile?.voltage} />
 
       <div className={styles.note} style={{ marginTop: 20 }}>
         Graphs update in real-time as samples arrive from the ESP32 via Firebase. Min/Max safety thresholds are

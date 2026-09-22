@@ -1,0 +1,135 @@
+// src/lib/aiModels.js
+// Single source of truth for AI task -> model mapping with strict free-tier allowlist.
+// Prevents accidental routing to billable models and validates OpenRouter pricing.
+
+export const TASK_MODEL_MAPPING = {
+  chat: {
+    primary: 'gemini-1.5-flash',
+    openRouter: 'meta-llama/llama-3.3-70b-instruct:free',
+    isVision: false,
+    timeoutMs: 3000,
+  },
+  'explain-alert': {
+    primary: 'gemini-1.5-flash',
+    openRouter: 'meta-llama/llama-3.3-70b-instruct:free',
+    isVision: false,
+    timeoutMs: 3000,
+  },
+  insights: {
+    primary: 'gemini-1.5-flash',
+    openRouter: 'meta-llama/llama-3.3-70b-instruct:free',
+    isVision: false,
+    timeoutMs: 3000,
+  },
+  'root-cause': {
+    primary: 'gemini-1.5-flash',
+    openRouter: 'meta-llama/llama-3.3-70b-instruct:free',
+    isVision: false,
+    timeoutMs: 8000,
+  },
+  report: {
+    primary: 'gemini-1.5-flash',
+    openRouter: 'meta-llama/llama-3.3-70b-instruct:free',
+    isVision: false,
+    timeoutMs: 8000,
+  },
+  'label-scan': {
+    primary: 'gemini-1.5-flash',
+    openRouter: null, // OpenRouter free models do not reliably support vision payloads; routes to Gemini exclusively
+    isVision: true,
+    timeoutMs: 6000,
+  },
+  'profile-verify': {
+    primary: 'gemini-1.5-flash',
+    openRouter: null,
+    isVision: true,
+    timeoutMs: 6000,
+  },
+  'threshold-suggest': {
+    primary: 'gemini-1.5-flash',
+    openRouter: 'meta-llama/llama-3.3-70b-instruct:free',
+    isVision: false,
+    timeoutMs: 5000,
+  },
+  'onboarding-wizard': {
+    primary: 'gemini-1.5-flash',
+    openRouter: 'meta-llama/llama-3.3-70b-instruct:free',
+    isVision: false,
+    timeoutMs: 5000,
+  },
+  'fleet-summary': {
+    primary: 'gemini-1.5-flash',
+    openRouter: 'meta-llama/llama-3.3-70b-instruct:free',
+    isVision: false,
+    timeoutMs: 8000,
+  },
+}
+
+// Strict free-tier allowlist. Any model string not in this set will be rejected before dispatch.
+export const FREE_MODEL_ALLOWLIST = new Set([
+  'gemini-1.5-flash',
+  'gemini-1.5-pro',
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'meta-llama/llama-3.1-8b-instruct:free',
+  'google/gemini-2.0-flash-exp:free',
+  'qwen/qwen-2.5-72b-instruct:free',
+  'mistralai/mistral-7b-instruct:free',
+])
+
+// Published provider limits for free tiers
+export const PROVIDER_QUOTAS = {
+  GEMINI_FREE_RPM: 15,
+  GEMINI_FREE_RPD: 1500,
+  OPENROUTER_FREE_RPM: 20,
+  OPENROUTER_FREE_RPD: 200,
+}
+
+/**
+ * Validate that a model string is on the free-tier allowlist.
+ */
+export function assertModelAllowed(modelId) {
+  if (!modelId || !FREE_MODEL_ALLOWLIST.has(modelId)) {
+    throw new Error(
+      `[Security Guardrail] Model "${modelId}" is not in the verified free-tier allowlist. Request rejected.`
+    )
+  }
+}
+
+/**
+ * Check OpenRouter model pricing from /models endpoint to verify prompt=0, completion=0.
+ */
+export async function verifyOpenRouterModelIsFree(modelId) {
+  if (!modelId) return true
+  try {
+    const res = await fetch('https://openrouter.ai/api/v1/models', {
+      headers: {
+        'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'https://battery-vital.local',
+        'X-Title': 'Battery Vital Safety Monitor',
+      },
+    })
+    if (!res.ok) return true // Soft fallback to allowlist if pricing endpoint fails
+    const json = await res.json()
+    const found = (json.data || []).find((m) => m.id === modelId)
+    if (found && found.pricing) {
+      const isFree = Number(found.pricing.prompt || 0) === 0 && Number(found.pricing.completion || 0) === 0
+      return isFree
+    }
+    return true
+  } catch (err) {
+    console.warn('[aiModels] Could not verify OpenRouter pricing:', err.message)
+    return true
+  }
+}
+
+/**
+ * Log model configuration on startup.
+ */
+export function logModelStartupStatus() {
+  const geminiConfigured = Boolean(process.env.GEMINI_API_KEY)
+  const openRouterConfigured = Boolean(process.env.OPENROUTER_API_KEY)
+  console.log(
+    `[AI Engine] Initialized: Gemini=${geminiConfigured ? 'Active' : 'Unconfigured'}, OpenRouter=${
+      openRouterConfigured ? 'Active' : 'Unconfigured'
+    }, FreeTierAllowlistCount=${FREE_MODEL_ALLOWLIST.size}`
+  )
+}

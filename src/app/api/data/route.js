@@ -2,7 +2,10 @@ import { NextResponse } from 'next/server'
 import { getDB } from '../../../lib/mongodb'
 import { getLatestTelemetry, updateLatestTelemetry } from '../../../lib/firebaseAdmin'
 import { checkRateLimit, getClientIp } from '../../../lib/rateLimit'
-import { sanitizeString, sanitizeNumber, secureErrorResponse } from '../../../lib/security'
+import { sanitizeString, sanitizeNumber } from '../../../lib/security'
+import { handleError } from '../../../lib/errorHandler'
+import { requirePermission } from '../../../lib/auth'
+import { PERMISSIONS } from '../../../lib/permissions'
 
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204 })
@@ -10,6 +13,7 @@ export async function OPTIONS() {
 
 export async function POST(request) {
   try {
+    await requirePermission(request, PERMISSIONS.VIEW_TELEMETRY)
     const ip = getClientIp(request)
     const rateCheck = checkRateLimit(`data_post_${ip}`, 120, 60000)
     if (!rateCheck.success) {
@@ -56,6 +60,12 @@ export async function POST(request) {
       },
       firmware: sanitizeString(d.firmware, 20),
       uptime: sanitizeNumber(d.uptime, 0, 100000000),
+      dV_dt: sanitizeNumber(d.dV_dt, -60, 60),
+      dT_dt: sanitizeNumber(d.dT_dt, -60, 60),
+      mq2_rise: sanitizeNumber(d.mq2_rise, -20000, 20000),
+      energyWh: sanitizeNumber(d.energyWh, 0, 1000000),
+      cycles: sanitizeNumber(d.cycles, 0, 100000),
+      errors: sanitizeNumber(d.errors, 0, 4294967295),
       timestamp: now.getTime(),
       receivedAt: now.toISOString(),
     }
@@ -82,7 +92,7 @@ export async function POST(request) {
     )
   } catch (error) {
     console.error('data save error:', error)
-    return secureErrorResponse(error.message)
+    return handleError(error, request)
   }
 }
 
@@ -103,17 +113,22 @@ export async function GET(request) {
       data = await db.collection('live_data').findOne({ batteryId })
     }
 
-    if (!data) return NextResponse.json({ error: 'No data yet' }, { status: 404 })
+    if (!data)     if (!data) return NextResponse.json({ error: 'No data yet' }, { status: 404 })
     return NextResponse.json({ success: true, data: telemetryShape(data) })
   } catch (error) {
-    return secureErrorResponse(error.message)
+    return handleError(error, request)
   }
 }
 
 export function telemetryShape(d) {
   const op = (d.opDirection || '').toLowerCase()
   return {
-    gas: { index_mq2: d.gasIndex?.mq2 ?? d.mq2, status_mq2: d.safety === 'SAFE' ? 'Normal' : 'Elevated', index_mq135: d.gasIndex?.mq135 ?? d.mq135, warm: d.gasIndex?.warm ?? false },
+    gas: {
+      index_mq2: d.gasIndex?.mq2 ?? d.mq2,
+      status_mq2: d.gasIndex?.mq2 != null ? (d.safety === 'SAFE' ? 'Normal' : 'Elevated') : null,
+      index_mq135: d.gasIndex?.mq135 ?? d.mq135,
+      warm: d.gasIndex?.warm ?? false,
+    },
     environment: { temperature: d.temperature, humidity: d.humidity },
     battery: {
       voltage: d.voltage, current: d.current, power: d.power,
@@ -128,9 +143,11 @@ export function telemetryShape(d) {
     uptime: d.uptime || '--',
     errors: d.errors ?? '--',
     mac: d.mac || '--',
+    dV_dt: d.dV_dt ?? d.battery?.dV_dt ?? null,
+    dT_dt: d.dT_dt ?? d.battery?.dT_dt ?? null,
     dataLoss: d.network?.packetLoss ?? d.dataLoss ?? '--',
     cpu: d.cpu,
     temp: d.temp,
-    ts: d.timestamp ? new Date(d.timestamp).getTime() : Date.now(),
+    ts: d.timestamp ? new Date(d.timestamp).getTime() : (d.ts ?? null),
   }
 }

@@ -24,6 +24,9 @@ import {
   Wrench,
 } from 'lucide-react'
 import { useNotifications } from '../../context/NotificationContext'
+import { authHeaders as headerAuth } from '../../lib/clientToken'
+import ThresholdSuggestModal from '../../components/ai/ThresholdSuggestModal'
+import BatteryProfileManager from '../../components/battery/BatteryProfileManager'
 import styles from '../../styles/pages.module.css'
 
 const SETTINGS_KEY = 'bv_app_settings_v1'
@@ -71,12 +74,13 @@ function SettingsInner() {
 
   const { connected, data, sendControl } = useRealTimeData()
   const { theme: activeTheme, setTheme } = useTheme()
-  const [profile, setProfile] = useState('LI_ION')
   const [sampleInterval, setSampleInterval] = useState(2)
   const [status, setStatus] = useState(null)
   const [config, setConfig] = useState(DEFAULT_SETTINGS)
   const [savedSuccess, setSavedSuccess] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [dispatch, setDispatch] = useState(null)
+  const [aiThresholdModalOpen, setAiThresholdModalOpen] = useState(false)
   const { addNotification } = useNotifications()
 
   useEffect(() => {
@@ -85,11 +89,36 @@ function SettingsInner() {
       .then(setStatus)
       .catch(() => {})
 
+    fetch('/api/settings/dispatch', { headers: headerAuth() })
+      .then((r) => r.json().catch(() => ({})))
+      .then((d) => d.success && setDispatch(d.config))
+      .catch(() => {})
+
     try {
       const stored = JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null')
       if (stored) setConfig({ ...DEFAULT_SETTINGS, ...stored })
     } catch (e) {}
   }, [])
+
+  const saveDispatch = async () => {
+    if (!dispatch) return
+    try {
+      const res = await fetch('/api/settings/dispatch', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...headerAuth() },
+        body: JSON.stringify(dispatch),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data.success) {
+        setDispatch(data.config)
+        addNotification({ type: 'success', title: 'Alert Dispatch', message: 'Webhook / Telegram dispatch settings saved.' })
+      } else {
+        addNotification({ type: 'error', title: 'Alert Dispatch', message: `Save failed — ${data?.error || 'rejected'}` })
+      }
+    } catch (e) {
+      addNotification({ type: 'error', title: 'Alert Dispatch', message: 'Network error while saving.' })
+    }
+  }
 
   const saveSettings = (updated) => {
     setConfig(updated)
@@ -105,43 +134,51 @@ function SettingsInner() {
     addNotification({
       type: 'info',
       title: 'Configuration Sync',
-      message: '1/3 Validating configuration... ✓',
+      message: '1/3 Validating configuration...',
     })
     await new Promise((r) => setTimeout(r, 600))
 
     addNotification({
       type: 'info',
       title: 'Configuration Sync',
-      message: '2/3 Uploading to Firebase... ⟳',
+      message: '2/3 Uploading to Firebase...',
     })
+    let ok = false
+    let errorMsg = null
     try {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(updatedConfig))
-      await fetch('/api/commands', {
+      const res = await fetch('/api/commands', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'SET_CONFIG', params: updatedConfig }),
-      }).catch(() => {})
-    } catch (e) {}
+        headers: { 'Content-Type': 'application/json', ...headerAuth() },
+        body: JSON.stringify({ command: 'SET_CONFIG', value: updatedConfig }),
+      })
+      const data = await res.json().catch(() => ({}))
+      ok = res.ok
+      errorMsg = data?.error || null
+    } catch (e) {
+      errorMsg = e?.message || 'Network error'
+    }
 
-    await new Promise((r) => setTimeout(r, 700))
-    addNotification({
-      type: 'success',
-      title: 'Configuration Sync',
-      message: '3/3 Notifying ESP32... ✓ All parameters applied!',
-    })
+    await new Promise((r) => setTimeout(r, 500))
+    if (ok) {
+      addNotification({
+        type: 'success',
+        title: 'Configuration Sync',
+        message: '3/3 Configuration saved to cloud and device channel. All parameters applied!',
+      })
+    } else {
+      addNotification({
+        type: 'error',
+        title: 'Configuration Sync',
+        message: `Sync failed — ${errorMsg || 'command rejected'}. Local copy saved only.`,
+      })
+    }
     setIsSaving(false)
-    setSavedSuccess(true)
+    setSavedSuccess(ok)
     setTimeout(() => setSavedSuccess(false), 2500)
   }
 
-  const applyProfile = () => {
-    sendControl('SET_PROFILE', profile)
-    addNotification({
-      type: 'success',
-      title: 'Chemistry Profile Applied',
-      message: `Chemistry model set to ${profile} on ESP32 microcontroller.`,
-    })
-  }
+
 
   const applyInterval = () => {
     sendControl('SET_SAMPLE_INTERVAL', sampleInterval)
@@ -371,26 +408,35 @@ function SettingsInner() {
         </div>
       )}
 
-      {/* 2. CHEMISTRY PROFILE & HARDWARE SETTINGS */}
+      {/* 2. BATTERY PROFILE & HARDWARE SETTINGS */}
+      {(activeTab === 'all' || activeTab === 'battery') && (
+        <div style={{ marginBottom: 20 }}>
+          <BatteryProfileManager batteryId={data?.batteryId || 'BAT001'} />
+        </div>
+      )}
+
       {(activeTab === 'all' || activeTab === 'battery') && (
         <div className={styles.card}>
           <h3 className={styles.cardTitle} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Cpu size={16} color="#FFD60A" />
-            Hardware &amp; Battery Chemistry Model
+            Hardware Node &amp; Sampling
           </h3>
 
           <div className={styles.settingRow}>
-            <span className={styles.settingLabel}>Battery Chemistry</span>
-            <select className={styles.select} value={profile} onChange={(e) => setProfile(e.target.value)}>
-              <option value="LI_ION">Lithium-Ion (3.7V / 4.2V nominal)</option>
-              <option value="LIFEPO4">Lithium Iron Phosphate (LiFePO4 3.2V)</option>
-              <option value="LEAD_ACID">Lead-Acid (12.0V / 14.4V Float)</option>
-              <option value="AGM">Absorbent Glass Mat (AGM)</option>
-              <option value="GEL">Gel Cell Lead-Acid</option>
-            </select>
-            <button className={styles.primaryBtn} onClick={applyProfile}>
-              Apply to ESP32
-            </button>
+            <span className={styles.settingLabel}>AI Threshold Suggestion</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <button
+                type="button"
+                className={styles.filterBtn}
+                onClick={() => setAiThresholdModalOpen(true)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, borderColor: 'rgba(191,90,242,0.4)', color: '#BF5AF2' }}
+              >
+                <span>✨ Suggest Thresholds with AI</span>
+              </button>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                Physics-based starting values customized for chemistry &amp; series configuration.
+              </span>
+            </div>
           </div>
 
           <div className={styles.settingRow}>
@@ -447,6 +493,98 @@ function SettingsInner() {
                 </span>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3b. ALERT DISPATCH (WEBHOOK / TELEGRAM) */}
+      {(activeTab === 'all' || activeTab === 'alerts') && dispatch && (
+        <div className={styles.card}>
+          <h3 className={styles.cardTitle} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Bell size={16} color="#00E8A0" />
+            Alert Dispatch (Webhook &amp; Telegram)
+          </h3>
+
+          <div className={styles.settingRow}>
+            <span className={styles.settingLabel}>Enable Dispatch</span>
+            <input
+              type="checkbox"
+              checked={dispatch.enabled}
+              onChange={(e) => setDispatch({ ...dispatch, enabled: e.target.checked })}
+            />
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+              Send CRITICAL+ alerts to external systems
+            </span>
+          </div>
+
+          <div className={styles.settingRow}>
+            <span className={styles.settingLabel}>Minimum Severity</span>
+            <select
+              className={styles.select}
+              value={dispatch.minSeverity}
+              onChange={(e) => setDispatch({ ...dispatch, minSeverity: e.target.value })}
+            >
+              <option value="CRITICAL">Critical or worse</option>
+              <option value="WARNING">Warning or worse</option>
+              <option value="ALL">All severities</option>
+            </select>
+          </div>
+
+          <div className={styles.settingRow}>
+            <span className={styles.settingLabel}>Webhook URL (HTTPS)</span>
+            <input
+              className={styles.select}
+              style={{ flex: 1 }}
+              placeholder="https://hooks.example.com/battery"
+              value={dispatch.webhookUrl}
+              onChange={(e) => setDispatch({ ...dispatch, webhookUrl: e.target.value })}
+            />
+          </div>
+
+          <div className={styles.settingRow}>
+            <span className={styles.settingLabel}>Webhook Secret</span>
+            <input
+              className={styles.select}
+              style={{ flex: 1 }}
+              placeholder="Optional X-Webhook-Secret header value"
+              value={dispatch.webhookSecret}
+              onChange={(e) => setDispatch({ ...dispatch, webhookSecret: e.target.value })}
+              autoComplete="off"
+            />
+          </div>
+
+          <div className={styles.settingRow}>
+            <span className={styles.settingLabel}>Telegram Bot Token</span>
+            <input
+              className={styles.select}
+              style={{ flex: 1 }}
+              placeholder="123456:ABC-DEF..."
+              value={dispatch.telegramBotToken}
+              onChange={(e) => setDispatch({ ...dispatch, telegramBotToken: e.target.value })}
+              autoComplete="off"
+            />
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+              {dispatch.telegramBotToken && dispatch.telegramBotToken.startsWith('*')
+                ? 'Stored' : 'HTTPS only, stored server-side'}
+            </span>
+          </div>
+
+          <div className={styles.settingRow}>
+            <span className={styles.settingLabel}>Telegram Chat ID</span>
+            <input
+              className={styles.select}
+              style={{ flex: 1 }}
+              placeholder="-1001234567890"
+              value={dispatch.telegramChatId}
+              onChange={(e) => setDispatch({ ...dispatch, telegramChatId: e.target.value })}
+            />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+            <button onClick={saveDispatch} className={styles.primaryBtn} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Check size={13} />
+              Save Dispatch Settings
+            </button>
           </div>
         </div>
       )}
@@ -553,7 +691,7 @@ function SettingsInner() {
             <div className={styles.connItem}>
               <span>Active Chemistry Profile</span>
               <span className={styles.mono}>
-                {data?.battery?.profile || '12V LiFePO4'}
+                {data?.battery?.profile || data?.profileId || 'Not configured'}
               </span>
             </div>
             <div className={styles.connItem}>
@@ -576,6 +714,21 @@ function SettingsInner() {
             </div>
           </div>
         </div>
+      )}
+
+      {aiThresholdModalOpen && (
+        <ThresholdSuggestModal
+          isOpen={aiThresholdModalOpen}
+          onClose={() => setAiThresholdModalOpen(false)}
+          onApplySelected={(approved) => {
+            addNotification({
+              type: 'success',
+              title: 'Thresholds Prepared',
+              message: `AI thresholds staged for ${Object.keys(approved).length} parameters. Review & save on Battery Profile.`,
+            })
+            setAiThresholdModalOpen(false)
+          }}
+        />
       )}
     </Layout>
   )

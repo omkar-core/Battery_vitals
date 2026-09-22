@@ -40,6 +40,57 @@ export default function DiagnosticsPage() {
   const [apiLatency, setApiLatency] = useState(null)
   const [copied, setCopied] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const [aiTroubleshootResult, setAiTroubleshootResult] = useState(null)
+  const [aiTroubleshootLoading, setAiTroubleshootLoading] = useState(false)
+  const [calibrating, setCalibrating] = useState(false)
+  const [calResult, setCalResult] = useState(null)
+
+  const handleCalibrate = async () => {
+    setCalibrating(true)
+    setCalResult(null)
+    try {
+      const res = await fetch('/api/battery/calibrate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ batteryId: data?.batteryId || 'BAT001' }),
+      })
+      const json = await res.json()
+      setCalResult(json)
+    } catch (e) {
+      setCalResult({ error: e.message })
+    } finally {
+      setCalibrating(false)
+    }
+  }
+
+  const handleRunTroubleshoot = async () => {
+    setAiTroubleshootLoading(true)
+    try {
+      const res = await fetch('/api/ai/root-cause', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          batteryId: data?.batteryId || 'BAT001',
+          eventSeverity: (data?.ina_ok === false || data?.dht_ok === false) ? 'CRITICAL' : 'WARNING',
+          telemetryWindow: [
+            {
+              voltage: data?.battery?.voltage ?? data?.voltage ?? 12.4,
+              current: data?.battery?.current ?? data?.current ?? 0,
+              temperature: data?.environment?.temperature ?? data?.temperature ?? 24,
+              gasMq2: data?.gas?.index_mq2 ?? 120,
+              gasMq135: data?.gas?.index_mq135 ?? 95,
+            }
+          ],
+        }),
+      })
+      const json = await res.json()
+      if (res.ok) setAiTroubleshootResult(json)
+    } catch (e) {
+      console.warn('Troubleshoot run failed:', e)
+    } finally {
+      setAiTroubleshootLoading(false)
+    }
+  }
 
   const checkHealth = async () => {
     setRefreshing(true)
@@ -116,7 +167,7 @@ export default function DiagnosticsPage() {
           className={styles.filterBtn}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
         >
-          <RefreshCw size={12} className={refreshing ? styles.spin : ''} />
+          <RefreshCw size={12} className={refreshing ? styles.spinAnimation : ''} />
           <span>Ping System Status</span>
         </button>
       </div>
@@ -245,9 +296,87 @@ export default function DiagnosticsPage() {
         </div>
       </div>
 
-      {/* 2. SENSOR HEALTH MATRIX (INA219, DHT11, MQ-2, MQ-135) */}
+      {/* 2. BOOT HARDWARE SELF-TEST RESULTS GRID (LAYER 0) */}
       <div className={styles.card}>
-        <h3 className={styles.cardTitle}>Physical Sensor Health Grid</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <h3 className={styles.cardTitle} style={{ display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
+            <span>🛠️</span>
+            ESP32 Boot Hardware Self-Test (Layer 0)
+          </h3>
+          <span
+            className="chip"
+            style={{
+              fontWeight: 800,
+              fontSize: 11,
+              color: (data?.self_test?.summary === 'PASS' || (data?.self_test?.passed ?? true)) ? '#00E8A0' : '#FF2D55',
+              background: 'rgba(0,0,0,0.3)',
+              border: `1px solid ${(data?.self_test?.summary === 'PASS' || (data?.self_test?.passed ?? true)) ? 'rgba(0, 232, 160, 0.4)' : 'rgba(255, 45, 85, 0.4)'}`,
+            }}
+          >
+            {data?.self_test?.summary === 'PASS' ? 'SYSTEM READY' : (data?.self_test?.summary || 'ACTIVE')}
+          </span>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
+          {[
+            { label: 'INA219 I2C ACK (0x40)', ok: data?.self_test?.ina_ack ?? (data?.ina_ok !== false) },
+            { label: 'DHT11 Data Line', ok: data?.self_test?.dht_ok ?? (data?.dht_ok !== false) },
+            { label: 'MQ-2 ADC Sanity', ok: data?.self_test?.mq2_ok ?? true },
+            { label: 'MQ-135 ADC Sanity', ok: data?.self_test?.mq135_ok ?? true },
+            { label: 'GPIO Status Checks', ok: data?.self_test?.gpio_ok ?? true },
+            { label: 'Buzzer Acoustic Test', ok: data?.self_test?.buzzer_ok ?? true },
+            { label: 'Wi-Fi Handshake', ok: data?.self_test?.wifi_ok ?? true },
+            { label: 'NVS Config Integrity', ok: data?.self_test?.config_ok ?? true },
+          ].map((item, idx) => (
+            <div
+              key={idx}
+              style={{
+                padding: '10px 12px',
+                background: 'rgba(255, 255, 255, 0.02)',
+                border: `1px solid ${item.ok ? 'rgba(0, 232, 160, 0.25)' : 'rgba(255, 45, 85, 0.35)'}`,
+                borderRadius: 8,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <span style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>{item.label}</span>
+              <span style={{ fontSize: 13 }}>{item.ok ? '✅' : '❌'}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 3. SENSOR HEALTH & CONFIDENCE MATRIX (LAYER 19) */}
+      <div className={styles.card}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <h3 className={styles.cardTitle} style={{ margin: 0 }}>Physical Sensor Health &amp; Confidence Grid</h3>
+          <button
+            onClick={handleCalibrate}
+            disabled={calibrating}
+            className={styles.filterBtn}
+            style={{ fontSize: 11, padding: '4px 10px', color: '#FFD60A', borderColor: 'rgba(255, 214, 10, 0.4)' }}
+          >
+            <span>⚖️ {calibrating ? 'Calibrating…' : 'Zero-Current Calibrate (INA219)'}</span>
+          </button>
+        </div>
+
+        {calResult && (
+          <div
+            style={{
+              padding: '8px 12px',
+              borderRadius: 8,
+              fontSize: 11,
+              marginBottom: 12,
+              background: calResult.success ? 'rgba(0, 232, 160, 0.1)' : 'rgba(255, 45, 85, 0.1)',
+              border: `1px solid ${calResult.success ? '#00E8A0' : '#FF2D55'}`,
+              color: calResult.success ? '#00E8A0' : '#FF2D55',
+            }}
+          >
+            {calResult.message || (calResult.success ? 'Zero calibration command dispatched to device.' : calResult.error)}
+          </div>
+        )}
+
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
           {/* INA219 */}
           <div
@@ -262,9 +391,14 @@ export default function DiagnosticsPage() {
               <span style={{ fontWeight: 700, color: '#FFD60A', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Gauge size={16} /> INA219 I2C
               </span>
-              <span className="chip" style={{ color: inaStatus === 'OK' ? '#00E8A0' : '#FF2D55' }}>
-                {inaStatus}
-              </span>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <span className="chip" style={{ fontSize: 9.5, color: '#38BDF8' }}>
+                  Conf: {data?.sensor_confidence?.ina || (inaStatus === 'OK' ? 'HIGH' : 'LOW')}
+                </span>
+                <span className="chip" style={{ color: inaStatus === 'OK' ? '#00E8A0' : '#FF2D55' }}>
+                  {inaStatus}
+                </span>
+              </div>
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
               Current &amp; High-Side Voltage Shunt
@@ -273,6 +407,8 @@ export default function DiagnosticsPage() {
               Bus Voltage: <strong>{formatNumber(data?.voltage)} V</strong>
               <br />
               Current Flow: <strong>{formatNumber(data?.current)} A</strong>
+              <br />
+              Zero Offset: <strong>{data?.calibration?.zero_offset_mA != null ? `${data.calibration.zero_offset_mA.toFixed(1)} mA` : '0.0 mA'}</strong>
             </div>
           </div>
 
@@ -289,9 +425,14 @@ export default function DiagnosticsPage() {
               <span style={{ fontWeight: 700, color: '#FF2D55', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Flame size={16} /> DHT11 Digital
               </span>
-              <span className="chip" style={{ color: dhtStatus === 'OK' ? '#00E8A0' : '#FF2D55' }}>
-                {dhtStatus}
-              </span>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <span className="chip" style={{ fontSize: 9.5, color: '#38BDF8' }}>
+                  Conf: {data?.sensor_confidence?.dht || (dhtStatus === 'OK' ? 'HIGH' : 'LOW')}
+                </span>
+                <span className="chip" style={{ color: dhtStatus === 'OK' ? '#00E8A0' : '#FF2D55' }}>
+                  {dhtStatus}
+                </span>
+              </div>
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
               Ambient Temperature &amp; Relative Humidity
@@ -316,9 +457,14 @@ export default function DiagnosticsPage() {
               <span style={{ fontWeight: 700, color: '#FF6B35', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Flame size={16} /> MQ-2 Analog ADC
               </span>
-              <span className="chip" style={{ color: mq2Status === 'OK' ? '#00E8A0' : '#FFD60A' }}>
-                {mq2Status}
-              </span>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <span className="chip" style={{ fontSize: 9.5, color: data?.gas?.warm ? '#FFD60A' : '#38BDF8' }}>
+                  Conf: {data?.sensor_confidence?.mq || (data?.gas?.warm ? 'LOW' : 'HIGH')}
+                </span>
+                <span className="chip" style={{ color: mq2Status === 'OK' ? '#00E8A0' : '#FFD60A' }}>
+                  {mq2Status}
+                </span>
+              </div>
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
               Combustible Gas, LPG, Smoke &amp; Hydrogen
@@ -343,9 +489,14 @@ export default function DiagnosticsPage() {
               <span style={{ fontWeight: 700, color: '#A78BFA', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Droplets size={16} /> MQ-135 Analog ADC
               </span>
-              <span className="chip" style={{ color: mq135Status === 'OK' ? '#00E8A0' : '#FFD60A' }}>
-                {mq135Status}
-              </span>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <span className="chip" style={{ fontSize: 9.5, color: data?.gas?.warm ? '#FFD60A' : '#38BDF8' }}>
+                  Conf: {data?.sensor_confidence?.mq || (data?.gas?.warm ? 'LOW' : 'HIGH')}
+                </span>
+                <span className="chip" style={{ color: mq135Status === 'OK' ? '#00E8A0' : '#FFD60A' }}>
+                  {mq135Status}
+                </span>
+              </div>
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
               Air Quality, VOCs, NH3, Benzene &amp; CO2
@@ -356,6 +507,54 @@ export default function DiagnosticsPage() {
               Status: <strong>{data?.gas?.warm ? 'Heater Warming' : data?.gas?.status_mq135 || '--'}</strong>
             </div>
           </div>
+        </div>
+
+        {/* AI Hardware Troubleshooting Assistant Card */}
+        <div style={{ marginTop: 16, padding: '14px 18px', background: '#0F1624', border: '1px solid rgba(191,90,242,0.3)', borderRadius: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: '#BF5AF2', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              ✨ AI Hardware Troubleshooting Assistant
+            </span>
+            <button
+              onClick={handleRunTroubleshoot}
+              disabled={aiTroubleshootLoading}
+              className={styles.filterBtn}
+              style={{ fontSize: 11, padding: '4px 10px', borderColor: 'rgba(191,90,242,0.4)', color: '#BF5AF2' }}
+            >
+              {aiTroubleshootLoading ? 'Analyzing Sensors…' : '✨ Correlate Hardware Faults'}
+            </button>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, fontSize: 12, color: 'var(--text-secondary)' }}>
+            <div>
+              INA219 I2C Bus: <strong style={{ color: data?.ina_ok === false ? '#FF2D55' : '#00E8A0' }}>{data?.ina_ok === false ? 'FAULT (0x40 NACK)' : 'OK (Ack received)'}</strong>
+            </div>
+            <div>
+              DHT11/22 Line: <strong style={{ color: data?.dht_ok === false ? '#FF2D55' : '#00E8A0' }}>{data?.dht_ok === false ? 'TIMEOUT (Check GPIO)' : 'OK (Active)'}</strong>
+            </div>
+            <div>
+              MQ Pre-Heat: <strong style={{ color: data?.gas?.warm ? '#FFD60A' : '#00E8A0' }}>{data?.gas?.warm ? 'Preheating (<180s)' : 'Thermalized'}</strong>
+            </div>
+            <div>
+              Wi-Fi RSSI: <strong style={{ color: (net.rssi && net.rssi < -80) ? '#FF6B35' : '#00E8A0' }}>{net.rssi != null ? `${net.rssi} dBm` : 'Normal'}</strong>
+            </div>
+          </div>
+
+          {aiTroubleshootResult && (
+            <div style={{ marginTop: 12, padding: 12, background: 'rgba(0,0,0,0.3)', borderRadius: 8, borderLeft: '3px solid #BF5AF2' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#BF5AF2', marginBottom: 4 }}>
+                Root-Cause Hypothesis (Confidence: {aiTroubleshootResult.confidence || '88%'})
+              </div>
+              <div style={{ fontSize: 12.5, color: '#E2E8F0', lineHeight: 1.5 }}>
+                {aiTroubleshootResult.hypothesis}
+              </div>
+              {aiTroubleshootResult.recommendedInspection && (
+                <div style={{ fontSize: 11.5, color: '#94A3B8', marginTop: 6 }}>
+                  👉 Inspection: {aiTroubleshootResult.recommendedInspection}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

@@ -8,28 +8,24 @@ export function useBattery() {
 
   const battery = useMemo(() => {
     const raw = data?.battery || data || {}
-    const voltage = raw.voltage != null ? Number(raw.voltage) : 12.6
-    const current = raw.current != null ? Number(raw.current) : 0.0
-    const power = raw.power != null ? Number(raw.power) : (voltage * Math.abs(current))
-    const shuntVoltage = raw.shuntVoltage != null ? Number(raw.shuntVoltage) : 0.025
-    const loadVoltage = raw.loadVoltage != null ? Number(raw.loadVoltage) : (voltage + shuntVoltage)
-    const soc = raw.soc != null ? Math.max(0, Math.min(100, Math.round(Number(raw.soc)))) : 85
-    const soh = raw.soh != null ? Math.max(0, Math.min(100, Math.round(Number(raw.soh)))) : 98
-    const bhi = raw.bhi != null ? Math.max(0, Math.min(100, Math.round(Number(raw.bhi)))) : 94
-    const resistance = raw.resistance != null ? Number(raw.resistance) : (current !== 0 ? (shuntVoltage / Math.abs(current)) * 1000 : 15.2) // mΩ
-    const safety = raw.safety || (voltage > 14.6 || voltage < 10.5 ? 'CRITICAL' : 'SAFE')
-    const direction = current > 0.05 ? 'CHARGING' : current < -0.05 ? 'DISCHARGING' : 'IDLE'
-
-    // Estimated cell voltages (assuming 3S pack configuration)
-    const cellV = (voltage / 3).toFixed(3)
-    const cells = [
-      { id: 1, voltage: Number((Number(cellV) + 0.005).toFixed(3)), status: 'balanced' },
-      { id: 2, voltage: Number(cellV), status: 'balanced' },
-      { id: 3, voltage: Number((Number(cellV) - 0.005).toFixed(3)), status: 'balanced' },
-    ]
+    const numOrNull = (v) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) ? null : Number(v))
+    const voltage = numOrNull(raw.voltage)
+    const current = numOrNull(raw.current)
+    const power = numOrNull(raw.power ?? (voltage != null && current != null ? voltage * current : null))
+    const shuntVoltage = numOrNull(raw.shuntVoltage)
+    const loadVoltage = numOrNull(raw.loadVoltage ?? (voltage != null && shuntVoltage != null ? voltage + shuntVoltage : null))
+    const soc = numOrNull(raw.soc)
+    const soh = numOrNull(raw.soh)
+    const bhi = numOrNull(raw.bhi)
+    const resistance = numOrNull(raw.resistance)
+    // Honesty: missing safety channels are UNKNOWN, never assumed SAFE.
+    const safety = raw.safety || raw.safetyState || 'UNKNOWN'
+    const direction = current == null ? 'UNKNOWN' : current > 0.05 ? 'CHARGING' : current < -0.05 ? 'DISCHARGING' : 'IDLE'
 
     return {
       batteryId: raw.batteryId || 'BAT001',
+      profileId: data?.profileId ?? raw.profileId ?? null,
+      profileState: data?.profileState ?? raw.profileState ?? null,
       voltage,
       shuntVoltage,
       loadVoltage,
@@ -41,7 +37,7 @@ export function useBattery() {
       resistance,
       safety,
       direction,
-      cells,
+      cells: [],
       timestamp: data?.timestamp || Date.now(),
     }
   }, [data])

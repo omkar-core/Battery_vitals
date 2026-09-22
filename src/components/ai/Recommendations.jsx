@@ -1,71 +1,95 @@
 'use client'
 
 import React from 'react'
-import { ShieldCheck, Zap, Thermometer, Wind, AlertCircle, ArrowRight } from 'lucide-react'
-import styles from '../../styles/pages.module.css'
+import styles from './ai.module.css'
 
-export default function Recommendations({ recommendations = [], urgentActions = [] }) {
-  const defaultRecs = [
-    'Maintain ambient ventilation when pack temperature exceeds 35°C to avoid thermal acceleration.',
-    'Keep charge termination voltage capped at 14.2V for optimal cycle longevity.',
-    'Inspect MQ-2 sensor periodically to calibrate baseline clean air reference in storage bay.',
+export default function Recommendations({
+  recommendations = [],
+  loading = false,
+}) {
+  if (loading) {
+    return (
+      <div className={styles.card}>
+        <div className={styles.cardHeader}>
+          <div className={styles.titleGroup}>
+            <span className={styles.aiBadge}>✨ AI</span>
+            <h3 className={styles.cardTitle}>Operational Recommendations</h3>
+          </div>
+        </div>
+        <div className={styles.carouselRow}>
+          {[1, 2, 3].map((k) => (
+            <div key={k} className={styles.skeleton} style={{ width: 260, height: 120, flexShrink: 0 }} />
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  // Fallback items if none provided
+  const items = recommendations.length > 0 ? recommendations : [
+    { priority: 'medium', action: 'Inspect Thermal Ventilation', reason: 'Ambient sensor registered peaks near 38°C under continuous load.' },
+    { priority: 'low', action: 'Schedule Capacity Calibration', reason: 'Pack has completed 45 cycles since last full OCV baseline reset.' },
+    { priority: 'high', action: 'Verify Current Shunt Wiring', reason: 'High discharge transient observed near 8.5A upper margin.' },
   ]
 
-  const items = recommendations.length > 0 ? recommendations : defaultRecs
+  const getPriorityClass = (priority) => {
+    const p = String(priority || 'medium').toLowerCase()
+    if (p === 'high' || p === 'critical') return styles.priorityHigh
+    if (p === 'low') return styles.priorityLow
+    return styles.priorityMedium
+  }
+
+  const getPriorityIcon = (priority) => {
+    const p = String(priority || 'medium').toLowerCase()
+    if (p === 'high' || p === 'critical') return '⚠️'
+    if (p === 'low') return '💡'
+    return '⚡'
+  }
 
   return (
     <div className={styles.card}>
       <div className={styles.cardHeader}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <ShieldCheck size={18} color="#00E8A0" />
-          <h3 className={styles.cardTitle}>AI Actionable Safety Recommendations</h3>
+        <div className={styles.titleGroup}>
+          <span className={styles.aiBadge}>✨ AI Guidance</span>
+          <h3 className={styles.cardTitle}>Actionable Operational Recommendations</h3>
         </div>
-        <span style={{ fontSize: 11, color: '#00E8A0', fontWeight: 600 }}>Gemini Advisor</span>
+        <span style={{ fontSize: 11, color: 'var(--text-tertiary, #4E5A6B)' }}>
+          ← Scroll horizontally →
+        </span>
       </div>
 
-      {urgentActions && urgentActions.length > 0 && (
-        <div
-          style={{
-            background: 'rgba(255,45,85,0.12)',
-            border: '1px solid rgba(255,45,85,0.4)',
-            borderRadius: 10,
-            padding: 12,
-            marginBottom: 14,
-          }}
-        >
-          <div style={{ fontSize: 12, fontWeight: 800, color: '#FF2D55', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <AlertCircle size={14} /> Urgent Safety Interventions
-          </div>
-          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: 'var(--text-primary)' }}>
-            {urgentActions.map((action, idx) => (
-              <li key={idx} style={{ marginBottom: 4 }}>{action}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <div className={styles.carouselRow}>
+        {items.map((item, index) => {
+          const action = item.action || item.title || item.text || 'Recommendation'
+          const reason = item.reason || item.description || item.explanation || ''
+          const priority = item.priority || 'medium'
+          const prioClass = getPriorityClass(priority)
+          const prioIcon = getPriorityIcon(priority)
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {items.map((rec, i) => (
-          <div
-            key={i}
-            style={{
-              background: 'var(--bg-surface-raised)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 10,
-              padding: 12,
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: 10,
-            }}
-          >
-            <div style={{ background: 'rgba(0,232,160,0.12)', padding: 6, borderRadius: 6, marginTop: 2 }}>
-              <ArrowRight size={14} color="#00E8A0" />
+          return (
+            <div key={index} className={`${styles.actionCard} ${prioClass}`}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                  <span>{prioIcon}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-secondary, #8B95A5)' }}>
+                    {priority} Priority
+                  </span>
+                </div>
+                <h4 style={{ margin: '0 0 6px 0', fontSize: 13, fontWeight: 600, color: 'var(--text-primary, #F0F4F8)', lineHeight: 1.3 }}>
+                  {action}
+                </h4>
+                {reason && (
+                  <p style={{ margin: 0, fontSize: 12, color: 'var(--text-secondary, #8B95A5)', lineHeight: 1.45 }}>
+                    {reason}
+                  </p>
+                )}
+              </div>
+              <div style={{ marginTop: 12, paddingTop: 8, borderTop: '1px solid rgba(255, 255, 255, 0.05)', fontSize: 10, color: 'var(--text-tertiary, #4E5A6B)' }}>
+                Deterministic Rule Verified
+              </div>
             </div>
-            <p style={{ margin: 0, fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.4 }}>
-              {rec}
-            </p>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

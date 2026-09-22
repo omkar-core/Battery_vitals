@@ -6,11 +6,25 @@ import styles from '../../styles/pages.module.css'
 
 export default function Predictions({ prediction = {} }) {
   const {
-    battery_health = 92,
-    estimated_lifespan = '22 months',
-    next_maintenance = '2024-06-15',
-    failure_probability = { '30_days': 2.4, '90_days': 8.1, '1_year': 24.5 },
+    battery_health = null,
+    estimated_lifespan = null,
+    next_maintenance = null,
+    failure_probability = {},
   } = prediction
+
+  const hasData = battery_health != null || estimated_lifespan != null
+
+  if (!hasData) {
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+        <div className={styles.card} style={{ textAlign: 'center', padding: 32 }}>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>
+            No prediction data available. Run a diagnostic analysis to generate predictive maintenance insights.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
@@ -28,7 +42,7 @@ export default function Predictions({ prediction = {} }) {
           <div style={{ background: 'var(--bg-surface-raised)', padding: 14, borderRadius: 10 }}>
             <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Remaining Usable Life</div>
             <div style={{ fontSize: 22, fontWeight: 900, color: '#00E8A0', marginTop: 4 }}>
-              {estimated_lifespan}
+              {estimated_lifespan || '--'}
             </div>
             <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>Target: 80% SOH EOL</div>
           </div>
@@ -36,7 +50,7 @@ export default function Predictions({ prediction = {} }) {
           <div style={{ background: 'var(--bg-surface-raised)', padding: 14, borderRadius: 10 }}>
             <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Next Recommended Check</div>
             <div style={{ fontSize: 18, fontWeight: 800, color: '#38BDF8', marginTop: 6 }}>
-              {next_maintenance}
+              {next_maintenance || '--'}
             </div>
             <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>Terminal &amp; cell inspection</div>
           </div>
@@ -61,10 +75,10 @@ export default function Predictions({ prediction = {} }) {
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
               <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>30-Day Risk Horizon</span>
-              <span style={{ color: '#00E8A0', fontWeight: 700 }}>{failure_probability['30_days'] || 2.4}%</span>
+              <span style={{ color: '#00E8A0', fontWeight: 700 }}>{failure_probability['30_days'] != null ? `${failure_probability['30_days']}%` : '--'}</span>
             </div>
             <div style={{ width: '100%', height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 3 }}>
-              <div style={{ width: `${failure_probability['30_days'] || 2.4}%`, height: '100%', background: '#00E8A0', borderRadius: 3 }} />
+              <div style={{ width: failure_probability['30_days'] != null ? `${failure_probability['30_days']}%` : '0%', height: '100%', background: '#00E8A0', borderRadius: 3 }} />
             </div>
           </div>
 
@@ -72,10 +86,10 @@ export default function Predictions({ prediction = {} }) {
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
               <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>90-Day Risk Horizon</span>
-              <span style={{ color: '#FFB800', fontWeight: 700 }}>{failure_probability['90_days'] || 8.1}%</span>
+              <span style={{ color: '#FFB800', fontWeight: 700 }}>{failure_probability['90_days'] != null ? `${failure_probability['90_days']}%` : '--'}</span>
             </div>
             <div style={{ width: '100%', height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 3 }}>
-              <div style={{ width: `${failure_probability['90_days'] || 8.1}%`, height: '100%', background: '#FFB800', borderRadius: 3 }} />
+              <div style={{ width: failure_probability['90_days'] != null ? `${failure_probability['90_days']}%` : '0%', height: '100%', background: '#FFB800', borderRadius: 3 }} />
             </div>
           </div>
 
@@ -83,10 +97,10 @@ export default function Predictions({ prediction = {} }) {
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
               <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>1-Year Risk Horizon</span>
-              <span style={{ color: '#38BDF8', fontWeight: 700 }}>{failure_probability['1_year'] || 24.5}%</span>
+              <span style={{ color: '#38BDF8', fontWeight: 700 }}>{failure_probability['1_year'] != null ? `${failure_probability['1_year']}%` : '--'}</span>
             </div>
             <div style={{ width: '100%', height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 3 }}>
-              <div style={{ width: `${failure_probability['1_year'] || 24.5}%`, height: '100%', background: '#38BDF8', borderRadius: 3 }} />
+              <div style={{ width: failure_probability['1_year'] != null ? `${failure_probability['1_year']}%` : '0%', height: '100%', background: '#38BDF8', borderRadius: 3 }} />
             </div>
           </div>
         </div>

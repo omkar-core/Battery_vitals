@@ -193,6 +193,7 @@ Battery_vitals/
 ├── package.json                  # Dependencies and scripts
 ├── README.md                     # Comprehensive project documentation
 ├── Brain.md                      # System architecture & AI knowledge base
+├── ESP32_RULES.md                # ESP32 Firmware Rules, Schemas & CI/CD Handbook
 │
 ├── esp32/
 │   ├── BatteryVitals_v12.0.ino   # Legacy monolithic firmware
@@ -202,6 +203,11 @@ Battery_vitals/
 │       ├── sensors.h             # INA219, DHT11, MQ-2, MQ-135 reading routines
 │       ├── led_control.h         # Status LEDs & buzzer alarm modes
 │       └── firebase_ops.h        # RTDB payload publish & command listener
+│
+├── .github/
+│   └── workflows/
+│       ├── ci.yml                # Web app lint, test & build verification
+│       └── esp32-ci.yml          # ESP32 firmware compilation & payload test
 │
 ├── public/                       # PWA assets, manifest, icons, sound chimes
 │

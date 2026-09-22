@@ -4,6 +4,7 @@ import { ensureAiIndexes, DIAGNOSTICS_COLLECTION, CHAT_COLLECTION } from '../../
 import { geminiModel } from '../../../../lib/gemini'
 import { checkRateLimit, getClientIp } from '../../../../lib/rateLimit'
 import { sanitizeString } from '../../../../lib/security'
+import { handleError } from '../../../../lib/errorHandler'
 
 export const dynamic = 'force-dynamic'
 
@@ -77,7 +78,6 @@ export async function GET(request) {
       generatedAt: new Date().toISOString(),
     })
   } catch (error) {
-    console.error('[BatteryAI] training metadata error:', error)
-    return NextResponse.json({ success: false, error: 'Failed to load training metadata' }, { status: 500 })
+    return handleError(error, request)
   }
 }

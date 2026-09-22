@@ -27,7 +27,8 @@ Battery Vital implements a **hybrid dual-database strategy** balancing sub-secon
 {
   "live_data": {
     "BAT001": {
-      "timestamp": 1718000000000,
+      "timestamp": 1758544200000,
+      "device_token": "token_verified_hash",
       "battery": {
         "voltage": 12.64,
         "current": 2.45,
@@ -58,18 +59,41 @@ Battery Vital implements a **hybrid dual-database strategy** balancing sub-secon
         "buzzer_mode": "off",
         "wifi_rssi": -62,
         "heap_free": 238410
+      },
+      "self_test": {
+        "passed": true,
+        "ina_ack": true,
+        "dht_ok": true,
+        "mq2_ok": true,
+        "mq135_ok": true,
+        "gpio_ok": true,
+        "buzzer_ok": true,
+        "wifi_ok": true,
+        "config_ok": true,
+        "timestamp": 1758544000000
+      },
+      "calibration": {
+        "zero_current_offset": 0.012,
+        "calibrated_at": 1758540000000
+      },
+      "sensor_confidence": {
+        "inaConfidence": 1.0,
+        "dhtConfidence": 1.0,
+        "mqConfidence": 1.0,
+        "overallConfidence": 1.0
       }
     }
   },
   "commands": {
     "BAT001": {
+      "command": "CALIBRATE_ZERO",
       "auto_mode": true,
       "led_green": true,
       "led_yellow": false,
       "led_red": false,
       "buzzer": false,
       "buzzer_mode": "off",
-      "updatedAt": 1718000000000
+      "updatedAt": 1758544200000
     }
   },
   "alerts": {
@@ -276,6 +300,102 @@ db.ai_diagnostics.createIndex({ created_at: 1 }, { expireAfterSeconds: 604800 })
 
 ---
 
+### 3.5 Collection: `battery_profiles` (Hardware & Chemistry Operating Envelopes)
+Stores configured battery packs, envelope limits (max 25V bus, 15A current, 200W power), and metadata.
+
+```javascript
+{
+  "_id": ObjectId("66671a5c1a2b3c4d5e6f7a8f"),
+  "batteryId": "BAT001",
+  "profileName": "Custom LiFePO4 4S 100Ah",
+  "chemType": "LIFEPO4",
+  "nominalVoltage": 12.8,
+  "capacityAh": 100,
+  "minVoltage": 10.0,
+  "maxVoltage": 14.6,
+  "maxContinuousCurrent": 15.0,
+  "maxPower": 200.0,
+  "seriesCount": 4,
+  "parallelCount": 1,
+  "chargeTempRange": [0, 45],
+  "dischargeTempRange": [-20, 60],
+  "serialNumber": "SN-LFP-2024-0012",
+  "manufacturer": "AmpereTime",
+  "cellModel": "IFR26650-3400",
+  "bmsType": "Smart-BMS-UART",
+  "useCase": "Solar Energy Storage",
+  "manufactureDate": "2024-01-15",
+  "installDate": "2024-03-01",
+  "maxChargeRateC": 0.5,
+  "maxDischargeRateC": 1.0,
+  "energyWh": 1280,
+  "cycleLifeRating": 4000,
+  "internalResistanceNominalMilliOhm": 12.0,
+  "status": "ACTIVE",
+  "verificationStatus": "VERIFIED",
+  "updatedAt": ISODate("2026-09-22T17:40:00.000Z")
+}
+```
+
+#### Indexing Strategy
+```javascript
+db.battery_profiles.createIndex({ batteryId: 1 }, { unique: true });
+db.battery_profiles.createIndex({ status: 1 });
+```
+
+---
+
+### 3.6 Collection: `connection_events` (Battery Attachment & Contact Lifecycle)
+Tracks physical connection lifecycle events (`DISCONNECTED`, `CONNECTING`, `STABILIZING`, `CONNECTED`, `UNSTABLE_CONTACT`, `DISCONNECTING`) and session UUIDs.
+
+```javascript
+{
+  "_id": ObjectId("66671a5c1a2b3c4d5e6f7a90"),
+  "sessionId": "b8e1f0e2-63b7-4c7b-9f4a-8d3419bb9c1a",
+  "batteryId": "BAT001",
+  "eventType": "CONNECTED",
+  "voltage": 12.64,
+  "current": 0.15,
+  "timestamp": 1758540000000,
+  "createdAt": ISODate("2026-09-22T17:40:00.000Z")
+}
+```
+
+#### Indexing Strategy
+```javascript
+db.connection_events.createIndex({ batteryId: 1, timestamp: -1 });
+db.connection_events.createIndex({ sessionId: 1 });
+```
+
+---
+
+### 3.7 Collection: `audit_log` (Immutable Configuration Audit Trail)
+Append-only log of configuration changes, threshold tuning, and profile mutations.
+
+```javascript
+{
+  "_id": ObjectId("66671a5c1a2b3c4d5e6f7a91"),
+  "action": "UPDATE_BATTERY_PROFILE",
+  "entityType": "battery_profile",
+  "entityId": "BAT001",
+  "actorId": "usr_admin_01",
+  "actorEmail": "admin@example.com",
+  "clientIp": "192.168.1.100",
+  "previousState": { "maxVoltage": 14.4 },
+  "newState": { "maxVoltage": 14.6 },
+  "timestamp": ISODate("2026-09-22T17:45:00.000Z")
+}
+```
+
+#### Indexing Strategy
+```javascript
+db.audit_log.createIndex({ entityId: 1, timestamp: -1 });
+db.audit_log.createIndex({ actorId: 1, timestamp: -1 });
+db.audit_log.createIndex({ action: 1 });
+```
+
+---
+
 ## 4. Data Lifecycle & Retention Policies
 
 | Data Layer | Retention Window | Storage Target | Archival / Pruning Policy |
@@ -283,6 +403,8 @@ db.ai_diagnostics.createIndex({ created_at: 1 }, { expireAfterSeconds: 604800 })
 | **Live Stream** | Latest state only | Firebase RTDB | Overwritten in-place every 1.5 seconds |
 | **Active Alerts** | Until resolved | Firebase RTDB | Moved to MongoDB `alerts` upon resolution |
 | **Telemetry History** | 5 Years | MongoDB Atlas | Partitioned by `deviceId` + `year_month` |
+| **Battery Profiles** | Active + Versioned | MongoDB Atlas | Persistent asset records |
+| **Connection Events** | 1 Year | MongoDB Atlas | Scoped to session UUIDs |
 | **AI Evaluations** | 7 Days | MongoDB Atlas | Automatic TTL deletion index |
 | **Audit Logs** | Permanent | MongoDB Atlas | Tamper-proof, append-only records |
 

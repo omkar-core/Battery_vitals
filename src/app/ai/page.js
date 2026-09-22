@@ -6,6 +6,7 @@ import Layout from '../../components/Layout'
 import AIInsights from '../../components/AIInsights'
 import { useRealTimeData } from '../../hooks/useRealTimeData'
 import { useAI } from '../../hooks/useAI'
+import { authHeaders as headerAuth } from '../../lib/clientToken'
 import {
   Bot,
   Send,
@@ -24,7 +25,13 @@ import {
   Clock,
   Layers,
   HardDrive,
+  FileText,
 } from 'lucide-react'
+import FailureForecast from '../../components/ai/FailureForecast'
+import Recommendations from '../../components/ai/Recommendations'
+import AIReportCard from '../../components/ai/AIReportCard'
+import FleetSummaryCard from '../../components/ai/FleetSummaryCard'
+import RootCauseCard from '../../components/ai/RootCauseCard'
 import styles from '../../styles/pages.module.css'
 
 const DEFAULT_PROMPTS = [
@@ -38,6 +45,8 @@ const TABS = [
   { id: 'smart', label: 'Smart Analysis', icon: Bot },
   { id: 'predictions', label: 'Predictions', icon: TrendingUp },
   { id: 'recommendations', label: 'Recommendations', icon: Lightbulb },
+  { id: 'report', label: 'Health Report', icon: FileText },
+  { id: 'fleet', label: 'Fleet Heatmap', icon: Layers },
   { id: 'training', label: 'Training Data', icon: Database },
 ]
 
@@ -75,6 +84,44 @@ function AIInner() {
   const chatEndRef = useRef(null)
   const [customResult, setCustomResult] = useState(null)
   const [customLoading, setCustomLoading] = useState(false)
+  const [reportData, setReportData] = useState(null)
+  const [reportLoading, setReportLoading] = useState(false)
+  const [fleetData, setFleetData] = useState(null)
+  const [fleetLoading, setFleetLoading] = useState(false)
+
+  const loadReport = useCallback(async (period = 'weekly') => {
+    setReportLoading(true)
+    try {
+      const res = await fetch('/api/ai/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...headerAuth() },
+        body: JSON.stringify({ batteryId: 'BAT001', period }),
+      })
+      const data = await res.json()
+      if (res.ok) setReportData(data)
+    } catch (e) {
+      console.warn('Report fetch failed:', e.message)
+    } finally {
+      setReportLoading(false)
+    }
+  }, [])
+
+  const loadFleet = useCallback(async () => {
+    setFleetLoading(true)
+    try {
+      const res = await fetch('/api/ai/fleet-summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...headerAuth() },
+        body: JSON.stringify({}),
+      })
+      const data = await res.json()
+      if (res.ok) setFleetData(data)
+    } catch (e) {
+      console.warn('Fleet fetch failed:', e.message)
+    } finally {
+      setFleetLoading(false)
+    }
+  }, [])
 
   // Read tab reactively from ?tab= (header dropdown deep links)
   useEffect(() => {
@@ -85,6 +132,15 @@ function AIInner() {
     const match = TABS.find((x) => x.id === urlTab.toLowerCase())
     if (match) setTab(match.id)
   }, [urlTab])
+
+  useEffect(() => {
+    if (tab === 'report' && !reportData) {
+      loadReport('weekly')
+    }
+    if (tab === 'fleet' && !fleetData) {
+      loadFleet()
+    }
+  }, [tab, reportData, fleetData, loadReport, loadFleet])
 
   const refreshAnalyses = useCallback(async () => {
     setAnalysesLoading(true)
@@ -186,7 +242,7 @@ function AIInner() {
       try {
         const res = await fetch('/api/ai/chat', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...headerAuth() },
           body: JSON.stringify({ batteryId: 'BAT001', question: text, stream: true }),
         })
         if (!res.ok) {
@@ -201,7 +257,7 @@ function AIInner() {
       if (!reply) {
         const res = await fetch('/api/ai/chat', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...headerAuth() },
           body: JSON.stringify({ batteryId: 'BAT001', question: text, stream: false }),
         })
         const err = await res.json().catch(() => ({}))
@@ -247,7 +303,7 @@ function AIInner() {
     try {
       const res = await fetch('/api/analyze', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...headerAuth() },
         body: JSON.stringify({
           batteryId: 'BAT001',
           voltage: form.voltage,
@@ -556,120 +612,137 @@ function AIInner() {
 
       {/* ============ PREDICTIONS ============ */}
       {tab === 'predictions' && (
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h3 className={styles.cardTitle}>
-              <TrendingUp size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} color="#38BDF8" />
-              Predictions &amp; Degradation Projection
-            </h3>
-            <button className={styles.refreshBtn} onClick={refreshAnalyses} disabled={analysesLoading}>
-              <RefreshCw size={12} className={analysesLoading ? styles.spinAnimation : ''} /> Refresh
-            </button>
-          </div>
-
-          {analyses.length === 0 ? (
-            <div className={styles.empty}>
-              No diagnostics logged yet. <strong>Run AI Safety Diagnostic</strong> at least once to generate prediction context.
+        <>
+          <FailureForecast onRegenerate={refreshAnalyses} />
+          <div className={styles.card} style={{ marginTop: 16 }}>
+            <div className={styles.cardHeader}>
+              <h3 className={styles.cardTitle}>
+                <TrendingUp size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} color="#38BDF8" />
+                Diagnostic Projection History
+              </h3>
+              <button className={styles.refreshBtn} onClick={refreshAnalyses} disabled={analysesLoading}>
+                <RefreshCw size={12} className={analysesLoading ? styles.spinAnimation : ''} /> Refresh
+              </button>
             </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
-              {analyses.map((a) => {
-                const p = (a.result && a.result.predictions) || {}
-                return (
-                  <div key={a.id} style={{ padding: 14, background: 'var(--input-bg)', border: '1px solid var(--border)', borderRadius: 12 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                      <span className="chip" style={{ color: STATUS_COLOR[a.result.overall_status] || '#94A3B8', borderColor: `${STATUS_COLOR[a.result.overall_status] || '#94A3B8'}44` }}>
-                        {a.result.overall_status}
-                      </span>
-                      <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{timeLabel(a.createdAt)}</span>
-                    </div>
 
-                    {p.insufficient_data === true ? (
-                      <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                        <strong style={{ color: '#FFD60A' }}>Insufficient data</strong> — a meaningful degradation trend cannot be honestly projected from the available sample window.
+            {analyses.length === 0 ? (
+              <div className={styles.empty}>
+                No diagnostics logged yet. <strong>Run AI Safety Diagnostic</strong> at least once to generate prediction context.
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
+                {analyses.map((a) => {
+                  const result = a.result || {}
+                  const p = (result.predictions) || {}
+                  return (
+                    <div key={a.id} style={{ padding: 14, background: 'var(--input-bg)', border: '1px solid var(--border)', borderRadius: 12 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <span className="chip" style={{ color: STATUS_COLOR[result.overall_status] || '#94A3B8', borderColor: `${STATUS_COLOR[result.overall_status] || '#94A3B8'}44` }}>
+                          {result.overall_status}
+                        </span>
+                        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{timeLabel(a.createdAt)}</span>
                       </div>
-                    ) : (
-                      <>
-                        <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', marginBottom: 6 }}>{p.degradation_trend}</div>
-                        {p.estimated_risk ? (
-                          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>
-                            <strong style={{ color: 'var(--text-primary)' }}>Estimated risk:</strong> {p.estimated_risk}
-                          </div>
-                        ) : null}
-                      </>
-                    )}
-                    <div style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 8, borderTop: '1px solid var(--border)', paddingTop: 8 }}>
-                      Confidence: <strong>{p.confidence || 'insufficient data'}</strong>
-                      {p.period ? ` · ${p.period}` : ''}
+
+                      {p.insufficient_data === true ? (
+                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                          <strong style={{ color: '#FFD60A' }}>Insufficient data</strong> — a meaningful degradation trend cannot be honestly projected from the available sample window.
+                        </div>
+                      ) : (
+                        <>
+                          <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', marginBottom: 6 }}>{p.degradation_trend}</div>
+                          {p.estimated_risk ? (
+                            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>
+                              <strong style={{ color: 'var(--text-primary)' }}>Estimated risk:</strong> {p.estimated_risk}
+                            </div>
+                          ) : null}
+                        </>
+                      )}
+                      <div style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 8, borderTop: '1px solid var(--border)', paddingTop: 8 }}>
+                        Confidence: <strong>{p.confidence || 'insufficient data'}</strong>
+                        {p.period ? ` · ${p.period}` : ''}
+                      </div>
+                      <div style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 4 }}>
+                        RUL: no concrete failure date is asserted unless a real model is available.
+                      </div>
                     </div>
-                    <div style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 4 }}>
-                      RUL: no concrete failure date is asserted unless a real model is available.
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </>
       )}
 
       {/* ============ RECOMMENDATIONS ============ */}
       {tab === 'recommendations' && (
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h3 className={styles.cardTitle}>
-              <Lightbulb size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} color="#FFB800" />
-              Condition-Driven Recommendations
-            </h3>
-            <button className={styles.refreshBtn} onClick={refreshAnalyses} disabled={analysesLoading}>
-              <RefreshCw size={12} className={analysesLoading ? styles.spinAnimation : ''} /> Refresh
-            </button>
-          </div>
+        <>
+          <Recommendations recommendations={analyses.flatMap((a) => (a.result && Array.isArray(a.result.recommendations) ? a.result.recommendations : []))} />
+          <div className={styles.card} style={{ marginTop: 16 }}>
+            <div className={styles.cardHeader}>
+              <h3 className={styles.cardTitle}>
+                <Lightbulb size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} color="#FFB800" />
+                Condition-Driven Recommendations Log
+              </h3>
+              <button className={styles.refreshBtn} onClick={refreshAnalyses} disabled={analysesLoading}>
+                <RefreshCw size={12} className={analysesLoading ? styles.spinAnimation : ''} /> Refresh
+              </button>
+            </div>
 
-          {analyses.length === 0 ? (
-            <div className={styles.empty}>No recommendations yet — run an AI Safety Diagnostic first.</div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {analyses.flatMap((a) =>
-                (a.result && Array.isArray(a.result.recommendations) ? a.result.recommendations : []).map((r, i) => (
-                  <div
-                    key={`${a.id}-${i}`}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: 10,
-                      padding: '12px 14px',
-                      background: 'var(--input-bg)',
-                      border: '1px solid var(--border)',
-                      borderLeft: `3px solid ${PRIORITY_COLOR[r.priority] || '#00E8A0'}`,
-                      borderRadius: 10,
-                    }}
-                  >
-                    <span
+            {analyses.length === 0 ? (
+              <div className={styles.empty}>No recommendations yet — run an AI Safety Diagnostic first.</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {analyses.flatMap((a) =>
+                  (a.result && Array.isArray(a.result.recommendations) ? a.result.recommendations : []).map((r, i) => (
+                    <div
+                      key={`${a.id}-${i}`}
                       style={{
-                        fontSize: 9.5,
-                        fontWeight: 800,
-                        padding: '3px 9px',
-                        borderRadius: 100,
-                        border: `1px solid ${PRIORITY_COLOR[r.priority] || '#00E8A0'}55`,
-                        color: PRIORITY_COLOR[r.priority] || '#00E8A0',
-                        flexShrink: 0,
-                        marginTop: 1,
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 10,
+                        padding: '12px 14px',
+                        background: 'var(--input-bg)',
+                        border: '1px solid var(--border)',
+                        borderLeft: `3px solid ${PRIORITY_COLOR[r.priority] || '#00E8A0'}`,
+                        borderRadius: 10,
                       }}
                     >
-                      {r.priority.toUpperCase()}
-                    </span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', fontWeight: 600 }}>{r.action}</div>
-                      {r.reason ? <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>Why: {r.reason}</div> : null}
+                      <span
+                        style={{
+                          fontSize: 9.5,
+                          fontWeight: 800,
+                          padding: '3px 9px',
+                          borderRadius: 100,
+                          border: `1px solid ${PRIORITY_COLOR[r.priority] || '#00E8A0'}55`,
+                          color: PRIORITY_COLOR[r.priority] || '#00E8A0',
+                          flexShrink: 0,
+                          marginTop: 1,
+                        }}
+                      >
+                        {String(r.priority || 'MEDIUM').toUpperCase()}
+                      </span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', fontWeight: 600 }}>{r.action}</div>
+                        {r.reason ? <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>Why: {r.reason}</div> : null}
+                      </div>
+                      <span style={{ fontSize: 9.5, color: 'var(--text-muted)', flexShrink: 0 }}>{timeLabel(a.createdAt)}</span>
                     </div>
-                    <span style={{ fontSize: 9.5, color: 'var(--text-muted)', flexShrink: 0 }}>{timeLabel(a.createdAt)}</span>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-        </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ============ HEALTH REPORT ============ */}
+      {tab === 'report' && (
+        <AIReportCard report={reportData} loading={reportLoading} onGenerateReport={loadReport} />
+      )}
+
+      {/* ============ FLEET HEATMAP ============ */}
+      {tab === 'fleet' && (
+        <FleetSummaryCard fleetData={fleetData} loading={fleetLoading} onSelectPack={(p) => router.push(`/ai?tab=smart&batteryId=${p.deviceId}`)} />
       )}
 
       {/* ============ TRAINING DATA ============ */}
@@ -807,22 +880,24 @@ function AIInner() {
         {/* Compare panel */}
         {compareMode && compareSel.length === 2 && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12, marginBottom: 14 }}>
-            {analyses.filter((a) => compareSel.includes(a.id)).map((a) => (
-              <div key={a.id} style={{ padding: 12, background: 'var(--input-bg)', border: `1px solid ${STATUS_COLOR[a.result.overall_status] || 'var(--border)'}55`, borderRadius: 10 }}>
+            {analyses.filter((a) => compareSel.includes(a.id)).map((a) => {
+              const result = a.result || {}
+              return (
+              <div key={a.id} style={{ padding: 12, background: 'var(--input-bg)', border: `1px solid ${STATUS_COLOR[result.overall_status] || 'var(--border)'}55`, borderRadius: 10 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 8 }}>
-                  <span className="chip" style={{ color: STATUS_COLOR[a.result.overall_status] || '#94A3B8', borderColor: `${STATUS_COLOR[a.result.overall_status] || '#94A3B8'}44` }}>
-                    {a.result.overall_status}
+                  <span className="chip" style={{ color: STATUS_COLOR[result.overall_status] || '#94A3B8', borderColor: `${STATUS_COLOR[result.overall_status] || '#94A3B8'}44` }}>
+                    {result.overall_status}
                   </span>
                   <span style={{ color: 'var(--text-muted)' }}>{timeLabel(a.createdAt)}</span>
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 6 }}>
-                  Risk: <strong style={{ color: 'var(--text-primary)' }}>{a.result.risk_score}/100</strong> · Confidence: {a.result.confidence}
+                  Risk: <strong style={{ color: 'var(--text-primary)' }}>{result.risk_score}/100</strong> · Confidence: {result.confidence}
                 </div>
                 <div style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>
-                  Source: {a.source} · {latestAnomaly(a.result)} anomalies · {a.result.recommendations ? a.result.recommendations.length : 0} recommendations
+                  Source: {a.source} · {latestAnomaly(result)} anomalies · {result.recommendations ? result.recommendations.length : 0} recommendations
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         )}
 
@@ -832,14 +907,16 @@ function AIInner() {
           </div>
         ) : (
           <div className={styles.historyList}>
-            {analyses.map((a) => (
+            {analyses.map((a) => {
+              const result = a.result || {}
+              return (
               <div key={a.id}>
                 <div className={styles.historyItem}>
                   <span
                     className={styles.severityPill}
-                    style={{ background: `${STATUS_COLOR[a.result.overall_status] || '#94A3B8'}22`, color: STATUS_COLOR[a.result.overall_status] || '#94A3B8' }}
+                    style={{ background: `${STATUS_COLOR[result.overall_status] || '#94A3B8'}22`, color: STATUS_COLOR[result.overall_status] || '#94A3B8' }}
                   >
-                    {a.result.overall_status}
+                    {result.overall_status}
                   </span>
                   {compareMode && (
                     <input
@@ -850,8 +927,8 @@ function AIInner() {
                     />
                   )}
                   <span className={styles.historyText}>
-                    <strong>Risk {a.result.risk_score}/100</strong> · {a.result.battery_health_summary ? a.result.battery_health_summary.slice(0, 110) : ''}
-                    {a.result.battery_health_summary && a.result.battery_health_summary.length > 110 ? '…' : ''} · <em style={{ color: 'var(--text-muted)' }}>source: {a.source}</em>
+                    <strong>Risk {result.risk_score}/100</strong> · {result.battery_health_summary ? result.battery_health_summary.slice(0, 110) : ''}
+                    {result.battery_health_summary && result.battery_health_summary.length > 110 ? '…' : ''} · <em style={{ color: 'var(--text-muted)' }}>source: {a.source}</em>
                   </span>
                   <span className={styles.historyTime}>{timeLabel(a.createdAt)}</span>
                   <button
@@ -874,11 +951,11 @@ function AIInner() {
 
                 {expandedId === a.id && (
                   <div style={{ padding: '12px 14px', margin: '8px 0 12px 0', background: 'var(--input-bg)', border: '1px solid var(--border)', borderRadius: 10 }}>
-                    <div style={{ fontSize: 12.5, lineHeight: 1.6, color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>{JSON.stringify(a.result, null, 2)}</div>
+                    <div style={{ fontSize: 12.5, lineHeight: 1.6, color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>{JSON.stringify(result, null, 2)}</div>
                   </div>
                 )}
               </div>
-            ))}
+            )})}
           </div>
         )}
       </div>

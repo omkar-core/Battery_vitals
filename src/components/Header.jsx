@@ -42,6 +42,7 @@ import { getConnectionState } from '../lib/utils'
 import { useTheme } from '../hooks/useTheme'
 import { useNotifications } from '../context/NotificationContext'
 import NotificationCenter from './NotificationCenter'
+import DeviceSwitcher from './DeviceSwitcher'
 import Tooltip from './Tooltip'
 import AnimatedBatteryIcon from './AnimatedBatteryIcon'
 import Sparkline from './Sparkline'
@@ -52,6 +53,7 @@ export default function Header({
   lastSeen,
   telemetryData,
   onOpenPassport,
+  onOpenCommandPalette,
   onOpenOnboarding,
   onOpenManual,
   onOpenWiring,
@@ -81,7 +83,7 @@ export default function Header({
       voltage: b.voltage != null ? Number(b.voltage) : 12.6,
       current: b.current != null ? Number(b.current) : 0,
       soc: b.soc != null ? Math.round(Number(b.soc)) : 85,
-      temperature: b.temperature != null ? b.temperature : t.environmental?.temperature ?? 25.0,
+      temperature: b.temperature != null ? b.temperature : t.environment?.temperature ?? t.temperature ?? 25.0,
       safety: b.safety || t.safety || 'SAFE',
     }
   }, [telemetryData])
@@ -509,6 +511,9 @@ export default function Header({
             </div>
             <div className={styles.clockText}>{clockText}</div>
           </div>
+
+          {/* Fleet Device Switcher */}
+          <DeviceSwitcher />
 
           {/* Notification Bell */}
           <div className={styles.notifWrapper}>

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getDB } from '../../../../lib/mongodb'
 import { checkRateLimit, getClientIp } from '../../../../lib/rateLimit'
+import { sanitizeString } from '../../../../lib/security'
+import { handleError } from '../../../../lib/errorHandler'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,8 +15,9 @@ export async function GET(request) {
     }
 
     const { searchParams } = new URL(request.url)
-    const batteryId = searchParams.get('batteryId') || 'BAT001'
-    const limit = Math.min(parseInt(searchParams.get('limit') || '100', 10), 500)
+    const batteryId = sanitizeString(searchParams.get('batteryId') || 'BAT001', 30)
+    const rawLimit = Number.parseInt(searchParams.get('limit') || '100', 10)
+    const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(1, rawLimit), 500) : 100
 
     let records = []
     try {
@@ -25,16 +28,19 @@ export async function GET(request) {
         .sort({ timestamp: -1 })
         .limit(limit)
         .toArray()
-    } catch (e) {}
+    } catch (e) {
+      console.warn('MongoDB environmental/history query failed:', e.message)
+    }
 
     const formatted = records.reverse().map((r) => {
-      const e = r.environmental || r
+      const e = r.environment || r.environmental || r
+      const gasIndex = r.gasIndex || {}
       return {
         timestamp: r.timestamp || r.createdAt || Date.now(),
-        temperature: e.temperature != null ? Number(e.temperature) : 25.0,
-        humidity: e.humidity != null ? Number(e.humidity) : 55.0,
-        mq2: e.mq2 != null ? Number(e.mq2) : (e.gasIndex?.mq2 != null ? Number(e.gasIndex.mq2) : 320),
-        mq135: e.mq135 != null ? Number(e.mq135) : (e.gasIndex?.mq135 != null ? Number(e.gasIndex.mq135) : 110),
+        temperature: e.temperature != null ? Number(e.temperature) : null,
+        humidity: e.humidity != null ? Number(e.humidity) : null,
+        mq2: e.mq2 != null ? Number(e.mq2) : gasIndex.mq2 != null ? Number(gasIndex.mq2) : r.mq2 != null ? Number(r.mq2) : null,
+        mq135: e.mq135 != null ? Number(e.mq135) : gasIndex.mq135 != null ? Number(gasIndex.mq135) : r.mq135 != null ? Number(r.mq135) : null,
       }
     })
 
@@ -44,6 +50,6 @@ export async function GET(request) {
       readings: formatted,
     })
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch environmental history', details: error.message }, { status: 500 })
+    return handleError(error, request)
   }
 }

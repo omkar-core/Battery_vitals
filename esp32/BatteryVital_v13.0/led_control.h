@@ -14,6 +14,8 @@ enum BuzzerMode {
 static BuzzerMode currentBuzzerMode = BUZZER_OFF;
 static unsigned long lastBuzzerToggle = 0;
 static bool buzzerState = false;
+static unsigned long lastLedToggle = 0;
+static bool ledBlinkState = false;
 
 inline void initActuators() {
   pinMode(LED_GREEN, OUTPUT);
@@ -44,21 +46,37 @@ inline void setBuzzerMode(BuzzerMode mode) {
   }
 }
 
+// Graded response levels mirror web gradedResponse():
+// L0 MONITOR green → L1 WARNING yellow → L2 ALARM yellow+buzzer →
+// L3 CRITICAL red+buzzer+disconnect advisory → L4 EMERGENCY red+continuous.
+inline void applyGradedLevel(const String& safetyState) {
+  if (safetyState == "EMERGENCY") {
+    setLEDs(false, false, true);
+    setBuzzerMode(BUZZER_CONTINUOUS);
+  } else if (safetyState == "CRITICAL") {
+    setLEDs(false, false, true);
+    setBuzzerMode(BUZZER_FAST_BEEP);
+  } else if (safetyState == "WARNING") {
+    setLEDs(false, true, false);
+    setBuzzerMode(BUZZER_FAST_BEEP);
+  } else if (safetyState == "CAUTION") {
+    setLEDs(false, true, false);
+    setBuzzerMode(BUZZER_SLOW_BEEP);
+  } else if (safetyState == "UNKNOWN" || safetyState == "UNKNOWN_BATTERY" || safetyState == "PROFILE_MISMATCH") {
+    // Configuration honesty: blink yellow+red slowly, quiet beep — never SAFE.
+    setBuzzerMode(BUZZER_SLOW_BEEP);
+  } else {
+    setLEDs(true, false, false);
+    setBuzzerMode(BUZZER_OFF);
+  }
+}
+
 inline void updateActuators(const String& safetyState, bool autoMode) {
   if (autoMode) {
-    if (safetyState == "CRITICAL") {
-      setLEDs(false, false, true); // Red LED
-      setBuzzerMode(BUZZER_CONTINUOUS);
-    } else if (safetyState == "WARNING") {
-      setLEDs(false, true, false); // Yellow LED
-      setBuzzerMode(BUZZER_FAST_BEEP);
-    } else {
-      setLEDs(true, false, false); // Green LED
-      setBuzzerMode(BUZZER_OFF);
-    }
+    applyGradedLevel(safetyState);
   }
 
-  // Handle Beep timing
+  // Non-blocking buzzer cadence (no delay() — edge autonomy invariant).
   unsigned long now = millis();
   if (currentBuzzerMode == BUZZER_FAST_BEEP) {
     if (now - lastBuzzerToggle >= 500) {
@@ -71,6 +89,15 @@ inline void updateActuators(const String& safetyState, bool autoMode) {
       lastBuzzerToggle = now;
       buzzerState = !buzzerState;
       digitalWrite(BUZZER_PIN, buzzerState ? HIGH : LOW);
+    }
+  }
+
+  // UNKNOWN / config honesty blink: alternate yellow/red every 1s.
+  if (safetyState == "UNKNOWN" || safetyState == "UNKNOWN_BATTERY" || safetyState == "PROFILE_MISMATCH") {
+    if (now - lastLedToggle >= 1000) {
+      lastLedToggle = now;
+      ledBlinkState = !ledBlinkState;
+      setLEDs(false, ledBlinkState, !ledBlinkState);
     }
   }
 }

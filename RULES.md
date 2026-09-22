@@ -30,6 +30,15 @@
 - The ESP32 firmware safety loop runs locally in [`esp32/BatteryVital_v13.0/led_control.h`](file:///d:/Webapp/Working_webapps/Battery_vitals/esp32/BatteryVital_v13.0/led_control.h) independently of network availability.
 - If Wi-Fi disconnects, the router resets, or Firebase RTDB becomes unreachable, the ESP32 must continue sampling sensors every 1.5 seconds and triggering local LED/Buzzer actuators without crashing or freezing.
 
+### 1.4 Fault Latching & Recovery Invariant
+- **Non-Clearing Hazards**: Transient physical cooling or momentary sensor drift must not mask serious historical electrical or thermal incidents.
+- **Latch Behavior**: If telemetry trips a `CRITICAL` or `EMERGENCY` state, [`src/lib/batterySafety.js`](file:///d:/Webapp/Working_webapps/Battery_vitals/src/lib/batterySafety.js) latches the system into `RECOVERY` even if raw sensor readings return to nominal bounds.
+- **Manual Reset Requirement**: The system retains audio-visual warning states until an authenticated operator or admin issues an explicit `manualReset` command.
+
+### 1.5 Fixed Hardware Operating Envelope & Profile Gating
+- **Physical Headroom Margin**: The Texas Instruments INA219 bus voltage monitor operates with a 0.0V to 26.0V ceiling. The system enforces a strict operational envelope: maximum continuous pack voltage of **25.0V**, continuous current limit of **15.0A**, and power limit of **200.0W**.
+- **Envelope Validation**: Any configured battery profile exceeding these boundaries is rejected by [`src/lib/hardwareCompatibility.js`](file:///d:/Webapp/Working_webapps/Battery_vitals/src/lib/hardwareCompatibility.js) with `OUT_OF_RANGE_REJECTION`. The system will refuse to activate profiles that pose overvoltage or overcurrent hazards to the measurement hardware.
+
 ---
 
 ## 2. Telemetry Validation & Sanitization Rules
@@ -61,7 +70,7 @@ All incoming telemetry packets—whether ingested from ESP32 or simulated—must
 
 ## 3. Generative AI (Gemini) Operational Constraints
 
-All interactions with Google Gemini via [`src/lib/gemini.js`](file:///d:/Webapp/Working_webapps/Battery_vitals/src/lib/gemini.js) must follow these strict operational rules:
+All interactions with Google Gemini via [`src/lib/gemini.js`](file:///d:/Webapp/Working_webapps/Battery_vitals/src/lib/gemini.js) and [`src/lib/aiProvider.js`](file:///d:/Webapp/Working_webapps/Battery_vitals/src/lib/aiProvider.js) must follow these strict operational rules:
 
 1. **Zero Telemetry Fabrication**: Gemini must never guess, invent, or extrapolate sensor values. If a channel is not reported in the prompt, the model must output `"not reported"`.
 2. **No Redundant Calculations**: Gemini must not compute electrical arithmetic (power, energy, Coulomb integrals) that the Next.js runtime already computes. Gemini's role is physical interpretation and risk assessment.
@@ -69,6 +78,8 @@ All interactions with Google Gemini via [`src/lib/gemini.js`](file:///d:/Webapp/
 4. **Grounded Action Items**: Every recommendation must cite an actually measured metric (e.g., *"Reduce charge rate because measured temperature is 42.1°C"*).
 5. **Prompt Injection Hardening**: All user-supplied notes, labels, or chat questions are treated as untrusted external data. The system prompt instructs Gemini to ignore any prompt instructions attempting to override safety rules or reveal system prompts.
 6. **Structured Output Enforcement**: Gemini calls must enforce structured JSON output (`responseMimeType: 'application/json'`). Freeform markdown prose outside the JSON payload is rejected by the parser.
+7. **Free-Tier Allowlist Enforcement**: External AI invocations are strictly restricted to whitelisted zero-cost free-tier models (`gemini-1.5-flash`, `gemini-1.5-pro`, `liquid/lfm-40b:free`) via `assertModelAllowed()`. Invocations of non-whitelisted paid models must fail immediately. All OpenRouter requests verify zero pricing ($0.00/token).
+8. **Sensor-Fusion Explanation Mode**: When Battery Health Index (BHI) is elevated, diagnostic prompts and fallbacks must explicitly identify which specific telemetry channels (`voltage`, `temperature`, `gas`, `current`) drove the score.
 
 ---
 
@@ -105,7 +116,8 @@ Roles: ADMIN > OPERATOR > VIEWER
 
 ### 5.1 Next.js & React Architecture
 - **App Router Paradigm**: Utilize Next.js 14 App Router conventions. Server Components are used for static views, SEO metadata, and data fetching; Client Components (`'use client'`) are strictly isolated to interactive charts, forms, and socket listeners.
-- **Client Boundary Protection**: Never import server-only modules (`mongodb.js`, `firebaseAdmin.js`, `gemini.js`) into Client Components.
+- **Client Boundary Protection**: Never import server-only modules (`mongodb.js`, `firebaseAdmin.js`, `gemini.js`, `auth.js`) into Client Components. All server-only modules use `import 'server-only'` as a build-time defense-in-depth guard.
+- **Middleware Auth**: `src/middleware.js` enforces page-level authentication. Protected pages require a `bv_session` cookie; API routes require a `Bearer` token.
 
 ### 5.2 Secret Isolation & Environment Variables
 - **Rule of Least Privilege**:

@@ -75,6 +75,16 @@ export async function POST(request) {
 }
 ```
 
+### 3.3 Edge Device Token Authentication
+Direct telemetry ingestion via `POST /api/telemetry` is protected against rogue node packet spoofing:
+- Edge nodes must transmit a shared secret token either in the `X-Device-Token` HTTP request header or within the JSON body payload as `device_token`.
+- When `DEVICE_AUTH_TOKEN` is configured in the backend environment, any telemetry packet with a missing or mismatched token is rejected with HTTP `401 Unauthorized`.
+
+### 3.4 Immutable Configuration & Profile Audit Logging (`auditLog.js`)
+All sensitive configuration events—including battery profile creation/edits, safety threshold updates, and zero-current shunt calibration dispatches—are written to the append-only `audit_log` collection in MongoDB Atlas:
+- Captured metadata includes `action`, `entityType`, `entityId`, `actorId`, `actorEmail`, `clientIp`, `previousState`, `newState`, and ISO timestamp.
+- Audit records are immutable; no API endpoint exposes `PUT` or `DELETE` methods against the audit trail.
+
 ---
 
 ## 4. Secrets Isolation & Environment Management
@@ -91,10 +101,12 @@ export async function POST(request) {
                             • FIREBASE_ADMIN_PRIVATE_KEY
                             • FIREBASE_ADMIN_CLIENT_EMAIL
                             • MONGODB_URI
+                            • DEVICE_AUTH_TOKEN
 ```
 
 - **Client Bundle Safety**: Next.js automatically bundles any variable prefixed with `NEXT_PUBLIC_` into browser JavaScript.
-  - *Non-Negotiable Rule*: Never prefix backend API keys (`GEMINI_API_KEY`, `FIREBASE_ADMIN_PRIVATE_KEY`, `MONGODB_URI`) with `NEXT_PUBLIC_`.
+  - *Non-Negotiable Rule*: Never prefix backend API keys (`GEMINI_API_KEY`, `FIREBASE_ADMIN_PRIVATE_KEY`, `MONGODB_URI`, `DEVICE_AUTH_TOKEN`) with `NEXT_PUBLIC_`.
+- **Server-Only Guards**: All server-only modules (`src/lib/auth.js`, `src/lib/mongodb.js`, `src/lib/firebaseAdmin.js`, `src/lib/gemini.js`, `src/lib/aiProvider.js`) use `import 'server-only'` as a build-time defense-in-depth guard that prevents accidental client-side imports.
 - **Git Hygiene**:
   - The `.env.local` file contains local production keys and is explicitly excluded in `.gitignore`.
   - `.env.example` contains only sanitized mock placeholders and is committed to Git for reference.
@@ -117,6 +129,13 @@ When passing telemetry and user notes into [`src/lib/gemini.js`](file:///d:/Weba
 - **Structured Output Interception**: Responses are strictly parsed as JSON; free-form prose outside the schema is discarded.
 - **Risk Post-Verification**: The server inspects Gemini's `overall_status`. If Gemini reports `SAFE` while the deterministic engine computed `CRITICAL` or `EMERGENCY`, the server overrides Gemini's verdict to match the deterministic reality before displaying it to the user.
 
+### 5.3 AI Model Allowlist & Zero-Cost Guardrails (`src/lib/aiModels.js`)
+To eliminate cloud cost runaway and protect against unintended paid API billing:
+- **Strict Allowlist Enforcement (`assertModelAllowed`)**: Only approved zero-cost or free-tier models (`gemini-1.5-flash`, `gemini-1.5-pro`, `liquid/lfm-40b:free`) can be invoked. Any attempt to request an unapproved model throws a fatal `ConfigurationError`.
+- **OpenRouter Free Verification**: Any request routed to OpenRouter verifies the price per token is $0.00 (`prompt: 0, completion: 0`).
+- **Quota & Usage Tracking**: An in-memory usage counter tracks daily consumption against the Google Gemini free-tier ceiling (1,400 req/day). When approaching exhaustion or if rate-limited, requests cascade seamlessly to OpenRouter free models or deterministic rule-based fallbacks.
+- **Deduplication & Granular Timeouts**: Telemetry snapshots with identical hashes within 30 seconds reuse existing responses, and each AI task is wrapped in an `AbortController` timeout (12s–15s).
+
 ---
 
 ## 6. Denial of Service (DoS) & Rate Limiting
@@ -127,9 +146,20 @@ The serverless application implements an in-memory sliding-window rate limiter i
 | Endpoint Group | Maximum Requests | Window Duration | Penalty Action |
 |---|---|---|---|
 | **AI Diagnostics (`/api/analyze`)** | 60 requests | 60 seconds (1 min) | HTTP 429 Too Many Requests |
+| **Vision Verification (`/api/ai/profile-verify`)** | 10 requests | 3,600 seconds (1 hr) | HTTP 429 Too Many Requests |
+| **Vision Label Scan (`/api/ai/label-scan`)** | 10 requests | 60 seconds (1 min) | HTTP 429 Too Many Requests |
+| **Zero Calibration (`/api/battery/calibrate`)** | 10 requests | 60 seconds (1 min) | HTTP 429 Too Many Requests |
 | **Actuator Commands (`/api/control/*`)** | 120 requests | 60 seconds (1 min) | HTTP 429 Too Many Requests |
+| **Control Status (`/api/control/status`)** | 120 requests | 60 seconds (1 min) | HTTP 429 Too Many Requests |
 | **Telemetry Ingest (`/api/telemetry`)** | 300 requests | 60 seconds (1 min) | HTTP 429 Too Many Requests |
+| **User Updates (`/api/users/[id]`)** | 30 requests | 60 seconds (1 min) | HTTP 429 Too Many Requests |
 | **Data Export (`/api/export`)** | 10 requests | 3,600 seconds (1 hr) | HTTP 429 + Retry-After header |
+
+### 6.2 Page-Level Authentication (Middleware)
+- `src/middleware.js` enforces authentication at the edge before pages load.
+- Public paths (`/api/auth/login`, `/api/health`, `/api/status`, `/api/telemetry`, `/api/data`, `/api/alerts/esp32`) are exempted.
+- Unauthenticated page requests are redirected to `/` with `?auth_required=1`.
+- Unauthenticated API requests (non-public paths) receive HTTP 401 with `MISSING_CREDENTIALS` code.
 
 ---
 

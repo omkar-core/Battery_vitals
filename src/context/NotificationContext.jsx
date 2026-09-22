@@ -248,6 +248,7 @@ export function NotificationProvider({ children }) {
       title,
       message,
       type = 'info', // 'success' | 'info' | 'warning' | 'critical' | 'charging'
+      category, // 'esp32' | 'safety' | 'sync' — stored in history for filters
       actionLabel,
       actionUrl,
       onAction,

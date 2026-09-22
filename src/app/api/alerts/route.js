@@ -3,8 +3,15 @@ import { getDB } from '../../../lib/mongodb'
 import { pushAdminAlert } from '../../../lib/firebaseAdmin'
 import { checkRateLimit, getClientIp } from '../../../lib/rateLimit'
 import { sanitizeString, sanitizeNumber } from '../../../lib/security'
+import { requirePermission } from '../../../lib/auth'
+import { PERMISSIONS } from '../../../lib/permissions'
+import { handleError } from '../../../lib/errorHandler'
+import { AlertNotFoundError, ValidationError } from '../../../lib/errors'
+import { dispatchAlert } from '../../../lib/dispatch'
 
 export const dynamic = 'force-dynamic'
+
+const SEVERITIES = new Set(['INFO', 'CAUTION', 'WARNING', 'CRITICAL', 'EMERGENCY', 'SAFE'])
 
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204 })
@@ -18,10 +25,13 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
     }
 
+    await requirePermission(request, PERMISSIONS.VIEW_TELEMETRY)
+
     const { searchParams } = new URL(request.url)
     const batteryId = sanitizeString(searchParams.get('batteryId') || '', 30)
     const severity = sanitizeString(searchParams.get('severity') || '', 20)
-    const limit = Math.min(200, Math.max(1, parseInt(searchParams.get('limit') || '100')))
+    const rawLimit = Number.parseInt(searchParams.get('limit') || '100', 10)
+    const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(1, rawLimit), 200) : 100
     const q = {}
     if (batteryId) q.batteryId = batteryId
     if (severity && severity !== 'all') q.severity = severity.toUpperCase()
@@ -46,11 +56,10 @@ export async function GET(request) {
       type: a.type,
       bhi: a.bhi,
       message: a.message,
-      acknowledged: a.acknowledged,
+      acknowledged: Boolean(a.acknowledged),
     })))
   } catch (error) {
-    console.error('alerts get error:', error)
-    return NextResponse.json([])
+    return handleError(error, request)
   }
 }
 
@@ -64,31 +73,48 @@ export async function POST(request) {
 
     const body = await request.json().catch(() => ({}))
 
-    // acknowledge / toggle ack for an existing alert
+    // acknowledge / toggle ack for an existing alert (operators + admins)
     if (body.id && body.acknowledged !== undefined) {
+      await requirePermission(request, PERMISSIONS.MANAGE_ALERTS)
       try {
         const db = await getDB()
         const { ObjectId } = await import('mongodb')
         const result = await db.collection('alerts').updateOne(
           { _id: new ObjectId(String(body.id)) },
-          { $set: { acknowledged: Boolean(body.acknowledged) } }
+          {
+            $set: {
+              acknowledged: Boolean(body.acknowledged),
+              acknowledgedAt: body.acknowledged ? new Date().toISOString() : null,
+            },
+          }
         )
+        if (!result.matchedCount) throw new AlertNotFoundError(String(body.id))
         return NextResponse.json({ success: true, modified: result.modifiedCount })
       } catch (e) {
-        return NextResponse.json({ success: true, modified: 0 })
+        if (e.alerts === undefined) throw e
+        return handleError(e, request)
       }
+    }
+
+    // Manual alert creation (operators + admins)
+    await requirePermission(request, PERMISSIONS.MANAGE_ALERTS)
+
+    const severity = sanitizeString(body.severity || 'INFO', 20).toUpperCase()
+    if (!SEVERITIES.has(severity)) {
+      throw new ValidationError(`Invalid severity: ${severity}`, 'severity')
     }
 
     const now = new Date()
     const alertData = {
       batteryId: sanitizeString(body.batteryId || 'BAT001', 30),
-      severity: sanitizeString(body.severity || 'INFO', 20).toUpperCase(),
+      severity,
       type: sanitizeString(body.type || 'SYSTEM_ALERT', 40),
       message: sanitizeString(body.message || 'Alert triggered', 500),
       bhi: sanitizeNumber(body.bhi, 0, 100),
       sensorData: body.sensorData || null,
       acknowledged: false,
-      timestamp: now.getTime(),
+      timestamp: now.getTime(), // epoch ms, consistent across stores
+      receivedAt: now.toISOString(),
     }
 
     // 1. Push to Firebase Realtime Database
@@ -98,18 +124,17 @@ export async function POST(request) {
     let insertedId = fbKey || 'fb_alert'
     try {
       const db = await getDB()
-      const result = await db.collection('alerts').insertOne({
-        ...alertData,
-        timestamp: now,
-      })
+      const result = await db.collection('alerts').insertOne(alertData)
       insertedId = String(result.insertedId)
     } catch (dbErr) {
       console.warn('MongoDB insert for alert failed:', dbErr.message)
     }
 
+    // 3. Fire outbound dispatch (webhook/Telegram) without blocking the response.
+    dispatchAlert(alertData).catch(() => {})
+
     return NextResponse.json({ success: true, id: insertedId })
   } catch (error) {
-    console.error('alerts post error:', error)
-    return NextResponse.json({ success: true, id: 'fb_alert' })
+    return handleError(error, request)
   }
 }

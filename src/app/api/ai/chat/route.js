@@ -3,7 +3,10 @@ import { getDB } from '../../../../lib/mongodb'
 import { chatWithContext, streamChatWithContext } from '../../../../lib/gemini'
 import { loadAiContext, ensureAiIndexes, CHAT_COLLECTION } from '../../../../lib/aiDb'
 import { checkRateLimit, getClientIp } from '../../../../lib/rateLimit'
-import { sanitizeString, secureErrorResponse } from '../../../../lib/security'
+import { sanitizeString } from '../../../../lib/security'
+import { requirePermission } from '../../../../lib/auth'
+import { PERMISSIONS } from '../../../../lib/permissions'
+import { handleError } from '../../../../lib/errorHandler'
 
 export const dynamic = 'force-dynamic'
 
@@ -56,8 +59,7 @@ export async function GET(request) {
       })),
     })
   } catch (error) {
-    console.error('[BatteryAI] chat history error:', error)
-    return NextResponse.json({ success: true, count: 0, messages: [] })
+    return handleError(error, request)
   }
 }
 
@@ -70,11 +72,13 @@ export async function POST(request) {
       return NextResponse.json({ error: 'AI chat rate limit exceeded. Please wait a moment.' }, { status: 429 })
     }
 
+    await requirePermission(request, PERMISSIONS.ACCESS_AI)
+
     const body = await request.json().catch(() => ({}))
     const batteryId = sanitizeString(body.batteryId || 'BAT001', 30)
-    const question = sanitizeString(body.question || '', 500)
+    const question = sanitizeString(body.question || body.message || '', 1000)
     if (!question) {
-      return NextResponse.json({ error: 'Missing question' }, { status: 400 })
+      return NextResponse.json({ error: 'Missing question or message' }, { status: 400 })
     }
     const stream = body.stream === true
 
@@ -133,15 +137,33 @@ export async function POST(request) {
     const outcome = await chatWithContext(context)
     await saveMessage('assistant', outcome.reply, outcome.source)
 
+    // If query relates to trend/voltage/thermal, prepare inline mini sparkline dataset
+    let sparkline = null
+    const qLower = question.toLowerCase()
+    const isTrendQuery = ['trend', 'voltage', 'temp', 'temperature', 'graph', 'week', 'dip', 'spike', 'history', 'health'].some((k) => qLower.includes(k))
+    if (isTrendQuery && Array.isArray(history) && history.length > 0) {
+      const step = Math.max(1, Math.floor(history.length / 12))
+      sparkline = []
+      for (let idx = history.length - 1; idx >= 0; idx -= step) {
+        const h = history[idx]
+        sparkline.push({
+          v: Number(h.voltage ?? h.battery?.voltage ?? 0),
+          t: Number(h.temperature ?? h.environment?.temperature ?? 0),
+          ts: new Date(h.timestamp || h.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        })
+      }
+    }
+
     return NextResponse.json({
       success: true,
       reply: outcome.reply,
       source: outcome.source,
       model: outcome.model,
+      sparkline,
       timestamp: new Date().toISOString(),
     })
   } catch (error) {
     console.error('[BatteryAI] chat route error:', error)
-    return secureErrorResponse(error.message)
+    return handleError(error, request)
   }
 }

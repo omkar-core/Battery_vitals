@@ -28,6 +28,10 @@
     "GEMINI_API_KEY": "@gemini-api-key"
   },
 
+  "crons": [
+    { "path": "/api/cron/sync?batteryId=BAT001", "schedule": "*/5 * * * *" }
+  ],
+
   "build": {
     "env": {
       "NODE_ENV": "production"

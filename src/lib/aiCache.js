@@ -60,3 +60,5 @@ export function cacheClear(key) {
   if (!key) return
   store.delete(key)
 }
+
+export const cacheDelete = cacheClear

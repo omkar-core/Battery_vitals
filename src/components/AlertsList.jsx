@@ -16,6 +16,7 @@ import {
   Zap,
 } from 'lucide-react'
 import { formatNumber, playAlertChime } from '../lib/utils'
+import { authHeaders as headerAuth } from '../lib/clientToken'
 import styles from './components.module.css'
 
 const SEVERITY_CONFIG = {
@@ -42,6 +43,54 @@ export default function AlertsList({ alerts = [], loading, onRefresh }) {
   const [searchQuery, setSearchQuery] = useState('')
   const [mutedMap, setMutedMap] = useState({})
   const [ackBusy, setAckBusy] = useState(null)
+  const [explainMap, setExplainMap] = useState({})
+
+  const handleExplain = async (a) => {
+    const aid = a.id || a._id
+    if (explainMap[aid]) {
+      setExplainMap((prev) => ({ ...prev, [aid]: { ...prev[aid], open: !prev[aid].open } }))
+      return
+    }
+
+    setExplainMap((prev) => ({ ...prev, [aid]: { loading: true, open: true } }))
+    try {
+      const res = await fetch('/api/ai/explain-alert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...headerAuth() },
+        body: JSON.stringify({
+          batteryId: a.batteryId || 'BAT001',
+          alertId: String(aid),
+          alert: {
+            field: a.field || a.type,
+            severity: a.severity,
+            message: a.message,
+            value: a.sensorData?.voltage ?? a.value,
+            threshold: a.threshold,
+          },
+        }),
+      })
+      const data = await res.json()
+      setExplainMap((prev) => ({
+        ...prev,
+        [aid]: {
+          loading: false,
+          open: true,
+          explanation: data.explanation || 'Threshold limit reached.',
+          suggestedAction: data.suggestedAction || 'Check pack wiring.',
+        },
+      }))
+    } catch (e) {
+      setExplainMap((prev) => ({
+        ...prev,
+        [aid]: {
+          loading: false,
+          open: true,
+          explanation: 'Could not fetch explanation.',
+          suggestedAction: 'Inspect telemetry manually.',
+        },
+      }))
+    }
+  }
 
   useEffect(() => {
     setMutedMap(getMutedMap())
@@ -80,7 +129,7 @@ export default function AlertsList({ alerts = [], loading, onRefresh }) {
     try {
       await fetch('/api/alerts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...headerAuth() },
         body: JSON.stringify({ id, acknowledged: true }),
       })
       if (onRefresh) onRefresh()
@@ -341,7 +390,50 @@ export default function AlertsList({ alerts = [], loading, onRefresh }) {
                         </button>
                       </div>
                     )}
+
+                    {/* AI Explain Button */}
+                    <button
+                      className={styles.alertActionBtn}
+                      onClick={() => handleExplain(a)}
+                      style={{
+                        background: 'rgba(56, 189, 248, 0.1)',
+                        borderColor: 'rgba(56, 189, 248, 0.3)',
+                        color: '#38BDF8',
+                      }}
+                      title="Generate plain-English physical root-cause explanation"
+                    >
+                      ✨ {explainMap[a.id || a._id]?.open ? 'Hide AI' : 'Explain'}
+                    </button>
                   </div>
+
+                  {/* AI Explanation Accordion Drawer */}
+                  {explainMap[a.id || a._id]?.open && (
+                    <div
+                      style={{
+                        marginTop: 10,
+                        padding: '10px 14px',
+                        background: '#141B28',
+                        border: '1px solid rgba(56, 189, 248, 0.25)',
+                        borderRadius: 8,
+                        fontSize: 12,
+                      }}
+                    >
+                      {explainMap[a.id || a._id]?.loading ? (
+                        <div style={{ color: 'var(--text-tertiary, #4E5A6B)' }}>
+                          ✨ Analyzing hardware traces...
+                        </div>
+                      ) : (
+                        <div>
+                          <div style={{ color: 'var(--text-primary, #F0F4F8)', marginBottom: 4 }}>
+                            <strong>AI Analysis:</strong> {explainMap[a.id || a._id]?.explanation}
+                          </div>
+                          <div style={{ color: 'var(--accent-primary, #00E8A0)' }}>
+                            <strong>Suggested Action:</strong> {explainMap[a.id || a._id]?.suggestedAction}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             )

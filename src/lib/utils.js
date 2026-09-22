@@ -54,14 +54,14 @@ export function batteryMood({ soc, temperature, current, safety }) {
   if (hasCrit || (t != null && t > 60)) {
     return { emoji: '😱', label: 'Panicking', reason: 'Critical alert or thermal runaway risk detected', color: '#FF2D55' }
   }
-  if (c != null && c > 0.05) {
-    return { emoji: '⚡', label: 'Energized', reason: 'Battery is actively charging', color: '#38BDF8' }
-  }
   if (t != null && t > 45) {
     return { emoji: '🥵', label: 'Hot', reason: `Temperature ${t.toFixed(1)}°C exceeds 45°C`, color: '#FF6B35' }
   }
   if (t != null && t < 5) {
     return { emoji: '🥶', label: 'Cold', reason: `Temperature ${t.toFixed(1)}°C below 5°C`, color: '#38BDF8' }
+  }
+  if (c != null && c > 0.05) {
+    return { emoji: '⚡', label: 'Energized', reason: 'Battery is actively charging', color: '#38BDF8' }
   }
   if (hasWarn) {
     return { emoji: '😰', label: 'Stressed', reason: `${safeLevel} level active on this battery`, color: '#FF6B35' }

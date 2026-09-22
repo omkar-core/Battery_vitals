@@ -56,29 +56,63 @@ X-Device-ID: BAT001
 ## 2. Core Telemetry Endpoints
 
 ### 2.1 GET `/api/health`
-System liveness and readiness probe checking connectivity to Firebase RTDB and MongoDB Atlas.
+System liveness and readiness probe checking connectivity to Firebase RTDB, MongoDB Atlas, and AI provider status (quotas, daily caps, circuit breakers).
 
 - **Access Tier**: Public
+- **Rate Limit**: 60 requests / 60 seconds
 - **Response (200 OK)**:
 ```json
 {
-  "success": true,
-  "data": {
+  "status": "healthy",
+  "database": "connected",
+  "firebase": "connected",
+  "ai": {
     "status": "healthy",
-    "uptimeSeconds": 86420,
-    "services": {
-      "firebase": "connected",
-      "mongodb": "connected",
-      "gemini": "available"
-    },
-    "version": "2.0.0"
-  }
+    "primary": "gemini-1.5-flash",
+    "active": "gemini",
+    "usedToday": 42,
+    "dailyCap": 1400,
+    "quotaRemaining": 1358,
+    "breakerOpen": false
+  },
+  "timestamp": "2026-09-22T17:50:00.000Z",
+  "uptime": 86420,
+  "platform": "vercel"
 }
 ```
 
 ---
 
-### 2.2 GET `/api/telemetry`
+### 2.2 GET `/api/status`
+Inspects real-time edge node connection status, measuring telemetry packet gap and age against the 1.5s transmission cadence.
+
+- **Access Tier**: Public
+- **Rate Limit**: 60 requests / 60 seconds
+- **Query Parameters**:
+  - `batteryId` (string, optional, default: `BAT001`): Node identifier.
+- **Response (200 OK)**:
+```json
+{
+  "ts": 1758544200000,
+  "firebase": { "configured": true, "connected": true, "error": null },
+  "mongodb": { "configured": true, "connected": true, "error": null },
+  "gemini": { "configured": true, "active": true },
+  "esp32": {
+    "connected": true,
+    "online": true,
+    "status": "ONLINE",
+    "lastSeen": 1758544198500,
+    "lastSeenIso": "2026-09-22T17:49:58.500Z",
+    "ageSeconds": 1,
+    "hasData": true
+  }
+}
+```
+> Note: Telemetry transmission interval is 1.5s. If `ageSeconds > 4` (2× cadence plus network jitter), `online` evaluates to `false` and `status` reports `"OFFLINE"`.
+
+---
+
+### 2.3 GET `/api/telemetry`
 Fetches the latest consolidated multi-sensor telemetry frame for a given device.
 
 - **Access Tier**: `viewer`, `operator`, `admin`
@@ -90,7 +124,7 @@ Fetches the latest consolidated multi-sensor telemetry frame for a given device.
   "success": true,
   "data": {
     "deviceId": "BAT001",
-    "timestamp": 1718000000000,
+    "timestamp": 1758544200000,
     "battery": {
       "voltage": 12.64,
       "current": 2.45,
@@ -118,6 +152,27 @@ Fetches the latest consolidated multi-sensor telemetry frame for a given device.
       "wifi_rssi": -62,
       "heap_free": 238410
     },
+    "self_test": {
+      "passed": true,
+      "ina_ack": true,
+      "dht_ok": true,
+      "mq2_ok": true,
+      "mq135_ok": true,
+      "gpio_ok": true,
+      "buzzer_ok": true,
+      "wifi_ok": true,
+      "config_ok": true
+    },
+    "calibration": {
+      "zero_current_offset": 0.012,
+      "calibrated_at": 1758540000000
+    },
+    "sensor_confidence": {
+      "inaConfidence": 1.0,
+      "dhtConfidence": 1.0,
+      "mqConfidence": 1.0,
+      "overallConfidence": 1.0
+    },
     "safety": "SAFE"
   }
 }
@@ -125,30 +180,54 @@ Fetches the latest consolidated multi-sensor telemetry frame for a given device.
 
 ---
 
-### 2.3 POST `/api/telemetry`
-Direct sensor packet ingest endpoint for HTTP-capable edge nodes or telemetry forwarders.
+### 2.4 POST `/api/telemetry`
+Direct sensor packet ingest endpoint for HTTP-capable edge nodes or telemetry forwarders. Validates edge device token against `DEVICE_AUTH_TOKEN` when configured.
 
-- **Access Tier**: `admin` or Hardware Service Key
+- **Access Tier**: Hardware Node (`X-Device-Token` header or `device_token` field) / `admin`
+- **Rate Limit**: 300 requests / 60 seconds
 - **Request Body**:
 ```json
 {
   "deviceId": "BAT001",
+  "device_token": "secret_edge_token_12345",
   "voltage": 12.64,
   "current": 2.45,
   "temperature": 26.4,
   "humidity": 52.0,
   "mq2": 320,
-  "mq135": 110
+  "mq135": 110,
+  "self_test": {
+    "ina_ack": true,
+    "dht_ok": true,
+    "mq2_ok": true,
+    "mq135_ok": true,
+    "gpio_ok": true,
+    "buzzer_ok": true,
+    "wifi_ok": true,
+    "config_ok": true,
+    "passed": true
+  },
+  "calibration": {
+    "zero_current_offset": 0.012
+  },
+  "sensor_confidence": {
+    "inaConfidence": 1.0,
+    "dhtConfidence": 1.0,
+    "mqConfidence": 1.0,
+    "overallConfidence": 1.0
+  }
 }
 ```
 - **Response (201 Created)**:
 ```json
 {
   "success": true,
-  "data": { "insertedId": "66671a5c1a2b3c4d5e6f7a8b", "status": "SAFE" }
+  "data": {
+    "insertedId": "66671a5c1a2b3c4d5e6f7a8b",
+    "status": "SAFE",
+    "sessionId": "b8e1f0e2-63b7-4c7b-9f4a-8d3419bb9c1a"
+  }
 }
-```
-
 ---
 
 ## 3. Battery Electrical Endpoints
@@ -209,6 +288,60 @@ Calculates State of Charge using open-circuit voltage interpolation and Coulomb 
     "estimatedRuntimeMinutes": 185,
     "cellVoltagesEstimate": [3.16, 3.16, 3.16, 3.16]
   }
+}
+```
+
+---
+
+### 3.4 POST `/api/battery/calibrate`
+Dispatches the `CALIBRATE_ZERO` zero-current shunt calibration routine to the edge device. The ESP32 averages 50 shunt readings with no load connected to record the hardware zero-offset and stores it to non-volatile memory and Firebase RTDB.
+
+- **Access Tier**: `operator`, `admin` (`CONTROL_RELAY` / `CONTROL_HARDWARE` permission)
+- **Rate Limit**: 10 requests / 60 seconds
+- **Request Body**:
+```json
+{
+  "deviceId": "BAT001"
+}
+```
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "deviceId": "BAT001",
+  "command": "CALIBRATE_ZERO",
+  "message": "Zero-current calibration routine dispatched to ESP32.",
+  "timestamp": "2026-09-22T17:50:00.000Z"
+}
+```
+
+---
+
+### 3.5 GET `/api/battery/sessions`
+Retrieves the historical battery physical connection sessions, tracking connect/disconnect transitions, durations, and electrical min/max ranges.
+
+- **Access Tier**: `viewer`, `operator`, `admin`
+- **Rate Limit**: 60 requests / 60 seconds
+- **Query Parameters**:
+  - `batteryId` (string, optional, default: `BAT001`): Battery node identifier.
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "batteryId": "BAT001",
+  "totalSessions": 4,
+  "sessions": [
+    {
+      "sessionId": "b8e1f0e2-63b7-4c7b-9f4a-8d3419bb9c1a",
+      "batteryId": "BAT001",
+      "firstSeen": 1758540000000,
+      "lastSeen": 1758544200000,
+      "initialVoltage": 12.64,
+      "eventCount": 280,
+      "lastEventType": "CONNECTED"
+    }
+  ],
+  "rawEventsCount": 100
 }
 ```
 
@@ -297,6 +430,29 @@ Configures the physical active buzzer alarm pattern on GPIO 25.
 
 ---
 
+### 5.3 GET `/api/control/status`
+Reads the current physical actuator pin states for a given battery device.
+
+- **Access Tier**: `viewer`, `operator`, `admin`
+- **Rate Limit**: 120 requests / 60 seconds
+- **Query Parameters**: `batteryId` (optional, default: `BAT001`)
+- **Response (200 OK)**:
+```json
+{
+  "batteryId": "BAT001",
+  "auto_mode": true,
+  "led_green": true,
+  "led_yellow": false,
+  "led_red": false,
+  "buzzer": false,
+  "buzzer_mode": "off",
+  "lastCommandDispatched": "2024-06-10T14:30:05.120Z",
+  "lastTelemetryFrame": "2024-06-10T14:30:04.980Z"
+}
+```
+
+---
+
 ## 6. AI Predictive Diagnostics & Analysis
 
 ### 6.1 POST `/api/analyze`
@@ -340,6 +496,80 @@ Invokes the Google Gemini 1.5 diagnostics engine over the validated telemetry fr
     "responseTimeMs": 1120,
     "cached": false
   }
+}
+```
+
+---
+
+### 6.2 POST `/api/ai/profile-verify`
+Vision AI cross-referencing endpoint that inspects an uploaded battery specification sheet or physical label image and verifies it against candidate battery profile fields.
+
+- **Access Tier**: `viewer`, `operator`, `admin` (`ACCESS_AI` permission)
+- **Rate Limit**: 10 requests / 3,600 seconds (1 hr)
+- **Request Body**:
+```json
+{
+  "profile": {
+    "chemistry": "LiFePO4",
+    "series": 4,
+    "nominalVoltage": 12.8,
+    "capacityAh": 100
+  },
+  "imageBase64": "data:image/jpeg;base64,/9j/4AAQSkZJRg...",
+  "mimeType": "image/jpeg"
+}
+```
+- **Response (200 OK)**:
+```json
+{
+  "verdict": "MATCHES",
+  "confidence": "HIGH",
+  "extracted": {
+    "chemistry": "LiFePO4",
+    "series": 4,
+    "nominalVoltage": 12.8,
+    "capacityAh": 100
+  },
+  "discrepancies": [],
+  "reasoning": "Extracted label parameters match configured profile voltage, series count, and chemistry."
+}
+```
+> Note: If any field deviates, is obscured, or cannot be verified, `verdict` evaluates to `"REVIEW REQUIRED"` with itemized `discrepancies`.
+
+---
+
+### 6.3 POST `/api/ai/label-scan`
+OCR and multimodal vision inspection endpoint that extracts technical parameters directly from physical battery packaging and rating plates.
+
+- **Access Tier**: `viewer`, `operator`, `admin` (`ACCESS_AI` permission)
+- **Rate Limit**: 10 requests / 60 seconds
+- **Request Body**:
+```json
+{
+  "imageBase64": "data:image/jpeg;base64,/9j/4AAQSkZJRg...",
+  "mimeType": "image/jpeg"
+}
+```
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "extracted": {
+    "chemistry": "LIFEPO4",
+    "series": 4,
+    "parallel": 1,
+    "nominalVoltage": 12.8,
+    "capacityAh": 100,
+    "maxChargeV": 14.6,
+    "minDischargeV": 10.0,
+    "manufacturer": "AmpereTime",
+    "model": "12V100Ah-Plus",
+    "rawTextExtracted": "LiFePO4 12.8V 100Ah 1280Wh Charge: 14.6V Discharge: 10.0V",
+    "confidence": "HIGH"
+  },
+  "provider": "gemini",
+  "model": "gemini-1.5-flash",
+  "needsReview": true
 }
 ```
 

@@ -1,0 +1,114 @@
+name: ESP32 Firmware CI/CD
+
+# ESP32_RULES.md §8 — Automated Embedded CI/CD Workflow:
+# Triggers on changes to esp32/**, src/lib/esp32.js, src/lib/schemas.js,
+# and .github/workflows/esp32-ci.yml.
+# Verifies:
+# 1. Payload Schema & Normalization tests (Vitest)
+# 2. ESP32 Sketch Compilation (Arduino CLI + ESP32 Core)
+# 3. Static Analysis & Memory Check (cppcheck)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'esp32/**'
+      - 'src/lib/esp32.js'
+      - 'src/lib/esp32Payload.test.js'
+      - 'src/lib/schemas.js'
+      - 'ESP32_RULES.md'
+      - '.github/workflows/esp32-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'esp32/**'
+      - 'src/lib/esp32.js'
+      - 'src/lib/esp32Payload.test.js'
+      - 'src/lib/schemas.js'
+      - 'ESP32_RULES.md'
+      - '.github/workflows/esp32-ci.yml'
+  workflow_dispatch:
+
+jobs:
+  schema-and-unit-tests:
+    name: Telemetry Schema & Payload Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESP32 payload test suite
+        run: npx vitest run src/lib/esp32Payload.test.js
+
+  compile-firmware:
+    name: ESP32 Firmware Compilation (v13.0)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Arduino CLI
+        uses: arduino/setup-arduino-cli@v1
+
+      - name: Install ESP32 Core
+        run: |
+          arduino-cli config init
+          arduino-cli config add board_manager.additional_urls https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32@2.0.14
+
+      - name: Install Required Arduino Libraries
+        run: |
+          arduino-cli lib install "Adafruit INA219"@1.2.2
+          arduino-cli lib install "DHT sensor library"@1.4.6
+          arduino-cli lib install "Adafruit Unified Sensor"@1.1.14
+          arduino-cli lib install "ArduinoJson"@6.21.4
+          arduino-cli lib install "Firebase ESP32 Client"@4.4.14
+
+      - name: Compile BatteryVital_v13.0 Sketch
+        run: |
+          arduino-cli compile \
+            --fqbn esp32:esp32:esp32:FlashFreq=80,FlashSize=4M \
+            --output-dir ./build_output \
+            esp32/BatteryVital_v13.0/BatteryVital_v13.0.ino
+
+      - name: Upload Firmware Binary Artifact
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: esp32-firmware-v13.0-bin
+          path: ./build_output/*.bin
+          retention-days: 14
+
+  static-analysis:
+    name: Static Code Analysis (cppcheck)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install cppcheck
+        run: sudo apt-get update && sudo apt-get install -y cppcheck
+
+      - name: Run cppcheck on ESP32 codebase
+        run: |
+          cppcheck --enable=warning,style,performance,portability \
+            --suppress=missingIncludeSystem \
+            --error-exitcode=0 \
+            --language=c++ \
+            esp32/

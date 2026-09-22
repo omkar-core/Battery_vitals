@@ -5,6 +5,7 @@ import Layout from '../../components/Layout'
 import PowerMetrics from '../../components/battery/PowerMetrics'
 import SOCIndicator from '../../components/battery/SOCIndicator'
 import BatteryStatus from '../../components/battery/BatteryStatus'
+import BatteryProfileManager from '../../components/battery/BatteryProfileManager'
 import HistoryChart from '../../components/charts/HistoryChart'
 import { useBattery } from '../../hooks/useBattery'
 import {
@@ -58,12 +59,17 @@ function BatteryPageInner() {
               fontWeight: 700,
             }}
           >
-            Pack: {battery.batteryId} (12V 3S Li-ion)
+            Pack: {battery.batteryId}{battery.profileId ? ` (${battery.profileId})` : ' (profile not set)'}
           </span>
         </div>
       </div>
 
-      {/* 2. Top Metric Cards (INA219 Readings) */}
+      {/* 2. Battery profile: identity is deployed, never voltage-guessed */}
+      <div style={{ marginBottom: 20 }}>
+        <BatteryProfileManager batteryId={battery.batteryId || 'BAT001'} />
+      </div>
+
+      {/* 3. Top Metric Cards (INA219 Readings) */}
       <div style={{ marginBottom: 20 }}>
         <PowerMetrics battery={battery} />
       </div>
@@ -82,9 +88,9 @@ function BatteryPageInner() {
             </div>
 
             <SOCIndicator
-              soc={battery.soc}
-              voltage={battery.voltage}
-              current={battery.current}
+              soc={battery.soc ?? undefined}
+              voltage={battery.voltage ?? undefined}
+              current={battery.current ?? undefined}
               size={190}
             />
           </div>

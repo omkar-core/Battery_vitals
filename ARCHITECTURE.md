@@ -192,7 +192,8 @@ Battery_vitals/
 │   └── BatteryVital_v13.0/          # Production modular firmware
 │       ├── BatteryVital_v13.0.ino   # Main setup() and loop() orchestration
 │       ├── config.h                 # Wi-Fi SSID, Firebase credentials, pin defines
-│       ├── sensors.h                # INA219, DHT11, MQ-2, MQ-135 reading routines
+│       ├── sensors.h                # INA219 (with zero-calibration), DHT11, MQ-2, MQ-135 reading routines
+│       ├── selftest.h               # 8-point hardware boot self-test suite
 │       ├── led_control.h            # Autonomous LED states & non-blocking buzzer PWM
 │       └── firebase_ops.h           # RTDB JSON payload publish & /commands listener
 │
@@ -202,10 +203,15 @@ Battery_vitals/
 │   ├── battery-vital-icon.svg       # Vector brand logo
 │   └── sounds/                      # Auditory alarm chimes (chime.mp3, alarm.mp3)
 │
+├── vitest.config.js                 # Vitest configuration (server-only mock alias)
+│
 └── src/                             # Next.js Full-Stack Application Source
     ├── app/                         # App Router Pages & API Routes
-    │   ├── layout.js                # Root layout, ThemeProvider, global metadata
-    │   ├── page.js                  # 🏠 Live Dashboard (multi-sensor grid)
+    │   ├── middleware.js            # Page-level auth guard (cookie/Bearer token)
+    │   ├── not-found.js             # Custom 404 page
+    │   ├── error.js                 # Client-side error boundary
+    │   ├── global-error.js          # Root error boundary
+    │   ├── page.js                  # ⚡ Primary live dashboard
     │   ├── battery/page.js          # 🔋 Dedicated battery monitoring & cell metrics
     │   ├── environmental/page.js    # 🌡️ Environmental safety station & gas monitors
     │   ├── analytics/page.js        # 📊 Long-term trends & energy efficiency curves
@@ -213,23 +219,25 @@ Battery_vitals/
     │   ├── ai/page.js               # 🤖 Gemini AI diagnostics & predictive maintenance
     │   ├── alerts/page.js           # 🚨 Alert management & configurable thresholds
     │   ├── history/page.js          # 📜 Time-series tabular browser & CSV export
-    │   ├── diagnostics/page.js      # 🔧 ESP32 hardware diagnostics, RSSI, heap health
+    │   ├── diagnostics/page.js      # 🔧 Hardware diagnostics, self-test grid, RSSI, heap health
     │   ├── users/page.js            # 👥 Team member management & RBAC settings
-    │   ├── settings/page.js         # ⚙️ Battery pack parameters & webhook configurations
+    │   ├── settings/page.js         # ⚙️ Battery pack profiles & webhook configurations
     │   ├── passport/page.js         # 🛡️ Digital Battery Passport (EU compliance view)
     │   ├── about/page.js            # ℹ️ Architecture documentation & sensor overview
     │   ├── privacy/page.js          # 🔒 Privacy policy
     │   ├── terms/page.js            # ⚖️ Terms of service
     │   │
     │   └── api/                     # Backend Serverless REST Endpoints
-    │       ├── health/route.js      # GET  — System health check
-    │       ├── status/route.js      # GET  — Device connectivity summary
-    │       ├── telemetry/route.js   # GET/POST — Telemetry snapshot & ingest
+    │       ├── health/route.js      # GET  — System health check & AI provider quotas
+    │       ├── status/route.js      # GET  — Real-time device connectivity & telemetry gap
+    │       ├── telemetry/route.js   # GET/POST — Telemetry snapshot & token-verified ingest
     │       ├── battery/
     │       │   ├── latest/route.js  # GET  — Current INA219 electrical metrics
     │       │   ├── history/route.js # GET  — Historical voltage/current time-series
     │       │   ├── soc/route.js     # GET  — State of Charge & runtime forecast
-    │       │   └── health/route.js  # GET  — BHI, SOH, and degradation rates
+    │       │   ├── health/route.js  # GET  — BHI, SOH, and degradation rates
+    │       │   ├── calibrate/route.js # POST — Zero-current shunt calibration dispatch
+    │       │   └── sessions/route.js # GET  — Connection lifecycle sessions & contact events
     │       ├── environmental/
     │       │   ├── latest/route.js  # GET  — Current DHT11 & gas sensor readings
     │       │   ├── history/route.js # GET  — Environmental time-series
@@ -240,6 +248,9 @@ Battery_vitals/
     │       │   ├── buzzer/route.js  # POST — Buzzer mode dispatch
     │       │   └── status/route.js  # GET  — Read actuator states
     │       ├── commands/route.js    # POST — Generic command queue to ESP32
+    │       ├── ai/
+    │       │   ├── profile-verify/route.js # POST — Vision cross-check datasheet vs profile
+    │       │   └── label-scan/route.js    # POST — OCR/Vision battery rating label extraction
     │       ├── analyze/route.js     # POST — Gemini AI safety analysis
     │       ├── predictions/route.js # GET  — Predictive failure forecasts
     │       ├── insights/route.js    # GET  — Real-time AI recommendations
@@ -275,6 +286,7 @@ Battery_vitals/
     │   │   └── GaugeChart.jsx       # Radial SVG gauge for SOC and AQI
     │   ├── battery/
     │   │   ├── BatteryStatus.jsx    # Health card & SOH/BHI indicator
+    │   │   ├── BatteryProfileManager.jsx # Profile editor, image compression & validation
     │   │   └── PowerMetrics.jsx     # Voltage, Current, Power telemetry
     │   ├── environmental/
     │   │   ├── TempHumidity.jsx     # DHT11 dual display
@@ -306,7 +318,14 @@ Battery_vitals/
     │   ├── firebaseAdmin.js         # Server-side Firebase Admin SDK
     │   ├── mongodb.js               # MongoDB connection pool & caching
     │   ├── gemini.js                # Gemini REST/SSE diagnostic wrapper
-    │   ├── batterySafety.js         # Pure deterministic safety engine
+    │   ├── batterySafety.js         # Pure deterministic safety engine & latching
+    │   ├── hardwareCompatibility.js # Operating envelope validation & rejections
+    │   ├── batteryAnalytics.js      # Dynamic voltage sag & oscillation detection
+    │   ├── connectionEvents.js      # Contact lifecycle & session UUID management
+    │   ├── faultFingerprint.js      # SHA-256 fingerprinting & recurrence deduplication
+    │   ├── aiProvider.js            # Multi-provider resilience, fallbacks & timeouts
+    │   ├── aiModels.js              # Free-tier model allowlist & task router
+    │   ├── auditLog.js              # Append-only immutable configuration audit logger
     │   ├── permissions.js           # RBAC policy & permission checks
     │   ├── auth.js                  # User authentication & session store
     │   ├── aiCache.js               # In-memory diagnostic cache
@@ -413,7 +432,8 @@ Battery_vitals/
 {
   "live_data": {
     "BAT001": {
-      "timestamp": 1718000000000,
+      "timestamp": 1758544200000,
+      "device_token": "token_verified_hash",
       "battery": {
         "voltage": 12.62,
         "current": 2.45,
@@ -444,18 +464,41 @@ Battery_vitals/
         "buzzer_mode": "off",
         "wifi_rssi": -62,
         "heap_free": 238410
+      },
+      "self_test": {
+        "passed": true,
+        "ina_ack": true,
+        "dht_ok": true,
+        "mq2_ok": true,
+        "mq135_ok": true,
+        "gpio_ok": true,
+        "buzzer_ok": true,
+        "wifi_ok": true,
+        "config_ok": true,
+        "timestamp": 1758544000000
+      },
+      "calibration": {
+        "zero_current_offset": 0.012,
+        "calibrated_at": 1758540000000
+      },
+      "sensor_confidence": {
+        "inaConfidence": 1.0,
+        "dhtConfidence": 1.0,
+        "mqConfidence": 1.0,
+        "overallConfidence": 1.0
       }
     }
   },
   "commands": {
     "BAT001": {
+      "command": "CALIBRATE_ZERO",
       "auto_mode": true,
       "led_green": true,
       "led_yellow": false,
       "led_red": false,
       "buzzer": false,
       "buzzer_mode": "off",
-      "updatedAt": 1718000000000
+      "updatedAt": 1758544200000
     }
   },
   "alerts": {
@@ -602,6 +645,84 @@ db.users.createIndex({ email: 1 }, { unique: true })
 db.ai_diagnostics.createIndex({ created_at: 1 }, { expireAfterSeconds: 604800 })
 ```
 
+#### Collection: `battery_profiles` (Hardware & Chemistry Operating Envelopes)
+```javascript
+{
+  _id: ObjectId("66671a5c1a2b3c4d5e6f7a8f"),
+  batteryId: "BAT001",
+  profileName: "Custom LiFePO4 4S 100Ah",
+  chemType: "LIFEPO4",
+  nominalVoltage: 12.8,
+  capacityAh: 100,
+  minVoltage: 10.0,
+  maxVoltage: 14.6,
+  maxContinuousCurrent: 15.0,
+  maxPower: 200.0,
+  seriesCount: 4,
+  parallelCount: 1,
+  chargeTempRange: [0, 45],
+  dischargeTempRange: [-20, 60],
+  serialNumber: "SN-LFP-2024-0012",
+  manufacturer: "AmpereTime",
+  cellModel: "IFR26650-3400",
+  bmsType: "Smart-BMS-UART",
+  useCase: "Solar Energy Storage",
+  manufactureDate: "2024-01-15",
+  installDate: "2024-03-01",
+  maxChargeRateC: 0.5,
+  maxDischargeRateC: 1.0,
+  energyWh: 1280,
+  cycleLifeRating: 4000,
+  internalResistanceNominalMilliOhm: 12.0,
+  status: "ACTIVE",
+  verificationStatus: "VERIFIED",
+  updatedAt: ISODate("2026-09-22T17:40:00.000Z")
+}
+
+// Indexes:
+db.battery_profiles.createIndex({ batteryId: 1 }, { unique: true })
+db.battery_profiles.createIndex({ status: 1 })
+```
+
+#### Collection: `connection_events` (Battery Attachment & Contact Lifecycle)
+```javascript
+{
+  _id: ObjectId("66671a5c1a2b3c4d5e6f7a90"),
+  sessionId: "b8e1f0e2-63b7-4c7b-9f4a-8d3419bb9c1a",
+  batteryId: "BAT001",
+  eventType: "CONNECTED", // "DISCONNECTED" | "CONNECTING" | "STABILIZING" | "CONNECTED" | "UNSTABLE_CONTACT" | "DISCONNECTING"
+  voltage: 12.64,
+  current: 0.15,
+  timestamp: 1758540000000,
+  createdAt: ISODate("2026-09-22T17:40:00.000Z")
+}
+
+// Indexes:
+db.connection_events.createIndex({ batteryId: 1, timestamp: -1 })
+db.connection_events.createIndex({ sessionId: 1 })
+```
+
+#### Collection: `audit_log` (Immutable Configuration & Profile Mutation Trail)
+```javascript
+{
+  _id: ObjectId("66671a5c1a2b3c4d5e6f7a91"),
+  action: "UPDATE_BATTERY_PROFILE",
+  entityType: "battery_profile",
+  entityId: "BAT001",
+  actorId: "usr_admin_01",
+  actorEmail: "admin@example.com",
+  clientIp: "192.168.1.100",
+  previousState: { maxVoltage: 14.4 },
+  newState: { maxVoltage: 14.6 },
+  timestamp: ISODate("2026-09-22T17:45:00.000Z")
+}
+
+// Indexes:
+db.audit_log.createIndex({ entityId: 1, timestamp: -1 })
+db.audit_log.createIndex({ actorId: 1, timestamp: -1 })
+db.audit_log.createIndex({ action: 1 })
+```
+
 ---
 
 ## 7. REST API Architecture
@@ -610,14 +731,16 @@ db.ai_diagnostics.createIndex({ created_at: 1 }, { expireAfterSeconds: 604800 })
 
 | Method | Path | Access Tier | Function / Description |
 |--------|------|-------------|------------------------|
-| `GET`  | `/api/health` | Public | System status, database health, and uptime |
-| `GET`  | `/api/status` | Public | Real-time device connectivity and packet ping |
+| `GET`  | `/api/health` | Public | System status, database health, and AI provider quotas |
+| `GET`  | `/api/status` | Public | Real-time device connectivity, telemetry gap, and lastSeen |
 | `GET`  | `/api/telemetry` | Viewer | Latest multi-sensor frame snapshot |
-| `POST` | `/api/telemetry` | Node / Admin | Ingest sensor data payload directly |
+| `POST` | `/api/telemetry` | Node / Admin | Ingest sensor data payload with token authentication |
 | `GET`  | `/api/battery/latest` | Viewer | Current INA219 readings |
 | `GET`  | `/api/battery/history` | Viewer | Time-series electrical query (start, end, limit) |
 | `GET`  | `/api/battery/soc` | Viewer | Calibrated SOC and estimated runtime |
 | `GET`  | `/api/battery/health` | Viewer | BHI, SOH, and degradation velocity |
+| `POST` | `/api/battery/calibrate`| Operator | Dispatch zero-current shunt calibration command |
+| `GET`  | `/api/battery/sessions` | Viewer | Retrieve connection lifecycle events and session logs |
 | `GET`  | `/api/environmental/latest` | Viewer | Current DHT11 and MQ sensor snapshot |
 | `GET`  | `/api/environmental/history` | Viewer | Ambient temperature and humidity history |
 | `GET`  | `/api/environmental/air-quality`| Viewer | Calibrated AQI and gas concentration curve |
@@ -625,6 +748,8 @@ db.ai_diagnostics.createIndex({ created_at: 1 }, { expireAfterSeconds: 604800 })
 | `POST` | `/api/control/buzzer` | Operator | Set buzzer sound mode (`off`, `slow`, `fast`, `continuous`) |
 | `GET`  | `/api/control/status` | Viewer | Inspect active physical actuator pin states |
 | `POST` | `/api/commands` | Operator | Generic hardware command queue dispatcher |
+| `POST` | `/api/ai/profile-verify` | Viewer | Multimodal vision check of datasheet vs profile |
+| `POST` | `/api/ai/label-scan` | Viewer | Multimodal vision/OCR extraction of battery rating label |
 | `POST` | `/api/analyze` | Viewer | Run Gemini AI structured diagnostic evaluation |
 | `GET`  | `/api/predictions` | Viewer | RUL and failure probability models |
 | `GET`  | `/api/insights` | Viewer | Actionable operational recommendations |

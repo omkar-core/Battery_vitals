@@ -1,3 +1,4 @@
+import 'server-only'
 import { initializeApp, getApps, cert } from 'firebase-admin/app'
 import { getDatabase } from 'firebase-admin/database'
 import { getAuth } from 'firebase-admin/auth'
@@ -98,12 +99,14 @@ export async function updateLatestTelemetry(batteryId = 'BAT001', data) {
 }
 
 /**
- * Write control command to Firebase RTDB for ESP32 polling/listener safely
+ * Write control command to Firebase RTDB for ESP32 polling/listener safely.
+ * Uses update (merge) so LED/buzzer/profile/auto_mode keys never clobber
+ * each other — the commands node is shared by every dispatch path.
  */
 export async function setAdminCommand(batteryId = 'BAT001', commandPayload) {
   if (!adminDb) return false
   try {
-    await adminDb.ref(`commands/${batteryId}`).set({
+    await adminDb.ref(`commands/${batteryId}`).update({
       ...commandPayload,
       updatedAt: Date.now(),
     })

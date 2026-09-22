@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { db } from '../lib/firebase'
-import { ref, onValue, get, set } from 'firebase/database'
+import { ref, onValue, get, update } from 'firebase/database'
 import { normalizeEsp32Packet } from '../lib/esp32'
 
 export function useFirebase(batteryId = 'BAT001') {
@@ -74,7 +74,8 @@ export function useFirebase(batteryId = 'BAT001') {
         ts: Date.now(),
         updatedAt: Date.now(),
       }
-      await set(cmdRef, payload)
+      // Merge, never overwrite: the node also carries profile/auto_mode/LED keys.
+      await update(cmdRef, payload)
       return { accepted: true, payload }
     } catch (err) {
       console.error('sendFirebaseControl error:', err)

@@ -153,3 +153,74 @@
     opacity: 0.4;
   }
 }
+
+/* DESIGN.md §4.5 — Global Emergency Alert Banner (CRITICAL / EMERGENCY) */
+.alertBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  width: 100%;
+  padding: 12px 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+  background: linear-gradient(90deg, #991B1B, #DC2626, #B91C1C);
+  color: #FFFFFF;
+  font-size: 13px;
+  line-height: 1.5;
+  animation: alertPulse 2s ease-in-out infinite;
+}
+
+.alertBannerTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.alertBannerActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.alertBannerBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.12);
+  color: #FFFFFF;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.alertBannerBtn:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+@media (max-width: 768px) {
+  .alertBanner {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 12px 16px;
+  }
+}
+
+@keyframes alertPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
+  }
+  50% {
+    box-shadow: 0 0 24px 4px rgba(220, 38, 38, 0.55);
+  }
+}

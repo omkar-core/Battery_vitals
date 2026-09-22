@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { Sliders, Save, Check, RefreshCw } from 'lucide-react'
+import { authHeaders as headerAuth } from '../../lib/clientToken'
 import styles from '../../styles/pages.module.css'
 
 export default function AlertConfig() {
@@ -38,7 +39,7 @@ export default function AlertConfig() {
     try {
       const res = await fetch('/api/alerts/config', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...headerAuth() },
         body: JSON.stringify(config),
       })
       if (res.ok) {

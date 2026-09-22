@@ -113,6 +113,19 @@ export const AlertThresholdConfigSchema = z.object({
 });
 ```
 
+### 4.4 User Update Schema
+```javascript
+export const UserUpdateSchema = z.object({
+  name: z.string().min(1).max(60).optional(),
+  title: z.string().max(80).optional(),
+  department: z.string().max(80).optional(),
+  avatar: z.string().max(10).optional(),
+  status: z.enum(['active', 'disabled']).optional(),
+  role: z.enum(['ADMIN', 'OPERATOR', 'VIEWER']).optional(),
+}).strict()
+```
+- Used by `PUT /api/users/[id]` to prevent privilege escalation. Only whitelisted fields (`name`, `title`, `department`, `avatar`, `status`, `role`) are accepted. Unknown fields are silently dropped.
+
 ---
 
 ## 5. Security & Injection Prevention

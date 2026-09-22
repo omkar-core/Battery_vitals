@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getDB } from '../../../lib/mongodb'
 import { adminDb } from '../../../lib/firebaseAdmin'
 import { checkRateLimit, getClientIp } from '../../../lib/rateLimit'
+import { getProviderHealthStatus } from '../../../lib/aiProvider'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,6 +39,7 @@ export async function GET(request) {
     status: mongoStatus === 'connected' ? 'healthy' : 'degraded',
     database: mongoStatus,
     firebase: firebaseStatus,
+    ai: getProviderHealthStatus(),
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     platform: 'vercel',

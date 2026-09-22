@@ -3,7 +3,10 @@ import { getDB } from '../../../../lib/mongodb'
 import { runBatteryDiagnostic } from '../../../../lib/gemini'
 import { loadAiContext, ensureAiIndexes, DIAGNOSTICS_COLLECTION } from '../../../../lib/aiDb'
 import { checkRateLimit, getClientIp } from '../../../../lib/rateLimit'
-import { sanitizeString, secureErrorResponse } from '../../../../lib/security'
+import { sanitizeString } from '../../../../lib/security'
+import { requirePermission } from '../../../../lib/auth'
+import { PERMISSIONS } from '../../../../lib/permissions'
+import { handleError } from '../../../../lib/errorHandler'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,6 +23,8 @@ export async function POST(request) {
     if (!rateCheck.success) {
       return NextResponse.json({ error: 'AI diagnostic rate limit exceeded. Please wait a minute.' }, { status: 429 })
     }
+
+    await requirePermission(request, PERMISSIONS.ACCESS_AI)
 
     const body = await request.json().catch(() => ({}))
     const batteryId = sanitizeString(body.batteryId || 'BAT001', 30)
@@ -72,6 +77,6 @@ export async function POST(request) {
     })
   } catch (error) {
     console.error('[BatteryAI] diagnostic route error:', error)
-    return secureErrorResponse(error.message)
+    return handleError(error, request)
   }
 }

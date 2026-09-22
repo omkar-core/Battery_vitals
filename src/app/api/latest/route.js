@@ -3,6 +3,7 @@ import { getDB } from '../../../lib/mongodb'
 import { getLatestTelemetry } from '../../../lib/firebaseAdmin'
 import { checkRateLimit, getClientIp } from '../../../lib/rateLimit'
 import { sanitizeString } from '../../../lib/security'
+import { handleError } from '../../../lib/errorHandler'
 
 export const dynamic = 'force-dynamic'
 
@@ -63,11 +64,7 @@ export async function GET(request) {
       }
     )
   } catch (error) {
-    console.error('latest error:', error)
-    return NextResponse.json(
-      { error: 'No data available', message: 'Telemetry offline' },
-      { status: 404 }
-    )
+    return handleError(error, request)
   }
 }
 
@@ -75,7 +72,7 @@ function serialize(d) {
   return {
     ...d,
     _id: d._id ? String(d._id) : undefined,
-    timestamp: d.timestamp ? new Date(d.timestamp).getTime() : Date.now(),
+    timestamp: d.timestamp ? new Date(d.timestamp).getTime() : (d.ts ?? null),
     receivedAt: d.receivedAt ? new Date(d.receivedAt).getTime() : null,
   }
 }

@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server'
 import { getLatestTelemetry } from '../../../lib/firebaseAdmin'
 import { getDB } from '../../../lib/mongodb'
-import { analyzeBatteryData } from '../../../lib/gemini'
+import { runBatteryDiagnostic } from '../../../lib/gemini'
 import { checkRateLimit, getClientIp } from '../../../lib/rateLimit'
+import { sanitizeString } from '../../../lib/security'
+import { requirePermission } from '../../../lib/auth'
+import { PERMISSIONS } from '../../../lib/permissions'
+import { handleError } from '../../../lib/errorHandler'
+import { TelemetryNotFoundError } from '../../../lib/errors'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,44 +19,47 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
     }
 
+    // AI insights are gated behind the AI access permission.
+    await requirePermission(request, PERMISSIONS.ACCESS_AI)
+
     const { searchParams } = new URL(request.url)
-    const batteryId = searchParams.get('batteryId') || 'BAT001'
+    const batteryId = sanitizeString(searchParams.get('batteryId') || 'BAT001', 30)
 
     let latest = await getLatestTelemetry(batteryId)
     if (!latest) {
       try {
         const db = await getDB()
         latest = await db.collection('live_data').findOne({ batteryId })
-      } catch (e) {}
+      } catch (e) {
+        console.warn('MongoDB insights fallback failed:', e.message)
+      }
     }
 
     if (!latest) {
-      return NextResponse.json({
-        batteryId,
-        insights: [
-          'Awaiting first live telemetry frame from ESP32 sensor hub.',
-          'System ready for continuous voltage, current, and environmental monitoring.',
-        ],
-        recommendations: [
-          'Ensure ESP32 is powered on and connected to WiFi SSID.',
-          'Verify I2C bus wiring for INA219 (SDA GPIO 21, SCL GPIO 22).',
-        ],
-      })
+      throw new TelemetryNotFoundError(batteryId, 'latest')
     }
 
-    const analysis = await analyzeBatteryData(latest, [])
+    // Structured diagnostic: `result` carries overall_status/risk_score/etc.
+    const diag = await runBatteryDiagnostic({ latest })
 
     return NextResponse.json({
       batteryId,
       timestamp: Date.now(),
-      status: analysis.overall_status,
-      risk_score: analysis.risk_score,
-      summary: analysis.summary,
-      key_findings: analysis.key_findings || [],
-      recommendations: analysis.recommendations || [],
-      urgent_actions: analysis.urgent_actions || [],
+      status: diag.result.overall_status,
+      risk_score: diag.result.risk_score,
+      summary: diag.result.battery_health_summary,
+      key_findings: diag.result.key_findings || [],
+      anomalies: diag.result.anomalies || [],
+      recommendations: diag.result.recommendations || [],
+      predictions: diag.result.predictions || {},
+      urgent_actions: (diag.result.recommendations || [])
+        .filter((r) => r.priority === 'high' || r.priority === 'critical')
+        .map((r) => ({ action: r.action, reason: r.reason, priority: r.priority })),
+      source: diag.source || 'deterministic-fallback',
+      model: diag.model || null,
+      cached: Boolean(diag.cached),
     })
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to generate insights', details: error.message }, { status: 500 })
+    return handleError(error, request)
   }
 }

@@ -5,13 +5,23 @@ import { Bell, Volume2, VolumeX, Lightbulb, Radio } from 'lucide-react'
 import styles from '../../styles/dashboard.module.css'
 
 export default function StatusIndicator({ hardware = {}, safety = 'SAFE' }) {
+  // Accepts both documented key styles (`led_green` vs `outputs.green`) so a
+  // live telemetry `outputs` object and the command DB object both render.
   const {
-    led_green = true,
-    led_yellow = false,
-    led_red = false,
+    led_green,
+    led_yellow,
+    led_red,
+    green,
+    yellow,
+    red,
     buzzer = false,
-    auto_mode = true,
+    auto_mode,
+    auto,
   } = hardware
+  const autoActive = auto_mode ?? auto ?? false
+  const greenOn = led_green ?? green ?? false
+  const yellowOn = led_yellow ?? yellow ?? false
+  const redOn = led_red ?? red ?? false
 
   return (
     <div
@@ -33,13 +43,13 @@ export default function StatusIndicator({ hardware = {}, safety = 'SAFE' }) {
           style={{
             fontSize: 11,
             fontWeight: 700,
-            color: auto_mode ? '#00E8A0' : '#FFB800',
-            background: auto_mode ? 'rgba(0,232,160,0.12)' : 'rgba(255,184,0,0.12)',
+            color: autoActive ? '#00E8A0' : '#FFB800',
+            background: autoActive ? 'rgba(0,232,160,0.12)' : 'rgba(255,184,0,0.12)',
             padding: '2px 8px',
             borderRadius: 10,
           }}
         >
-          {auto_mode ? 'AUTO LOGIC' : 'MANUAL OVERRIDE'}
+          {autoActive ? 'AUTO LOGIC' : 'MANUAL OVERRIDE'}
         </span>
       </div>
 
@@ -47,8 +57,8 @@ export default function StatusIndicator({ hardware = {}, safety = 'SAFE' }) {
         {/* Green LED */}
         <div
           style={{
-            background: led_green ? 'rgba(0,232,160,0.12)' : 'rgba(255,255,255,0.03)',
-            border: led_green ? '1px solid rgba(0,232,160,0.4)' : '1px solid rgba(255,255,255,0.06)',
+            background: greenOn ? 'rgba(0,232,160,0.12)' : 'rgba(255,255,255,0.03)',
+            border: greenOn ? '1px solid rgba(0,232,160,0.4)' : '1px solid rgba(255,255,255,0.06)',
             borderRadius: 10,
             padding: '10px 12px',
             display: 'flex',
@@ -61,8 +71,8 @@ export default function StatusIndicator({ hardware = {}, safety = 'SAFE' }) {
               width: 12,
               height: 12,
               borderRadius: '50%',
-              background: led_green ? '#00E8A0' : '#3A4455',
-              boxShadow: led_green ? '0 0 10px #00E8A0' : 'none',
+              background: greenOn ? '#00E8A0' : '#3A4455',
+              boxShadow: greenOn ? '0 0 10px #00E8A0' : 'none',
             }}
           />
           <div>
@@ -74,8 +84,8 @@ export default function StatusIndicator({ hardware = {}, safety = 'SAFE' }) {
         {/* Yellow LED */}
         <div
           style={{
-            background: led_yellow ? 'rgba(255,184,0,0.12)' : 'rgba(255,255,255,0.03)',
-            border: led_yellow ? '1px solid rgba(255,184,0,0.4)' : '1px solid rgba(255,255,255,0.06)',
+            background: yellowOn ? 'rgba(255,184,0,0.12)' : 'rgba(255,255,255,0.03)',
+            border: yellowOn ? '1px solid rgba(255,184,0,0.4)' : '1px solid rgba(255,255,255,0.06)',
             borderRadius: 10,
             padding: '10px 12px',
             display: 'flex',
@@ -88,8 +98,8 @@ export default function StatusIndicator({ hardware = {}, safety = 'SAFE' }) {
               width: 12,
               height: 12,
               borderRadius: '50%',
-              background: led_yellow ? '#FFB800' : '#3A4455',
-              boxShadow: led_yellow ? '0 0 10px #FFB800' : 'none',
+              background: yellowOn ? '#FFB800' : '#3A4455',
+              boxShadow: yellowOn ? '0 0 10px #FFB800' : 'none',
             }}
           />
           <div>
@@ -101,8 +111,8 @@ export default function StatusIndicator({ hardware = {}, safety = 'SAFE' }) {
         {/* Red LED */}
         <div
           style={{
-            background: led_red ? 'rgba(255,45,85,0.15)' : 'rgba(255,255,255,0.03)',
-            border: led_red ? '1px solid rgba(255,45,85,0.5)' : '1px solid rgba(255,255,255,0.06)',
+            background: redOn ? 'rgba(255,45,85,0.15)' : 'rgba(255,255,255,0.03)',
+            border: redOn ? '1px solid rgba(255,45,85,0.5)' : '1px solid rgba(255,255,255,0.06)',
             borderRadius: 10,
             padding: '10px 12px',
             display: 'flex',
@@ -115,8 +125,8 @@ export default function StatusIndicator({ hardware = {}, safety = 'SAFE' }) {
               width: 12,
               height: 12,
               borderRadius: '50%',
-              background: led_red ? '#FF2D55' : '#3A4455',
-              boxShadow: led_red ? '0 0 12px #FF2D55' : 'none',
+              background: redOn ? '#FF2D55' : '#3A4455',
+              boxShadow: redOn ? '0 0 12px #FF2D55' : 'none',
             }}
           />
           <div>
@@ -147,3 +157,4 @@ export default function StatusIndicator({ hardware = {}, safety = 'SAFE' }) {
     </div>
   )
 }
+

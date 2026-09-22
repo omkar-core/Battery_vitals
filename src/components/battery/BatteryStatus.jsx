@@ -5,10 +5,26 @@ import { ShieldCheck, ShieldAlert, Zap, Activity, Heart, RefreshCw } from 'lucid
 import styles from '../../styles/dashboard.module.css'
 
 export default function BatteryStatus({ battery }) {
-  const { bhi = 94, soh = 98, safety = 'SAFE', direction = 'IDLE', resistance = 15.4, cells = [] } = battery || {}
+  const raw = battery || {}
+  // Display-only fallbacks; safety truth lives in the engine (UNKNOWN, never SAFE).
+  const num = (v, fb) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) ? fb : Number(v))
+  const bhi = num(raw.bhi, 94)
+  const soh = num(raw.soh, 98)
+  const safety = raw.safety || 'UNKNOWN'
+  const direction = raw.direction || 'UNKNOWN'
+  const resistance = num(raw.resistance, 15.4)
+  const cells = Array.isArray(raw.cells) ? raw.cells : []
 
+  const STATUS_COLORS = {
+    SAFE: '#00E8A0',
+    CAUTION: '#FFD60A',
+    WARNING: '#FFB800',
+    CRITICAL: '#FF2D55',
+    EMERGENCY: '#FF0040',
+    UNKNOWN: '#64748B',
+  }
+  const statusColor = STATUS_COLORS[safety] || '#64748B'
   const isSafe = safety === 'SAFE'
-  const statusColor = isSafe ? '#00E8A0' : safety === 'WARNING' ? '#FFB800' : '#FF2D55'
 
   return (
     <div className={styles.batteryOverviewCard}>
@@ -75,15 +91,18 @@ export default function BatteryStatus({ battery }) {
         </div>
       </div>
 
-      {/* Cell-Level Voltage Distribution */}
+      {/* Cell-Level Voltage Distribution (single INA219 measures pack only) */}
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>
-            Cell Balance Overview (3S Pack)
+            Cell Balance Overview
           </span>
-          <span style={{ fontSize: 11, color: '#00E8A0', fontWeight: 600 }}>ΔV ≤ 10 mV (Balanced)</span>
+          <span style={{ fontSize: 11, color: '#00E8A0', fontWeight: 600 }}>
+            {cells.length ? 'ΔV ≤ 10 mV (Balanced)' : 'No per-cell taps on this hardware'}
+          </span>
         </div>
 
+        {cells.length ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
           {cells.map((cell) => (
             <div
@@ -104,6 +123,11 @@ export default function BatteryStatus({ battery }) {
             </div>
           ))}
         </div>
+        ) : (
+          <p style={{ fontSize: 11, color: 'var(--text-tertiary)', margin: 0 }}>
+            Pack-level sensing only (INA219). Per-cell balance needs a monitor IC with cell taps — not claimed here.
+          </p>
+        )}
       </div>
     </div>
   )

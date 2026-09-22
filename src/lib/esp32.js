@@ -114,6 +114,8 @@ export function normalizeEsp32Packet(packet, { now = Date.now() } = {}) {
     opDirection: op || null,
     resistance: num(p.resistance),
     profile: p.profile || null,
+    profileId: p.profile_id || p.profileId || null,
+    profileVersion: num(p.config_version ?? p.profileVersion),
     firmware: p.firmware || null,
     mac: p.mac || null,
     cycles: num(p.cycles),
@@ -147,6 +149,9 @@ export function normalizeEsp32Packet(packet, { now = Date.now() } = {}) {
       temperature,
       humidity,
     },
+    dV_dt: num(p.dV_dt),
+    dT_dt: num(p.dT_dt),
+    mq2_rise: num(p.mq2_rise ?? p.dMq2_dt),
     gas: {
       index_mq2: num(p.mq2),
       index_mq135: num(p.mq135),

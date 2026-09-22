@@ -3,6 +3,9 @@ import { getDB } from '../../../../lib/mongodb'
 import { ensureAiIndexes, DIAGNOSTICS_COLLECTION } from '../../../../lib/aiDb'
 import { checkRateLimit, getClientIp } from '../../../../lib/rateLimit'
 import { sanitizeString } from '../../../../lib/security'
+import { requirePermission } from '../../../../lib/auth'
+import { PERMISSIONS } from '../../../../lib/permissions'
+import { handleError } from '../../../../lib/errorHandler'
 
 export const dynamic = 'force-dynamic'
 
@@ -67,8 +70,7 @@ export async function GET(request) {
       diagnostics: docs.map(serialize),
     })
   } catch (error) {
-    console.error('[BatteryAI] diagnostics list error:', error)
-    return NextResponse.json({ success: false, count: 0, diagnostics: [] })
+    return handleError(error, request)
   }
 }
 
@@ -80,6 +82,8 @@ export async function DELETE(request) {
     if (!rateCheck.success) {
       return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
     }
+
+    await requirePermission(request, PERMISSIONS.ACCESS_AI)
 
     let id = null
     try {
@@ -97,7 +101,6 @@ export async function DELETE(request) {
     if (!result.deletedCount) return NextResponse.json({ error: 'Diagnostic not found' }, { status: 404 })
     return NextResponse.json({ success: true, deleted: result.deletedCount })
   } catch (error) {
-    console.error('[BatteryAI] diagnostics delete error:', error)
-    return NextResponse.json({ error: 'Failed to delete diagnostic' }, { status: 500 })
+    return handleError(error, request)
   }
 }

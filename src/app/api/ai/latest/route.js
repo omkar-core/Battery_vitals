@@ -3,6 +3,7 @@ import { getDB } from '../../../../lib/mongodb'
 import { ensureAiIndexes, DIAGNOSTICS_COLLECTION } from '../../../../lib/aiDb'
 import { checkRateLimit, getClientIp } from '../../../../lib/rateLimit'
 import { sanitizeString } from '../../../../lib/security'
+import { handleError } from '../../../../lib/errorHandler'
 
 export const dynamic = 'force-dynamic'
 
@@ -45,7 +46,6 @@ export async function GET(request) {
       },
     })
   } catch (error) {
-    console.error('[BatteryAI] latest diagnostic error:', error)
-    return NextResponse.json({ success: false, error: 'Failed to load latest diagnostic' }, { status: 500 })
+    return handleError(error, request)
   }
 }

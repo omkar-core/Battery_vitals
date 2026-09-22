@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server'
 import { getDB } from '../../../../lib/mongodb'
 import { checkRateLimit, getClientIp } from '../../../../lib/rateLimit'
+import { ValidationError } from '../../../../lib/errors'
+import { handleError } from '../../../../lib/errorHandler'
+import { AlertThresholdConfigSchema } from '../../../../lib/schemas'
+import { requirePermission } from '../../../../lib/auth'
+import { PERMISSIONS } from '../../../../lib/permissions'
+import { resolveEngineConfig } from '../../../../lib/safetyConfig'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,6 +36,12 @@ let inMemoryConfig = { ...DEFAULT_CONFIG }
 
 export async function GET(request) {
   try {
+    const ip = getClientIp(request)
+    const rateCheck = checkRateLimit(`alerts_cfg_get_${ip}`, 60, 60000)
+    if (!rateCheck.success) {
+      return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
+    }
+
     try {
       const db = await getDB()
       const cfg = await db.collection('settings').findOne({ type: 'alert_thresholds' })
@@ -40,7 +52,7 @@ export async function GET(request) {
 
     return NextResponse.json(inMemoryConfig)
   } catch (error) {
-    return NextResponse.json(DEFAULT_CONFIG)
+    return handleError(error, request)
   }
 }
 
@@ -52,6 +64,9 @@ export async function PUT(request) {
       return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
     }
 
+    // Only operators and admins may change safety thresholds.
+    await requirePermission(request, PERMISSIONS.MANAGE_ALERTS)
+
     const body = await request.json().catch(() => ({}))
     const updated = {
       battery: { ...inMemoryConfig.battery, ...(body.battery || {}) },
@@ -60,19 +75,41 @@ export async function PUT(request) {
       updatedAt: new Date().toISOString(),
     }
 
+    // Alert tuning schema (VALIDATION.md §4.3): validates any flat threshold keys
+    // (`voltage_max`, `voltage_min`, `temp_warning`, `temp_critical`, `mq2_warning`,
+    // `mq2_critical`) the client supplies, using the documented physical bounds.
+    const FLAT_THRESHOLD_KEYS = ['voltage_max', 'voltage_min', 'temp_warning', 'temp_critical', 'mq2_warning', 'mq2_critical']
+    const provided = {}
+    for (const k of FLAT_THRESHOLD_KEYS) {
+      if (body[k] !== undefined) provided[k] = body[k]
+    }
+    if (Object.keys(provided).length > 0) {
+      const requestedShape = FLAT_THRESHOLD_KEYS.reduce((acc, k) => ((acc[k] = true), acc), {})
+      const parsed = AlertThresholdConfigSchema.pick(requestedShape).safeParse(provided)
+      if (!parsed.success) {
+        const issue = parsed.error.issues[0]
+        throw new ValidationError(issue?.message || 'Invalid alert threshold value', issue?.path?.join('.') || 'body')
+      }
+    }
+
     inMemoryConfig = updated
+
+    // Derive the engine threshold config so the deterministic safety engine
+    // actually applies these values on subsequent computeSafety() calls.
+    const engine = resolveEngineConfig(updated)
+    const storedDoc = { config: { ...updated, engine } }
 
     try {
       const db = await getDB()
       await db.collection('settings').updateOne(
         { type: 'alert_thresholds' },
-        { $set: { config: updated, updatedAt: new Date() } },
+        { $set: { ...storedDoc, updatedAt: new Date() } },
         { upsert: true }
       )
     } catch (e) {}
 
     return NextResponse.json({ success: true, config: updated })
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to update alert config', details: error.message }, { status: 500 })
+    return handleError(error, request)
   }
 }

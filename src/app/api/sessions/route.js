@@ -1,28 +1,38 @@
 import { NextResponse } from 'next/server'
 import { getDB } from '../../../lib/mongodb'
+import { checkRateLimit, getClientIp } from '../../../lib/rateLimit'
+import { sanitizeString } from '../../../lib/security'
+import { handleError } from '../../../lib/errorHandler'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request) {
   try {
+    const ip = getClientIp(request)
+    const rateCheck = checkRateLimit(`sessions_get_${ip}`, 60, 60000)
+    if (!rateCheck.success) {
+      return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
+    }
+
     const { searchParams } = new URL(request.url)
-    const batteryId = searchParams.get('batteryId') || 'BAT001'
-    const limit = parseInt(searchParams.get('limit') || '20', 10)
+    const batteryId = sanitizeString(searchParams.get('batteryId') || 'BAT001', 30)
+    const rawLimit = Number.parseInt(searchParams.get('limit') || '20', 10)
+    const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(1, rawLimit), 200) : 20
+    const cappedStored = searchParams.get('capStored') === 'true'
 
     let sessions = []
-
     try {
       const db = await getDB()
-      // First check stored sessions collection
-      sessions = await db
-        .collection('sessions')
-        .find({ batteryId })
-        .sort({ startTime: -1 })
-        .limit(limit)
-        .toArray()
+      if (!cappedStored) {
+        sessions = await db
+          .collection('sessions')
+          .find({ batteryId })
+          .sort({ startTime: -1 })
+          .limit(limit)
+          .toArray()
+      }
 
-      // If no stored sessions yet, derive sessions strictly from real readings
-      if (!sessions || sessions.length === 0) {
+      if (sessions.length === 0) {
         const readings = await db
           .collection('readings')
           .find({ batteryId })
@@ -47,8 +57,7 @@ export async function GET(request) {
       })),
     })
   } catch (error) {
-    console.error('sessions route error:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return handleError(error, request)
   }
 }
 
@@ -63,7 +72,8 @@ function detectSessions(readings) {
 
     if (type === 'idle') {
       if (currentSession) {
-        sessions.push(finalizeSession(currentSession, r.timestamp))
+        const finalized = finalizeSession(currentSession, r.timestamp)
+        if (finalized) sessions.push(finalized)
         currentSession = null
       }
       continue
@@ -78,7 +88,8 @@ function detectSessions(readings) {
         readings: [r],
       }
     } else if (currentSession.sessionType !== type) {
-      sessions.push(finalizeSession(currentSession, r.timestamp))
+      const finalized = finalizeSession(currentSession, r.timestamp)
+      if (finalized) sessions.push(finalized)
       currentSession = {
         batteryId: r.batteryId || 'BAT001',
         sessionType: type,
@@ -92,7 +103,8 @@ function detectSessions(readings) {
   }
 
   if (currentSession && currentSession.readings.length > 2) {
-    sessions.push(finalizeSession(currentSession, Date.now()))
+    const finalized = finalizeSession(currentSession, Date.now())
+    if (finalized) sessions.push(finalized)
   }
 
   return sessions.reverse()
@@ -102,25 +114,39 @@ function finalizeSession(session, endTime) {
   const rs = session.readings
   const startT = new Date(session.startTime).getTime()
   const endT = new Date(endTime).getTime()
+  if (!Number.isFinite(startT) || !Number.isFinite(endT)) return null
   const durationSec = Math.max(10, Math.floor((endT - startT) / 1000))
 
-  let peakTemp = rs[0]?.temperature ?? null
+  const filtered = rs.filter((r) => r && r.timestamp != null)
+  if (filtered.length === 0) return null
+
+  let peakTemp = null
   let totalCurrent = 0
   let totalBhi = 0
   let energyWh = 0
+  // ESP32 samples roughly every 2s; timeseries spacing is restored from the
+  // actual timestamps when available.
+  const dtSec = (a, b) => {
+    const da = new Date(a.timestamp).getTime()
+    const db = new Date(b.timestamp).getTime()
+    if (!Number.isFinite(da) || !Number.isFinite(db)) return 2
+    return Math.max(1, Math.min(60, (db - da) / 1000))
+  }
 
-  for (const r of rs) {
+  for (let i = 0; i < filtered.length; i++) {
+    const r = filtered[i]
     if (r.temperature != null && (peakTemp == null || r.temperature > peakTemp)) {
       peakTemp = r.temperature
     }
     totalCurrent += Math.abs(r.current || 0)
     if (r.bhi != null) totalBhi += r.bhi
     const p = (r.voltage || 0) * Math.abs(r.current || 0)
-    energyWh += (p * (2 / 3600))
+    const dt = i > 0 ? dtSec(filtered[i - 1], r) : 2
+    energyWh += (p * dt) / 3600
   }
 
-  const lastReading = rs[rs.length - 1]
-  const bhis = rs.map((r) => r.bhi).filter((v) => v != null)
+  const lastReading = filtered[filtered.length - 1]
+  const bhis = filtered.map((r) => r.bhi).filter((v) => v != null)
   return {
     id: `sess_${startT}`,
     batteryId: session.batteryId,
@@ -130,12 +156,12 @@ function finalizeSession(session, endTime) {
     duration: durationSec,
     energyMoved: Number(energyWh.toFixed(2)),
     peakTemperature: peakTemp != null ? Number(peakTemp.toFixed(1)) : null,
-    avgCurrent: Number((totalCurrent / rs.length).toFixed(2)),
+    avgCurrent: Number((totalCurrent / filtered.length).toFixed(2)),
     maxBHI: bhis.length ? Math.round(Math.max(...bhis)) : null,
     startSOC: session.startSOC != null ? Math.round(session.startSOC) : null,
-    endSOC: lastReading?.soc != null ? Math.round(lastReading.soc) : null,
-    // True round-trip efficiency cannot be measured from a single
-    // unidirectional session, so report nothing instead of a fabricated value.
+    endSOC: lastReading.soc != null ? Math.round(lastReading.soc) : null,
+    // True round-trip efficiency cannot be measured from a single unidirectional
+    // session, so nothing is fabricated here.
     efficiency: null,
   }
 }

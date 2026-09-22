@@ -46,6 +46,10 @@ const ALLOWED_COMMANDS = new Set([
   'YELLOW_OFF',
   'GREEN_ON',
   'GREEN_OFF',
+  'GREEN_LED',
+  'YELLOW_LED',
+  'RED_LED',
+  'BUZZER_PATTERN',
   'TEST_BUZZER',
   'SET_PROFILE',
   'SET_SAMPLE_INTERVAL',
@@ -56,6 +60,7 @@ const ALLOWED_COMMANDS = new Set([
   'START_CALIBRATION',
   'RUN_SELF_TEST',
   'GET_SELFTEST',
+  'SET_CONFIG',
 ])
 
 export function isValidCommand(cmd) {

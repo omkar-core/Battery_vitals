@@ -1,9 +1,14 @@
-import { NextResponse } from 'next/server'
+﻿import { NextResponse } from 'next/server'
 import { getDB } from '../../../lib/mongodb'
-import { setAdminCommand, getAdminCommand } from '../../../lib/firebaseAdmin'
+import { setAdminCommand, getAdminCommand, getLatestTelemetry } from '../../../lib/firebaseAdmin'
 import { checkRateLimit, getClientIp } from '../../../lib/rateLimit'
 import { sanitizeString } from '../../../lib/security'
-import { canControlHardware } from '../../../lib/permissions'
+import { requirePermission } from '../../../lib/auth'
+import { PERMISSIONS } from '../../../lib/permissions'
+import { validateTelemetry, computeSafety } from '../../../lib/batterySafety'
+import { CriticalStateLockError } from '../../../lib/errors'
+import { loadEngineConfigForDevice } from '../../../lib/safetyConfig'
+import { handleError } from '../../../lib/errorHandler'
 
 const DEFAULT = { auto_mode: true, red_led: false, yellow_led: false, green_led: true, buzzer: false }
 
@@ -41,8 +46,7 @@ export async function GET(request) {
       buzzer: cmd.buzzer ?? false,
     })
   } catch (error) {
-    console.error('control get error:', error)
-    return NextResponse.json(DEFAULT)
+    return handleError(error, request)
   }
 }
 
@@ -54,26 +58,60 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
     }
 
-    // RBAC: only operators and admins may toggle hardware actuators (RULES.md §4).
-    const role = request.headers.get('x-user-role') || 'viewer'
-    if (!canControlHardware(role)) {
-      return NextResponse.json(
-        { error: 'Forbidden: hardware control requires operator or admin role.' },
-        { status: 403 }
-      )
-    }
+    // RBAC: only operators and admins may toggle hardware actuators (RULES.md Â§4).
+    // Authenticated via signed bearer token (SECURITY.md Â§6); no spoofable headers.
+    await requirePermission(request, PERMISSIONS.CONTROL_HARDWARE)
 
     const body = await request.json().catch(() => ({}))
     const batteryId = sanitizeString(body?.batteryId || 'BAT001', 30)
     const allowed = ['auto_mode', 'red_led', 'yellow_led', 'green_led', 'buzzer']
     const update = { updatedAt: Date.now() }
 
-    for (const k of allowed) {
-      if (body[k] !== undefined) update[k] = Boolean(body[k])
+    function toBool(value) {
+      if (typeof value === 'boolean') return value
+      if (value === 'true' || value === '1' || value === 1) return true
+      if (value === 'false' || value === '0' || value === 0) return false
+      return null
     }
 
-    // 1. Write to Firebase Realtime Database `/commands/[batteryId]`
-    await setAdminCommand(batteryId, update)
+    for (const k of allowed) {
+      if (body[k] !== undefined) {
+        const parsed = toBool(body[k])
+        if (parsed !== null) update[k] = parsed
+      }
+    }
+
+    // Hardware Safety Lockout (SECURITY.md Â§2.1): while the deterministic engine
+    // reports CRITICAL or EMERGENCY, requests that silence active trips (disable
+    // red LED or buzzer in manual mode, or force auto-mode off asserting safety)
+    // are rejected with HTTP 422. The ESP32 firmware remains authoritative.
+    const latest = await getAdminCommand(batteryId)
+    const telemetry = await getLatestTelemetry(batteryId).catch(() => null)
+    if (telemetry) {
+      const { clean } = validateTelemetry(telemetry)
+      const safety = computeSafety(clean, await loadEngineConfigForDevice(batteryId))
+      const silencing =
+        safety.state === 'CRITICAL' || safety.state === 'EMERGENCY'
+          ? (['red_led', 'buzzer'].some((k) => update[k] === false) ||
+             (update.auto_mode === true && (latest?.auto_mode === false || latest?.auto_mode == null)) ||
+             update.green_led === true ||
+             update.buzzer_mode === 'off')
+          : false
+      if (silencing) {
+        const lockError = new CriticalStateLockError(safety.state, 'silencing active trip')
+        lockError.statusCode = 422
+        throw lockError
+      }
+    }
+
+    // Merge with existing command node
+    const existing = (await getAdminCommand(batteryId).catch(() => null)) || {}
+    const { command: _omitCmd, value: _omitVal, requestId: _omitReq, ...existingRest } = existing
+    await setAdminCommand(batteryId, {
+      ...existingRest,
+      ...update,
+      updatedAt: Date.now(),
+    })
 
     // 2. Persist in MongoDB in background try/catch
     try {
@@ -90,7 +128,7 @@ export async function POST(request) {
     return NextResponse.json({ success: true, commands: update })
   } catch (error) {
     console.error('control post error:', error)
-    return NextResponse.json({ success: true, commands: DEFAULT })
+    return handleError(error, request)
   }
 }
 

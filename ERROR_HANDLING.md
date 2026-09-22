@@ -797,3 +797,6 @@ If MongoDB Atlas encounters connection pool exhaustion or network partition:
 1. User sessions and permissions fall back to [`src/lib/auth.js`](file:///d:/Webapp/Working_webapps/Battery_vitals/src/lib/auth.js) in-memory store.
 2. Alert definitions and history fall back to Firebase Realtime Database rolling cache (`/live_data/BAT001`).
 3. Dashboard continues streaming live telemetry with zero interruption.
+
+### 5.3 Error Handler Coverage
+All API route catch blocks now use `handleError(error, request)` from `src/lib/errorHandler.js` for structured error responses with `requestId` tracking. Routes must never return `error.message` directly in JSON responses — the error handler masks internal details in production.

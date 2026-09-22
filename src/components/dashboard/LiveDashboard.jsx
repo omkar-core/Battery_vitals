@@ -26,13 +26,23 @@ export default function LiveDashboard({
   loadingAI,
   onRunAnalysis,
 }) {
+  // Derived ambient/quality view fed from the normalized ESP32 packet shape
+  // (`environment.*`, `gasIndex.*`) rather than stale `environmental`/`hardware` keys.
+  const env = {
+    temperature: data?.environment?.temperature ?? data?.temperature,
+    humidity: data?.environment?.humidity ?? data?.humidity,
+    mq2: data?.gasIndex?.mq2,
+    mq135: data?.gasIndex?.mq135,
+  }
+  const aqi = data?.environment?.aqi ?? (env.mq135 != null ? Math.round(env.mq135 * 0.45) : null)
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* 1. Multi-Sensor Grid */}
       <SensorGrid telemetry={data} />
 
       {/* 2. Hardware Actuators Feedback */}
-      <StatusIndicator hardware={data?.hardware || commands} safety={data?.battery?.safety || data?.safety} />
+      <StatusIndicator hardware={data?.outputs || commands} safety={data?.battery?.safety || data?.safety} />
 
       {/* 3. Main 2-Column Live Monitoring Section */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 20 }}>
@@ -51,8 +61,8 @@ export default function LiveDashboard({
           </div>
 
           <BatteryStatus battery={data?.battery || data} />
-          <TempHumidity environmental={data?.environmental || data} />
-          <GasDetection environmental={data?.environmental || data} />
+          <TempHumidity environmental={env} />
+          <GasDetection environmental={env} />
         </div>
 
         {/* Right Column: Live Chart, Control Panel & AI Insights */}
@@ -65,9 +75,9 @@ export default function LiveDashboard({
           </div>
 
           <AirQualityIndex
-            aqi={data?.environmental?.aqi ?? 45}
-            category={data?.environmental?.aqiCategory ?? 'Good'}
-            color={data?.environmental?.aqiColor ?? '#00E8A0'}
+            aqi={aqi}
+            category={data?.environment?.aqiCategory ?? 'Good'}
+            color="#00E8A0"
           />
 
           <ControlPanel

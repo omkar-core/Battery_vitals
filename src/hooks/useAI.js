@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { authHeaders as headerAuth } from '../lib/clientToken'
 
 // AI hook: structured diagnostics via the Battery Intelligence Engine, plus
 // the legacy /api/analyze path used by the dashboard.
@@ -16,7 +17,7 @@ export function useAI() {
     try {
       const res = await fetch('/api/analyze', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...headerAuth() },
         body: JSON.stringify(payload || { batteryId, analysisType }),
       })
       const result = await res.json()
@@ -38,7 +39,7 @@ export function useAI() {
     try {
       const res = await fetch('/api/ai/diagnostic', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...headerAuth() },
         body: JSON.stringify({ batteryId, forced }),
       })
       const data = await res.json()
@@ -69,7 +70,7 @@ export function useAI() {
     try {
       const res = await fetch('/api/ai/diagnostics', {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...headerAuth() },
         body: JSON.stringify({ id }),
       })
       return res.ok

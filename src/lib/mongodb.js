@@ -1,3 +1,4 @@
+import 'server-only'
 import { MongoClient } from 'mongodb'
 
 function getCleanUri() {
@@ -83,3 +84,5 @@ export async function getDB() {
     throw error
   }
 }
+
+export const getDb = getDB
