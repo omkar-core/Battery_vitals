@@ -133,12 +133,36 @@ export function rssiToBars(rssi) {
   return { bars: 1, label: 'Weak', pct: 25, color: '#FF2D55' }
 }
 
+let sharedAudioCtx = null
+let hasUserGesture = false
+
+if (typeof window !== 'undefined') {
+  const registerGesture = () => {
+    hasUserGesture = true
+    if (sharedAudioCtx && sharedAudioCtx.state === 'suspended') {
+      sharedAudioCtx.resume().catch(() => {})
+    }
+  }
+  window.addEventListener('pointerdown', registerGesture, { once: true, passive: true })
+  window.addEventListener('keydown', registerGesture, { once: true, passive: true })
+}
+
 export function playAlertChime(severity = 'WARNING') {
   if (typeof window === 'undefined') return
   try {
     const AudioContext = window.AudioContext || window.webkitAudioContext
     if (!AudioContext) return
-    const ctx = new AudioContext()
+    if (!sharedAudioCtx) {
+      sharedAudioCtx = new AudioContext()
+    }
+    if (sharedAudioCtx.state === 'suspended') {
+      if (hasUserGesture) {
+        sharedAudioCtx.resume().catch(() => {})
+      } else {
+        return // Avoid triggering autoplay console error before first gesture
+      }
+    }
+    const ctx = sharedAudioCtx
     const osc = ctx.createOscillator()
     const gain = ctx.createGain()
     osc.connect(gain)

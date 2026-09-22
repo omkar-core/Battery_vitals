@@ -17,16 +17,27 @@ const PUBLIC_PATHS = [
 
 export function middleware(request) {
   const { pathname } = request.nextUrl
+  const method = request.method
 
   // Allow public API paths and static assets
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
     return NextResponse.next()
   }
 
-  // For API routes, check Authorization header
+  const authHeader = request.headers.get('authorization') || ''
+  const cookieToken = request.cookies.get('bv_session')?.value
+
+  // For API routes:
+  // - If Bearer token is provided, pass through to route handler for token verification
+  // - If cookie session is present, pass through
+  // - If it's a read-only GET request, allow viewing telemetry/diagnostics
+  // - If it's a mutating request (POST/PUT/DELETE/PATCH) without any auth, reject with 401
   if (pathname.startsWith('/api/')) {
-    const authHeader = request.headers.get('authorization') || ''
-    if (!authHeader.startsWith('Bearer ')) {
+    const hasBearer = authHeader.startsWith('Bearer ') && authHeader.length > 7
+    const hasCookie = Boolean(cookieToken)
+    const isReadOnly = method === 'GET' || method === 'HEAD' || method === 'OPTIONS'
+
+    if (!hasBearer && !hasCookie && !isReadOnly) {
       return NextResponse.json(
         { error: 'Authentication required', code: 'MISSING_CREDENTIALS' },
         { status: 401 }
@@ -37,8 +48,7 @@ export function middleware(request) {
 
   // For page routes, check for session cookie presence
   // If not present, assign a guest viewer session cookie so browsing is never blocked
-  const token = request.cookies.get('bv_session')?.value
-  if (!token) {
+  if (!cookieToken) {
     const response = NextResponse.next()
     response.cookies.set('bv_session', 'bv_guest_session', {
       path: '/',

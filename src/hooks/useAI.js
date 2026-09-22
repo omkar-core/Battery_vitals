@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { authHeaders as headerAuth } from '../lib/clientToken'
 
 // AI hook: structured diagnostics via the Battery Intelligence Engine, plus
@@ -12,7 +12,7 @@ export function useAI() {
   const [diagnosticError, setDiagnosticError] = useState(null)
 
   // Legacy single-reading analysis (dashboard + custom input).
-  const runAnalysis = async ({ batteryId = 'BAT001', analysisType = 'current', payload = null } = {}) => {
+  const runAnalysis = useCallback(async ({ batteryId = 'BAT001', analysisType = 'current', payload = null } = {}) => {
     setLoading(true)
     try {
       const res = await fetch('/api/analyze', {
@@ -30,10 +30,10 @@ export function useAI() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   // Structured diagnostic: validation -> deterministic safety -> Gemini -> DB.
-  const runDiagnostic = async ({ batteryId = 'BAT001', forced = false } = {}) => {
+  const runDiagnostic = useCallback(async ({ batteryId = 'BAT001', forced = false } = {}) => {
     setDiagnosticLoading(true)
     setDiagnosticError(null)
     try {
@@ -53,20 +53,24 @@ export function useAI() {
     } finally {
       setDiagnosticLoading(false)
     }
-  }
+  }, [])
 
-  const fetchDiagnostics = async ({ batteryId = 'BAT001', limit = 20 } = {}) => {
+  const fetchDiagnostics = useCallback(async ({ batteryId = 'BAT001', limit = 20 } = {}) => {
     try {
-      const res = await fetch(`/api/ai/diagnostics?batteryId=${encodeURIComponent(batteryId)}&limit=${limit}`)
+      const res = await fetch(
+        `/api/ai/diagnostics?batteryId=${encodeURIComponent(batteryId)}&limit=${limit}`,
+        { headers: headerAuth() }
+      )
+      if (!res.ok) return []
       const data = await res.json()
       return data.diagnostics || []
     } catch (e) {
       console.error('fetch diagnostics failed:', e)
       return []
     }
-  }
+  }, [])
 
-  const deleteDiagnostic = async (id) => {
+  const deleteDiagnostic = useCallback(async (id) => {
     try {
       const res = await fetch('/api/ai/diagnostics', {
         method: 'DELETE',
@@ -78,7 +82,7 @@ export function useAI() {
       console.error('delete diagnostic failed:', e)
       return false
     }
-  }
+  }, [])
 
   return {
     analysis,

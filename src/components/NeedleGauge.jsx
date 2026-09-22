@@ -44,7 +44,7 @@ export default function NeedleGauge({
 
   return (
     <div className={styles.needleGaugeWrap}>
-      <svg viewBox="0 0 200 128" width="100%" height="auto" role="img" aria-label={`${label}: ${animated ?? '--'} ${unit}`}>
+      <svg viewBox="0 0 200 128" width="100%" style={{ height: 'auto' }} role="img" aria-label={`${label}: ${animated ?? '--'} ${unit}`}>
         {/* Colored zone arcs (semi-circle from 180° → 360° in svg coords = top half) */}
         {zones.map((z, i) => (
           <path

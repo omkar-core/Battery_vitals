@@ -1,41 +1,15 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import {
-  Bot,
-  Loader,
-  Copy,
-  Check,
-  ShieldCheck,
-  ShieldAlert,
-  AlertTriangle,
-  CheckCircle2,
-  Calendar,
-  Activity,
-  Sparkles,
-  Sliders,
-  Info,
-  FileText,
-  Database,
-  FastForward,
-  ChevronDown,
-  ChevronUp,
-  Download,
-  Zap,
-  Thermometer,
-  Wind,
-  Gauge,
-  HelpCircle,
-} from 'lucide-react'
 import styles from './components.module.css'
 
 const STATUS_META = {
-  EMERGENCY: { label: 'EMERGENCY HAZARD', color: '#FF2D55', bg: 'rgba(255,45,85,0.16)', icon: ShieldAlert },
-  CRITICAL: { label: 'CRITICAL HAZARD', color: '#FF2D55', bg: 'rgba(255,45,85,0.16)', icon: ShieldAlert },
-  WARNING: { label: 'SAFETY WARNING', color: '#FF6B35', bg: 'rgba(255,107,53,0.16)', icon: AlertTriangle },
-  CAUTION: { label: 'MODERATE CAUTION', color: '#FFD60A', bg: 'rgba(255,214,10,0.14)', icon: AlertTriangle },
-  UNKNOWN: { label: 'DATA INSUFFICIENT', color: '#94A3B8', bg: 'rgba(148,163,184,0.12)', icon: ShieldCheck },
-  SAFE: { label: 'SYSTEM OPTIMAL', color: '#00E8A0', bg: 'rgba(0,232,160,0.14)', icon: ShieldCheck },
+  EMERGENCY: { label: 'EMERGENCY HAZARD', color: '#FF2D55', bg: 'rgba(255,45,85,0.16)', icon: '🚨' },
+  CRITICAL: { label: 'CRITICAL HAZARD', color: '#FF2D55', bg: 'rgba(255,45,85,0.16)', icon: '🚨' },
+  WARNING: { label: 'SAFETY WARNING', color: '#FF6B35', bg: 'rgba(255,107,53,0.16)', icon: '⚠️' },
+  CAUTION: { label: 'MODERATE CAUTION', color: '#FFD60A', bg: 'rgba(255,214,10,0.14)', icon: '⚠️' },
+  UNKNOWN: { label: 'DATA INSUFFICIENT', color: '#94A3B8', bg: 'rgba(148,163,184,0.12)', icon: '🛡️' },
+  SAFE: { label: 'SYSTEM OPTIMAL', color: '#00E8A0', bg: 'rgba(0,232,160,0.14)', icon: '🛡️' },
 }
 
 const SEVERITY_COLOR = {
@@ -44,12 +18,6 @@ const SEVERITY_COLOR = {
   MEDIUM: '#FFD60A',
   HIGH: '#FF6B35',
   CRITICAL: '#FF2D55',
-}
-
-const PRIORITY_COLOR = {
-  high: '#FF2D55',
-  medium: '#FFD60A',
-  low: '#00E8A0',
 }
 
 export default function AIInsights({ analysis, result, loading = false, onAnalyze }) {
@@ -105,15 +73,13 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
       return STATUS_META[key] || STATUS_META.UNKNOWN
     }
     if (!analysis) return STATUS_META.SAFE
-    const text = analysis.toLowerCase()
+    const text = typeof analysis === 'string' ? analysis.toLowerCase() : ''
     if (text.includes('critical') || text.includes('emergency') || text.includes('runaway')) return STATUS_META.CRITICAL
     if (text.includes('warning') || text.includes('high risk') || text.includes('elevated')) return STATUS_META.WARNING
     if (text.includes('caution') || text.includes('moderate')) return STATUS_META.CAUTION
     if (text.includes('not reported') || text.includes('cannot')) return STATUS_META.UNKNOWN
     return STATUS_META.SAFE
   }, [result, analysis, structured])
-
-  const RiskIcon = riskMeta.icon || ShieldCheck
 
   // Loading steps
   const LOADING_STAGES = [
@@ -144,17 +110,17 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
       <div className={styles.aiHeader}>
         <div
           style={{
-            width: 36,
-            height: 36,
+            width: 38,
+            height: 38,
             borderRadius: 12,
             display: 'grid',
             placeItems: 'center',
-            background: 'linear-gradient(135deg, rgba(191, 90, 242, 0.25), rgba(56, 189, 248, 0.25))',
-            border: '1px solid rgba(191, 90, 242, 0.4)',
-            boxShadow: '0 0 16px rgba(191, 90, 242, 0.2)',
+            background: 'var(--bg-surface-raised)',
+            border: '1px solid var(--border-strong)',
+            fontSize: 20,
           }}
         >
-          <Bot size={20} color="#BF5AF2" />
+          🤖
         </div>
         <div style={{ flex: 1 }}>
           <h3 className={styles.panelTitle} style={{ margin: 0, fontSize: 16 }}>
@@ -173,7 +139,7 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
               style={{ padding: '6px 12px', fontSize: 11.5, display: 'inline-flex', alignItems: 'center', gap: 5 }}
               title="Copy analysis JSON to clipboard"
             >
-              {copied ? <Check size={13} color="#00E8A0" /> : <Copy size={13} />}
+              <span>{copied ? '✅' : '📋'}</span>
               <span>{copied ? 'Copied' : 'Copy'}</span>
             </button>
             <button
@@ -182,7 +148,7 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
               style={{ padding: '6px 12px', fontSize: 11.5, display: 'inline-flex', alignItems: 'center', gap: 5 }}
               title="Download analysis report as JSON"
             >
-              <Download size={13} />
+              <span>💾</span>
               <span>Export JSON</span>
             </button>
             <button
@@ -191,7 +157,7 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
               style={{ padding: '6px 12px', fontSize: 11.5, display: 'inline-flex', alignItems: 'center', gap: 5 }}
               title="Toggle raw view"
             >
-              <FileText size={13} />
+              <span>📄</span>
               <span>{rawView ? 'Card View' : 'Raw'}</span>
             </button>
           </div>
@@ -210,12 +176,12 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
         >
           {loading ? (
             <>
-              <Loader className={styles.spin} size={16} />
+              <span className={styles.spin}>⚙️</span>
               <span>Running AI Safety Diagnostic...</span>
             </>
           ) : (
             <>
-              <Sparkles size={16} />
+              <span>✨</span>
               <span>Run AI Safety Diagnostic</span>
             </>
           )}
@@ -226,7 +192,7 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
           onClick={() => setInputMode(!inputMode)}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
         >
-          <Sliders size={14} />
+          <span>⚙️</span>
           <span>{inputMode ? 'Close Custom Simulation' : 'Simulate Custom Telemetry'}</span>
         </button>
       </div>
@@ -260,8 +226,8 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
       {/* Loading State: Staged Pipeline Indicator */}
       {loading ? (
         <div className={styles.aiLoading}>
-          <div className={styles.aiBrainPulseWrap}>
-            <Bot size={44} color="#BF5AF2" className={styles.aiBrainPulseIcon} />
+          <div className={styles.aiBrainPulseWrap} style={{ fontSize: 44, textAlign: 'center' }}>
+            🤖
           </div>
           <div style={{ textAlign: 'center', marginTop: 14 }}>
             <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)' }}>
@@ -305,9 +271,10 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
                     border: `1px solid ${riskMeta.color}44`,
                     display: 'grid',
                     placeItems: 'center',
+                    fontSize: 22,
                   }}
                 >
-                  <RiskIcon size={22} color={riskMeta.color} />
+                  {riskMeta.icon}
                 </div>
                 <div>
                   <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)' }}>
@@ -329,7 +296,6 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
                   fontWeight: 800,
                   fontSize: 12,
                   padding: '6px 14px',
-                  boxShadow: `0 0 14px ${riskMeta.color}33`,
                 }}
               >
                 {riskMeta.label}
@@ -359,8 +325,7 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
                   style={{
                     width: `${Math.max(0, Math.min(100, Number(result.risk_score) || 0))}%`,
                     height: '100%',
-                    background: `linear-gradient(90deg, #00E8A0, ${riskMeta.color})`,
-                    boxShadow: `0 0 12px ${riskMeta.color}88`,
+                    background: riskMeta.color,
                     transition: 'width 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
                   }}
                 />
@@ -382,7 +347,7 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
                 }}
               >
                 <strong style={{ color: '#BF5AF2', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                  <Info size={14} /> Diagnostic Appraisal:
+                  <span>ℹ️</span> Diagnostic Appraisal:
                 </strong>
                 {result.battery_health_summary}
               </div>
@@ -450,7 +415,7 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 10 }}>
-              <Activity size={18} color="#38BDF8" />
+              <span style={{ fontSize: 18 }}>📈</span>
               <div>
                 <h4 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: 'var(--text-primary)' }}>
                   Detailed Insights &amp; Recommendations
@@ -481,9 +446,9 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
                   }}
                 >
                   <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <CheckCircle2 size={15} /> Key Operational Findings ({result.key_findings.length})
+                    <span>✅</span> Key Operational Findings ({result.key_findings.length})
                   </span>
-                  {openSections.findings ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                  <span>{openSections.findings ? '▲' : '▼'}</span>
                 </button>
 
                 {openSections.findings && (
@@ -519,16 +484,16 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
                   }}
                 >
                   <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <AlertTriangle size={15} /> Anomalies &amp; Hazard Flags ({result.anomalies.length})
+                    <span>⚠️</span> Anomalies &amp; Hazard Flags ({result.anomalies.length})
                   </span>
-                  {openSections.anomalies ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                  <span>{openSections.anomalies ? '▲' : '▼'}</span>
                 </button>
 
                 {openSections.anomalies && (
                   <div style={{ padding: 14, background: 'var(--input-bg)' }}>
                     {result.anomalies.length === 0 ? (
                       <div style={{ fontSize: 12.5, color: '#00E8A0', display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <CheckCircle2 size={14} /> No anomalies or critical safety limit violations detected.
+                        <span>✅</span> No anomalies or critical safety limit violations detected.
                       </div>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -594,25 +559,27 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
                   }}
                 >
                   <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <ShieldCheck size={15} /> Actionable Recommendations ({result.recommendations.length})
+                    <span>🛡️</span> Actionable Recommendations ({result.recommendations.length})
                   </span>
-                  {openSections.recommendations ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                  <span>{openSections.recommendations ? '▲' : '▼'}</span>
                 </button>
 
                 {openSections.recommendations && (
                   <div style={{ padding: 14, background: 'var(--input-bg)' }}>
                     {result.recommendations.length === 0 ? (
-                      <div style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>No immediate actions required. Continue standard operating profile.</div>
+                      <div style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>
+                        All parameters within normal thresholds. Continue routine cycle maintenance.
+                      </div>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        {result.recommendations.map((r, i) => (
+                        {result.recommendations.map((rec, i) => (
                           <div
                             key={i}
                             style={{
                               padding: '10px 12px',
                               borderRadius: 10,
-                              background: 'rgba(255,255,255,0.03)',
-                              borderLeft: `3px solid ${PRIORITY_COLOR[r.priority] || '#00E8A0'}`,
+                              background: 'rgba(255,255,255,0.02)',
+                              border: '1px solid var(--border-subtle)',
                               display: 'flex',
                               gap: 10,
                               alignItems: 'flex-start',
@@ -622,21 +589,23 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
                               style={{
                                 fontSize: 9.5,
                                 fontWeight: 800,
+                                textTransform: 'uppercase',
                                 padding: '2px 8px',
                                 borderRadius: 100,
-                                border: `1px solid ${PRIORITY_COLOR[r.priority] || '#00E8A0'}55`,
-                                color: PRIORITY_COLOR[r.priority] || '#00E8A0',
+                                background: rec.priority === 'high' ? 'rgba(255,45,85,0.15)' : rec.priority === 'medium' ? 'rgba(255,214,10,0.15)' : 'rgba(0,232,160,0.15)',
+                                color: rec.priority === 'high' ? '#FF2D55' : rec.priority === 'medium' ? '#FFD60A' : '#00E8A0',
+                                border: `1px solid ${rec.priority === 'high' ? '#FF2D5544' : rec.priority === 'medium' ? '#FFD60A44' : '#00E8A044'}`,
                                 flexShrink: 0,
                                 marginTop: 1,
                               }}
                             >
-                              {(r.priority || 'low').toUpperCase()}
+                              {rec.priority || 'low'}
                             </span>
                             <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-primary)' }}>{r.action}</div>
-                              {r.reason && (
-                                <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 2 }}>
-                                  <strong>Why:</strong> {r.reason}
+                              <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-primary)' }}>{rec.action}</div>
+                              {rec.reason && (
+                                <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginTop: 2 }}>
+                                  <strong>Reason:</strong> {rec.reason}
                                 </div>
                               )}
                             </div>
@@ -648,52 +617,10 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
                 )}
               </div>
             )}
-
-            {/* Collapsible 4: Safety Notes & Quality Warnings */}
-            {(result.safety_notes || (result.data_quality?.issues && result.data_quality.issues.length > 0)) && (
-              <div style={{ borderRadius: 12, border: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
-                <button
-                  onClick={() => toggleSection('safety')}
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    background: 'rgba(255, 214, 10, 0.08)',
-                    border: 'none',
-                    color: '#FFD60A',
-                    fontWeight: 700,
-                    fontSize: 13,
-                    cursor: 'pointer',
-                  }}
-                >
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Info size={15} /> Safety Notes &amp; Data Integrity
-                  </span>
-                  {openSections.safety ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-                </button>
-
-                {openSections.safety && (
-                  <div style={{ padding: 14, background: 'var(--input-bg)', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {result.safety_notes && (
-                      <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                        {result.safety_notes}
-                      </div>
-                    )}
-                    {result.data_quality?.issues?.map((issue, idx) => (
-                      <div key={idx} style={{ fontSize: 11.5, color: '#FFD60A', display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <FastForward size={12} /> {issue}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
           </div>
 
           {/* ======================================================================= */}
-          {/* CARD 3: 📈 VISUAL DATA & BOUNDARY LIMITS CARD                          */}
+          {/* CARD 3: 📈 MULTI-SENSOR FUSION & RISK FACTORS                          */}
           {/* ======================================================================= */}
           <div
             style={{
@@ -704,47 +631,35 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
               boxShadow: '0 8px 30px rgba(0,0,0,0.35)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 10 }}>
-              <Gauge size={18} color="#00E8A0" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 10 }}>
+              <span style={{ fontSize: 18 }}>⚡</span>
               <div>
                 <h4 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: 'var(--text-primary)' }}>
-                  Visual Safety Boundaries &amp; Forecasts
+                  Multi-Sensor Fusion &amp; Degradation Outlook
                 </h4>
                 <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                  Deterministic threshold compliance &amp; projection confidence
+                  Driver weighting, thermal stress factors, and non-fabricated RUL window
                 </span>
               </div>
             </div>
 
-            {/* Boundary Limit Comparison Meters */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {/* Voltage Compliance */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-                  <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <Zap size={13} color="#00E8A0" /> Voltage Safe Window (9.0V - 14.4V)
-                  </span>
-                  <span style={{ color: '#00E8A0', fontWeight: 700 }}>
-                    {snapshotData?.voltage != null ? `${snapshotData.voltage.toFixed(2)} V` : '12.40 V'}
+            {/* Sensor Drivers Grid */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* Primary Driver */}
+              {result.sensor_fusion_weights?.primary_driver && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-subtle)' }}>
+                  <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Primary Risk Driver</span>
+                  <span style={{ fontSize: 12.5, fontWeight: 800, color: '#FF6B35', textTransform: 'uppercase' }}>
+                    {result.sensor_fusion_weights.primary_driver}
                   </span>
                 </div>
-                <div style={{ height: 8, borderRadius: 100, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
-                  <div
-                    style={{
-                      width: `${Math.min(100, Math.max(10, (((snapshotData?.voltage || 12.4) - 9.0) / (14.4 - 9.0)) * 100))}%`,
-                      height: '100%',
-                      background: '#00E8A0',
-                      borderRadius: 100,
-                    }}
-                  />
-                </div>
-              </div>
+              )}
 
-              {/* Temperature Compliance */}
+              {/* Thermal Stress Meter */}
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
                   <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <Thermometer size={13} color="#FF6B35" /> Temperature Ceiling (Max 45.0°C)
+                    <span>🌡️</span> Thermal Stress Index (&lt;35°C Target)
                   </span>
                   <span style={{ color: (snapshotData?.temperature || 25) > 40 ? '#FF2D55' : '#00E8A0', fontWeight: 700 }}>
                     {snapshotData?.temperature != null ? `${snapshotData.temperature.toFixed(1)} °C` : '25.0 °C'}
@@ -766,7 +681,7 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
                   <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <Wind size={13} color="#38BDF8" /> MQ-2 Gas Level (&lt;300 ppm Normal)
+                    <span>💨</span> MQ-2 Gas Level (&lt;300 ppm Normal)
                   </span>
                   <span style={{ color: (snapshotData?.gas || 85) > 300 ? '#FF2D55' : '#38BDF8', fontWeight: 700 }}>
                     {snapshotData?.gas != null ? `${Math.round(snapshotData.gas)} ppm` : '85 ppm'}
@@ -798,7 +713,7 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
                 }}
               >
                 <div style={{ fontWeight: 700, color: '#38BDF8', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Calendar size={13} /> Degradation Projection &amp; Confidence
+                  <span>📅</span> Degradation Projection &amp; Confidence
                 </div>
                 {result.predictions.insufficient_data === true ? (
                   <div style={{ color: 'var(--text-secondary)' }}>
@@ -833,13 +748,22 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
           {copyText}
         </pre>
       ) : analysis ? (
-        <div className={styles.aiResultContainer} style={{ marginTop: 14 }}>
-          <div className={styles.aiResultHero}>
+        <div
+          style={{
+            background: 'var(--bg-surface-raised)',
+            border: '1px solid var(--border-strong)',
+            borderRadius: 16,
+            padding: 18,
+            boxShadow: '0 8px 30px rgba(0,0,0,0.35)',
+            marginTop: 14,
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <RiskIcon size={20} color={riskMeta.color} />
+              <span style={{ fontSize: 20 }}>{riskMeta.icon}</span>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)' }}>Diagnostic Evaluation Complete</div>
-                <div style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>Verified against real-time ESP32 sensor values</div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)' }}>Diagnostic Evaluation Complete</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Verified against real-time sensor parameters</div>
               </div>
             </div>
             <span
@@ -849,25 +773,25 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
               {riskMeta.label}
             </span>
           </div>
-          <div className={styles.aiSectionText} style={{ whiteSpace: 'pre-wrap', marginTop: 12, lineHeight: 1.6 }}>
+          <div style={{ whiteSpace: 'pre-wrap', fontSize: 13, lineHeight: 1.65, color: 'var(--text-primary)' }}>
             {analysis}
           </div>
         </div>
       ) : (
         <div className={styles.aiEmpty}>
-          <Bot size={36} color="var(--accent-primary)" style={{ opacity: 0.7, marginBottom: 10 }} />
+          <div style={{ fontSize: 40, marginBottom: 10 }}>🤖</div>
           <span style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
             Ready to Run AI Safety Diagnostic
           </span>
           <span style={{ fontSize: 12, color: 'var(--text-secondary)', maxWidth: 480, margin: '0 auto', display: 'block', lineHeight: 1.5 }}>
-            Click &quot;Run AI Safety Diagnostic&quot; to execute deterministic threshold checks and query Gemini for structured hazard appraisal, anomaly detection, and capacity predictions.
+            Click &quot;Run AI Safety Diagnostic&quot; to execute deterministic threshold checks and query Gemini / OpenRouter for structured hazard appraisal, anomaly detection, and capacity predictions.
           </span>
           <button
             className={styles.primaryBtn}
             onClick={() => onAnalyze && onAnalyze({})}
             style={{ marginTop: 16 }}
           >
-            <Sparkles size={14} />
+            <span>✨</span>
             <span>Start Analysis Now</span>
           </button>
         </div>

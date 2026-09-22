@@ -186,19 +186,50 @@ export async function revokeSessionByToken(token) {
   }
 }
 
+function getCookieFromRequest(request, name) {
+  if (request?.cookies?.get) {
+    const val = request.cookies.get(name)?.value
+    if (val) return val
+  }
+  const cookieHeader = request?.headers?.get?.('cookie') || ''
+  const match = new RegExp(`(?:^|;\\s*)${name}=([^;]+)`).exec(cookieHeader)
+  return match ? decodeURIComponent(match[1]) : ''
+}
+
+const GUEST_VIEWER_PRINCIPAL = {
+  id: 'usr_guest',
+  name: 'Guest Observer',
+  email: 'guest@batteryvitals.local',
+  role: ROLES.VIEWER,
+  status: 'active',
+}
+
 /**
  * Resolve the authenticated user from an incoming request.
- * Reads `Authorization: Bearer <token>`. Throws AuthenticationError when absent/invalid.
+ * Reads `Authorization: Bearer <token>` or `bv_session` cookie.
+ * Defaults to guest viewer with safe read-only permissions when unauthenticated.
  */
 export async function getSessionUser(request) {
-  const header = request?.headers?.get('authorization') || ''
+  const header = request?.headers?.get?.('authorization') || ''
   const match = /^Bearer\s+(.+)$/i.exec(header)
-  if (!match) throw new MissingCredentialsError('authorization bearer token')
-  const payload = verifySessionToken(match[1])
-  await assertSessionActive(payload)
-  const user = await findUser(payload.sub)
-  if (!user || user.status === 'disabled') throw new InvalidTokenError()
-  return user
+  const cookieToken = getCookieFromRequest(request, 'bv_session')
+  const token = match ? match[1] : cookieToken
+
+  if (!token || token === 'bv_guest_session' || token === 'null' || token === 'undefined') {
+    return GUEST_VIEWER_PRINCIPAL
+  }
+
+  try {
+    const payload = verifySessionToken(token)
+    await assertSessionActive(payload)
+    const user = await findUser(payload.sub)
+    if (!user || user.status === 'disabled') return GUEST_VIEWER_PRINCIPAL
+    return user
+  } catch (err) {
+    // If bearer token was explicitly provided in header and is invalid/expired, throw
+    if (match) throw err
+    return GUEST_VIEWER_PRINCIPAL
+  }
 }
 
 /**

@@ -74,11 +74,78 @@ async function generateContent(prompt, { system = SYSTEM_INSTRUCTION, json = fal
       const e = new Error(`Gemini API error ${response.status}`)
       e.status = response.status
       e.info = text.slice(0, 300)
+      
+      // Automatic fallback to OpenRouter if configured
+      if (process.env.OPENROUTER_API_KEY) {
+        try {
+          const orModel = process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct:free'
+          const orRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+              'HTTP-Referer': 'https://battery-vitals.vercel.app',
+              'X-Title': 'Battery Vital Mission Control',
+            },
+            body: JSON.stringify({
+              model: orModel,
+              temperature: 0.2,
+              max_tokens: 2048,
+              messages: [
+                { role: 'system', content: system },
+                { role: 'user', content: prompt },
+              ],
+              response_format: json ? { type: 'json_object' } : undefined,
+            }),
+          })
+          if (orRes.ok) {
+            const orData = await orRes.json()
+            const orText = orData.choices?.[0]?.message?.content || ''
+            if (orText) return orText
+          }
+        } catch (orErr) {
+          console.warn('[AI] OpenRouter fallback attempt error:', orErr.message)
+        }
+      }
+
       throw e
     }
 
     const result = await response.json()
     return result.candidates?.[0]?.content?.parts?.[0]?.text || ''
+  } catch (err) {
+    if (process.env.OPENROUTER_API_KEY) {
+      try {
+        const orModel = process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct:free'
+        const orRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+            'HTTP-Referer': 'https://battery-vitals.vercel.app',
+            'X-Title': 'Battery Vital Mission Control',
+          },
+          body: JSON.stringify({
+            model: orModel,
+            temperature: 0.2,
+            max_tokens: 2048,
+            messages: [
+              { role: 'system', content: system },
+              { role: 'user', content: prompt },
+            ],
+            response_format: json ? { type: 'json_object' } : undefined,
+          }),
+        })
+        if (orRes.ok) {
+          const orData = await orRes.json()
+          const orText = orData.choices?.[0]?.message?.content || ''
+          if (orText) return orText
+        }
+      } catch (orErr) {
+        console.warn('[AI] OpenRouter fallback catch error:', orErr.message)
+      }
+    }
+    throw err
   } finally {
     clearTimeout(timer)
   }

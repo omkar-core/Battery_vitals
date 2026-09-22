@@ -8,13 +8,37 @@ const NOTIF_STORAGE_KEY = 'bv_notification_history_v1'
 const NOTIF_SOUND_KEY = 'bv_notification_sound_enabled'
 const NOTIF_MUTED_KEY = 'bv_notifications_muted_map'
 
+let sharedNotifAudioCtx = null
+let hasNotifUserGesture = false
+
+if (typeof window !== 'undefined') {
+  const registerNotifGesture = () => {
+    hasNotifUserGesture = true
+    if (sharedNotifAudioCtx && sharedNotifAudioCtx.state === 'suspended') {
+      sharedNotifAudioCtx.resume().catch(() => {})
+    }
+  }
+  window.addEventListener('pointerdown', registerNotifGesture, { once: true, passive: true })
+  window.addEventListener('keydown', registerNotifGesture, { once: true, passive: true })
+}
+
 // Audio synthesizer for notification sounds
 function playTone(type = 'info') {
   if (typeof window === 'undefined') return
   try {
     const AudioContext = window.AudioContext || window.webkitAudioContext
     if (!AudioContext) return
-    const ctx = new AudioContext()
+    if (!sharedNotifAudioCtx) {
+      sharedNotifAudioCtx = new AudioContext()
+    }
+    if (sharedNotifAudioCtx.state === 'suspended') {
+      if (hasNotifUserGesture) {
+        sharedNotifAudioCtx.resume().catch(() => {})
+      } else {
+        return // Wait for first user interaction to comply with browser autoplay policy
+      }
+    }
+    const ctx = sharedNotifAudioCtx
     const now = ctx.currentTime
 
     if (type === 'critical') {

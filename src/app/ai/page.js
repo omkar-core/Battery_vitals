@@ -155,7 +155,7 @@ function AIInner() {
 
   // Persisted chat history (per battery)
   useEffect(() => {
-    fetch('/api/ai/chat?batteryId=BAT001&limit=50')
+    fetch('/api/ai/chat?batteryId=BAT001&limit=50', { headers: headerAuth() })
       .then((r) => r.json())
       .then((d) => {
         if (d.messages && d.messages.length) {
@@ -182,7 +182,7 @@ function AIInner() {
   // Load training metadata when that tab opens
   useEffect(() => {
     if (tab === 'training' && !trainingMeta) {
-      fetch('/api/ai/training')
+      fetch('/api/ai/training', { headers: headerAuth() })
         .then((r) => r.json())
         .then(setTrainingMeta)
         .catch(() => {})
