@@ -1,0 +1,11 @@
+# cppcheck suppressions list for Battery Vital ESP32 firmware
+# Suppress system headers that are not part of standalone cppcheck include path
+missingIncludeSystem
+# Suppress Arduino entry points and inline helper functions that are called by sketch loop or framework
+unusedFunction:esp32/BatteryVital_v13.0/BatteryVital_v13.0.ino
+unusedFunction:esp32/BatteryVital_v13.0/sensors.h
+unusedFunction:esp32/BatteryVital_v13.0/led_control.h
+unusedFunction:esp32/BatteryVital_v13.0/selftest.h
+unusedFunction:esp32/BatteryVital_v13.0/firebase_ops.h
+# Suppress unmatched suppression notice across different cppcheck versions
+unmatchedSuppression

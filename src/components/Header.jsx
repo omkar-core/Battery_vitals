@@ -41,11 +41,13 @@ import {
 import { getConnectionState } from '../lib/utils'
 import { useTheme } from '../hooks/useTheme'
 import { useNotifications } from '../context/NotificationContext'
+import { useAuth } from '../hooks/useAuth'
 import NotificationCenter from './NotificationCenter'
 import DeviceSwitcher from './DeviceSwitcher'
 import Tooltip from './Tooltip'
 import AnimatedBatteryIcon from './AnimatedBatteryIcon'
 import Sparkline from './Sparkline'
+import AuthModal from './AuthModal'
 import styles from './components.module.css'
 
 export default function Header({
@@ -63,10 +65,13 @@ export default function Header({
   const router = useRouter()
   const { isDark, toggleTheme } = useTheme()
   const { unreadCount, soundEnabled, toggleSound } = useNotifications()
+  const { user, isAuthenticated, logout } = useAuth()
 
-  // State management for dropdowns
+  // State management for dropdowns & auth modal
   const [activeDropdown, setActiveDropdown] = useState(null) // 'monitoring' | 'analytics' | 'safety' | 'system' | 'notif' | 'preferences'
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [authModalOpen, setAuthModalOpen] = useState(false)
+  const [authModalTab, setAuthModalTab] = useState('login')
   const [clockText, setClockText] = useState('')
   const [runtimeText, setRuntimeText] = useState('')
   const [lastUpdateText, setLastUpdateText] = useState('Just now')
@@ -550,43 +555,78 @@ export default function Header({
             </button>
           </Tooltip>
 
-          {/* Quick Preferences & Hub Panel (Repurposed from Profile) */}
+          {/* Quick Preferences & Hub / Account Auth Panel */}
           <div className={styles.userDropdownWrapper}>
-            <Tooltip text="Quick Preferences &amp; Hub Status">
-              <button
-                className={`${styles.userAvatarBtn} ${activeDropdown === 'preferences' ? styles.iconActionBtnActive : ''}`}
-                onClick={() => toggleDropdown('preferences')}
-                aria-label="Quick Preferences"
-                aria-expanded={activeDropdown === 'preferences'}
-              >
-                <div className={styles.avatarCircle}>
-                  <Sliders size={14} />
-                </div>
-                <ChevronDown size={11} className={styles.avatarChevron} />
-              </button>
-            </Tooltip>
+            {!isAuthenticated ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button
+                  onClick={() => { setAuthModalTab('login'); setAuthModalOpen(true); }}
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 700,
+                    padding: '6px 12px',
+                    borderRadius: 8,
+                    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                    border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.15))',
+                    color: 'var(--text-primary, #F8FAFC)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Log In
+                </button>
+                <button
+                  onClick={() => { setAuthModalTab('signup'); setAuthModalOpen(true); }}
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 800,
+                    padding: '6px 12px',
+                    borderRadius: 8,
+                    backgroundColor: '#00E8A0',
+                    border: 'none',
+                    color: '#0B0F17',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Sign Up
+                </button>
+              </div>
+            ) : (
+              <Tooltip text={`Logged in as ${user.name} (${user.role.toUpperCase()})`}>
+                <button
+                  className={`${styles.userAvatarBtn} ${activeDropdown === 'preferences' ? styles.iconActionBtnActive : ''}`}
+                  onClick={() => toggleDropdown('preferences')}
+                  aria-label="User Account &amp; Preferences"
+                  aria-expanded={activeDropdown === 'preferences'}
+                >
+                  <div className={styles.avatarCircle} style={{ fontSize: 14 }}>
+                    {user.avatar || '👤'}
+                  </div>
+                  <ChevronDown size={11} className={styles.avatarChevron} />
+                </button>
+              </Tooltip>
+            )}
 
             {activeDropdown === 'preferences' && (
               <div className={styles.userDropdownMenu} style={{ minWidth: 260 }}>
-                {/* Station Head */}
+                {/* User Info Head */}
                 <div className={styles.userProfileHead}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div className={styles.userProfileName}>Battery Vital Hub</div>
+                    <div className={styles.userProfileName}>{user.name || 'User'}</div>
                     <span
                       style={{
                         fontSize: 9,
                         fontWeight: 800,
                         padding: '2px 7px',
                         borderRadius: 100,
-                        background: 'rgba(0,232,160,0.15)',
-                        color: '#00E8A0',
-                        border: '1px solid rgba(0,232,160,0.3)',
+                        background: user.role === 'admin' ? 'rgba(255,45,85,0.15)' : user.role === 'operator' ? 'rgba(255,184,0,0.15)' : 'rgba(0,232,160,0.15)',
+                        color: user.role === 'admin' ? '#FF2D55' : user.role === 'operator' ? '#FFB800' : '#00E8A0',
+                        border: `1px solid ${user.role === 'admin' ? 'rgba(255,45,85,0.3)' : user.role === 'operator' ? 'rgba(255,184,0,0.3)' : 'rgba(0,232,160,0.3)'}`,
                       }}
                     >
-                      ONLINE
+                      {(user.role || 'VIEWER').toUpperCase()}
                     </span>
                   </div>
-                  <div className={styles.userProfileEmail}>Node: BAT001 • Edge Station</div>
+                  <div className={styles.userProfileEmail}>{user.email}</div>
                 </div>
 
                 <div className={styles.userDropdownDivider} />
@@ -694,11 +734,33 @@ export default function Header({
                   <HelpCircle size={14} color="#38BDF8" />
                   <span>About Battery Vital</span>
                 </Link>
+
+                {isAuthenticated && (
+                  <>
+                    <div className={styles.userDropdownDivider} />
+                    <button
+                      className={styles.userMenuLink}
+                      onClick={() => {
+                        setActiveDropdown(null)
+                        logout()
+                      }}
+                      style={{ color: '#FF2D55' }}
+                    >
+                      <span>🚪 Log Out</span>
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>
         </div>
       </div>
+
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        defaultTab={authModalTab}
+      />
 
       {/* ========================================================================= */}
       {/* 4. MOBILE SLIDE-OUT DRAWER (<980px)                                      */}

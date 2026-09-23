@@ -201,3 +201,41 @@ export function validatePreConnection(measuredVoltage, profile, toleranceV = 1.0
 export function unknownBatteryState() {
   return { state: 'UNKNOWN_BATTERY', ok: false, message: 'Battery detected but no valid profile deployed — configuration required' }
 }
+
+const PRESET_PROFILES = {
+  LIFEPO4_12V_100AH: {
+    profileId: 'LIFEPO4_12V_100AH',
+    name: 'LiFePO4 12V 100Ah (4S)',
+    chemistry: 'LIFEPO4',
+    series: 4,
+    parallel: 1,
+    capacityAh: 100,
+    nominalVoltage: 12.8,
+  },
+  LI_ION_3S: {
+    profileId: 'LI_ION_3S',
+    name: 'Li-ion 3S 11.1V',
+    chemistry: 'LI_ION',
+    series: 3,
+    parallel: 1,
+    capacityAh: 20,
+    nominalVoltage: 11.1,
+  },
+  LEAD_ACID_12V: {
+    profileId: 'LEAD_ACID_12V',
+    name: 'Lead-Acid 12V Starter',
+    chemistry: 'LEAD_ACID',
+    series: 6,
+    parallel: 1,
+    capacityAh: 50,
+    nominalVoltage: 12.0,
+  },
+}
+
+export function getBatteryProfile(profileId = 'LIFEPO4_12V_100AH') {
+  const preset = PRESET_PROFILES[profileId]
+  if (preset) {
+    return buildProfileFromInput(preset)
+  }
+  return buildProfileFromInput({ profileId })
+}

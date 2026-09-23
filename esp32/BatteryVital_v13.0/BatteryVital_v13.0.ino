@@ -15,7 +15,7 @@
 unsigned long lastTelemetryTime = 0;
 unsigned long lastCommandPollTime = 0;
 unsigned long lastSensorTime = 0;
-SensorData cached;
+SensorData cached = {};
 bool hasCached = false;
 
 void setup() {

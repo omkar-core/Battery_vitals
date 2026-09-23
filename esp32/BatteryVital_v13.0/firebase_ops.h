@@ -10,8 +10,8 @@
 #include "selftest.h"
 
 static FirebaseData fbdo;
-static FirebaseAuth auth;
-static FirebaseConfig config;
+static FirebaseAuth fbAuth;
+static FirebaseConfig fbConfig;
 static bool autoMode = true;
 static String lastSafetyState = "UNKNOWN";
 static unsigned long lastWifiRetry = 0;
@@ -35,9 +35,9 @@ inline void initWiFiAndFirebase() {
     Serial.println(F("\nWiFi connection timed out. Proceeding in offline mode."));
   }
 
-  config.host = FIREBASE_HOST;
-  config.signer.tokens.legacy_token = FIREBASE_AUTH;
-  Firebase.begin(&config, &auth);
+  fbConfig.host = FIREBASE_HOST;
+  fbConfig.signer.tokens.legacy_token = FIREBASE_AUTH;
+  Firebase.begin(&fbConfig, &fbAuth);
   Firebase.reconnectWiFi(true);
 }
 
@@ -143,7 +143,7 @@ inline bool safetyTripActive() {
 // Generic profile intake: validates the webapp payload, then applies it as
 // the runtime limits. Rejects insane bands (never bricks the node).
 inline bool applyProfilePayload(JsonObject profile) {
-  ActiveProfile p;
+  ActiveProfile p = {};
   p.profileId = profile["profile_id"] | "UNSET";
   p.version = profile["config_version"] | 0;
   p.vMax = profile["voltage_max"] | -1.0f;

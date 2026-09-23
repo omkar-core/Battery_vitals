@@ -1,6 +1,13 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+} from 'firebase/auth'
+import { auth } from '../lib/firebase'
 import { ROLES, hasPermission, canControlHardware, canManageUsers, canManageAlerts } from '../lib/permissions'
 import { getAuthToken, setAuthToken, clearAuthToken, authHeaders } from '../lib/clientToken'
 
@@ -20,6 +27,7 @@ export function useAuth() {
   const [user, setUser] = useState(GUEST_USER)
   const [loading, setLoading] = useState(true)
   const [token, setToken] = useState('')
+  const [firebaseUser, setFirebaseUser] = useState(null)
 
   // Restore the session: prefer the live server (validates the token), falling
   // back to cached user data so the UI is not blank while offline.
@@ -53,8 +61,14 @@ export function useAuth() {
       if (!cancelled) setLoading(false)
     })()
 
+    // Listen to Firebase Auth state changes
+    const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
+      setFirebaseUser(fbUser)
+    })
+
     return () => {
       cancelled = true
+      unsubscribe()
     }
   }, [])
 
@@ -67,6 +81,14 @@ export function useAuth() {
 
   const login = useCallback(async (email, password) => {
     try {
+      // 1. Firebase Auth login (if enabled)
+      try {
+        await signInWithEmailAndPassword(auth, email, password)
+      } catch (fbErr) {
+        console.warn('Firebase auth login fallback to server:', fbErr.message)
+      }
+
+      // 2. Server session login
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -85,7 +107,38 @@ export function useAuth() {
     }
   }, [switchUser])
 
+  const signup = useCallback(async ({ name, email, password, role = 'viewer', title = 'Battery Specialist', department = 'Operations' }) => {
+    try {
+      // 1. Create account in Firebase Auth
+      try {
+        await createUserWithEmailAndPassword(auth, email, password)
+      } catch (fbErr) {
+        console.warn('Firebase auth signup fallback to server:', fbErr.message)
+      }
+
+      // 2. Register account on backend API
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password, role, title, department }),
+      })
+      const data = await res.json()
+      if (data.token && data.user) {
+        setAuthToken(data.token)
+        setToken(data.token)
+        switchUser(data.user)
+        return { success: true, user: data.user }
+      }
+      return { success: false, error: data.error?.message || data.error || 'Registration failed', status: res.status }
+    } catch (e) {
+      return { success: false, error: e.message }
+    }
+  }, [switchUser])
+
   const logout = useCallback(async () => {
+    try {
+      await signOut(auth)
+    } catch (e) {}
     try {
       await fetch('/api/auth/logout', { method: 'POST', headers: authHeaders() })
     } catch (e) {}
@@ -105,7 +158,9 @@ export function useAuth() {
     user,
     loading,
     token,
+    firebaseUser,
     role: user?.role || ROLES.VIEWER,
+    isAuthenticated: user?.id !== 'usr_view_03' && Boolean(token || firebaseUser),
     isAdmin: user?.role === ROLES.ADMIN,
     isOperator: user?.role === ROLES.OPERATOR,
     isViewer: user?.role === ROLES.VIEWER,
@@ -115,6 +170,7 @@ export function useAuth() {
     checkPerm,
     switchUser,
     login,
+    signup,
     logout,
   }
 }

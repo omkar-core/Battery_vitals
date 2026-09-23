@@ -1,49 +1,45 @@
 import { NextResponse } from 'next/server'
+import { guardAIRequest } from '../../../../lib/securityGuard'
 import { getDB } from '../../../../lib/mongodb'
-import { getAIResponse } from '../../../../lib/aiProvider'
-import { checkRateLimit, getClientIp } from '../../../../lib/rateLimit'
+import { callAIProvider } from '../../../../lib/aiProvider'
+import { logAIAuditRecord } from '../../../../lib/aiAudit'
 import { sanitizeString } from '../../../../lib/security'
-import { requirePermission } from '../../../../lib/auth'
-import { PERMISSIONS } from '../../../../lib/permissions'
 import { handleError } from '../../../../lib/errorHandler'
-import { AIExplainAlertSchema } from '../../../../lib/schemas'
-import { ValidationError } from '../../../../lib/errors'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request) {
+  const startTime = Date.now()
   try {
-    const ip = getClientIp(request)
-    const rateCheck = checkRateLimit(`ai_explain_alert_${ip}`, 30, 60000)
-    if (!rateCheck.success) {
-      return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
-    }
-
-    await requirePermission(request, PERMISSIONS.ACCESS_AI)
-
     const rawBody = await request.json().catch(() => ({}))
-    const parsed = AIExplainAlertSchema.safeParse(rawBody)
-    if (!parsed.success) {
-      const issue = parsed.error.issues[0]
-      throw new ValidationError(issue?.message || 'Invalid explain-alert payload', issue?.path?.join('.') || 'body')
+    const batteryId = sanitizeString(rawBody.batteryId || 'BAT001', 30)
+
+    const guard = await guardAIRequest(request, batteryId)
+    if (!guard.authorized) {
+      return NextResponse.json({ error: guard.error }, { status: guard.status })
     }
 
-    const { batteryId, alertId, alert } = parsed.data
-    const cleanId = sanitizeString(batteryId, 30)
+    const alert = rawBody.alert || {}
+    const field = alert.field || 'general'
+    const severity = (alert.severity || 'WARNING').toUpperCase()
+    const message = alert.message || 'Threshold violation detected'
+    const value = alert.value != null ? String(alert.value) : 'unknown'
+    const threshold = alert.threshold != null ? String(alert.threshold) : 'configured threshold'
+    const fingerprint = rawBody.fingerprint || `${guard.batteryId}_${field}_${severity}_${value}`
 
-    // Compute or extract fingerprint
-    const field = alert?.field || 'general'
-    const severity = (alert?.severity || 'WARNING').toUpperCase()
-    const message = alert?.message || 'Threshold violation detected'
-    const value = alert?.value != null ? String(alert.value) : 'unknown'
-    const threshold = alert?.threshold != null ? String(alert.threshold) : 'configured threshold'
-    const fingerprint = parsed.data.fingerprint || `${cleanId}_${field}_${severity}_${value}`
-
-    const db = await getDB()
-    // 1. Check persistent MongoDB cache
+    // 1. Check persistent DB cache (Section 11 requirement)
     try {
+      const db = await getDB()
       const cached = await db.collection('ai_alert_explanations').findOne({ fingerprint })
       if (cached) {
+        await logAIAuditRecord({
+          userId: guard.user.id,
+          batteryId: guard.batteryId,
+          endpoint: '/api/ai/explain-alert',
+          responseTimeMs: Date.now() - startTime,
+          cacheHit: true,
+        })
+
         return NextResponse.json({
           success: true,
           fingerprint,
@@ -51,84 +47,79 @@ export async function POST(request) {
           suggestedAction: cached.suggestedAction,
           severity: cached.severity || severity,
           cached: true,
-          provider: cached.provider || 'cached',
         })
       }
-    } catch (dbErr) {
-      console.warn('[AIAlertExplain] Mongo cache lookup failed:', dbErr.message)
+    } catch (e) {
+      console.warn('[explain-alert] Cache read failed:', e.message)
     }
 
-    const prompt = `A battery monitoring alert has triggered for Battery ${cleanId}:
+    const prompt = `A battery monitoring alert has triggered for Battery ${guard.batteryId}:
 - Parameter: ${field}
 - Severity: ${severity}
 - Message: ${message}
 - Measured Value: ${value}
 - Threshold: ${threshold}
 
-Provide a concise 1-2 sentence explanation of why this condition is hazardous, followed by a concrete suggested action for the technician or operator.
+Provide a concise 1-2 sentence explanation of why this condition is hazardous, followed by a concrete suggested action.
 Respond with JSON only:
 {
-  "explanation": "1-2 clear, informative sentences explaining the physical mechanism or danger.",
-  "suggestedAction": "Specific physical or operational step to mitigate."
+  "explanation": "1-2 clear, informative sentences.",
+  "suggestedAction": "Specific physical step to mitigate."
 }`
 
-    const aiRes = await getAIResponse(prompt, {
-      json: true,
-      safetyState: severity,
-      cacheKey: `alert_exp_${fingerprint}`,
-      fallbackFn: () => {
-        let expl = `Parameter ${field} triggered an active ${severity} alert.`
-        let act = 'Inspect telemetry and check pack connection.'
-        if (field === 'voltage') {
-          expl = `Measured voltage (${value}V) breached the safety operating window of ${threshold}V, risking cell overcharging or deep discharge.`
-          act = 'Disconnect load or charger immediately and inspect cell balance.'
-        } else if (field === 'temperature') {
-          expl = `Ambient sensor detected high temperature (${value}°C), which degrades battery chemistry and can lead to thermal excursion.`
-          act = 'Power off device, improve ventilation, and allow the pack to cool.'
-        } else if (field === 'mq2' || field === 'gas') {
-          expl = `Combustible gas/smoke sensor detected elevated levels (${value} ADC), suggesting potential venting or nearby thermal hazard.`
-          act = 'Evacuate battery station and check for swelling or off-gassing.'
-        }
-        return { explanation: expl, suggestedAction: act }
-      },
+    const aiResText = await callAIProvider({
+      taskType: 'chat',
+      prompt,
+      systemInstruction: 'Output valid JSON strictly matching requested format.',
     })
 
-    const parsedData = aiRes.parsed || {}
-    const explanation = parsedData.explanation || `The ${field} level breached safe operating limits.`
-    const suggestedAction = parsedData.suggestedAction || 'Verify hardware connections and review operating limits.'
-
-    // Persist to MongoDB cache
+    let parsedData = {}
     try {
+      parsedData = JSON.parse(aiResText.replace(/```json|```/g, '').trim())
+    } catch (e) {
+      parsedData = {
+        explanation: `Parameter ${field} breached safe limits (${value} vs threshold ${threshold}).`,
+        suggestedAction: 'Inspect battery hardware and check connection cables.',
+      }
+    }
+
+    const resultDoc = {
+      fingerprint,
+      userId: guard.user.id,
+      batteryId: guard.batteryId,
+      explanation: parsedData.explanation,
+      suggestedAction: parsedData.suggestedAction,
+      severity,
+      createdAt: new Date().toISOString(),
+    }
+
+    // Persist to DB
+    try {
+      const db = await getDB()
       await db.collection('ai_alert_explanations').updateOne(
         { fingerprint },
-        {
-          $set: {
-            fingerprint,
-            batteryId: cleanId,
-            field,
-            severity,
-            explanation,
-            suggestedAction,
-            provider: aiRes.provider,
-            model: aiRes.model,
-            createdAt: new Date(),
-          },
-        },
+        { $set: resultDoc },
         { upsert: true }
       )
-    } catch (saveErr) {
-      console.warn('[AIAlertExplain] Cache save failed:', saveErr.message)
+    } catch (e) {
+      console.warn('[explain-alert] Cache write failed:', e.message)
     }
+
+    await logAIAuditRecord({
+      userId: guard.user.id,
+      batteryId: guard.batteryId,
+      endpoint: '/api/ai/explain-alert',
+      responseTimeMs: Date.now() - startTime,
+      cacheHit: false,
+    })
 
     return NextResponse.json({
       success: true,
       fingerprint,
-      explanation,
-      suggestedAction,
+      explanation: parsedData.explanation,
+      suggestedAction: parsedData.suggestedAction,
       severity,
       cached: false,
-      provider: aiRes.provider,
-      model: aiRes.model,
     })
   } catch (error) {
     return handleError(error, request)

@@ -1,122 +1,92 @@
 import { NextResponse } from 'next/server'
-import { getDB } from '../../../../lib/mongodb'
-import { getAIResponse } from '../../../../lib/aiProvider'
-import { checkRateLimit, getClientIp } from '../../../../lib/rateLimit'
-import { requirePermission } from '../../../../lib/auth'
-import { PERMISSIONS } from '../../../../lib/permissions'
+import { getSessionUser } from '../../../../lib/auth'
+import { getUserBatteries } from '../../../../lib/batteryRegistry'
+import { callAIProvider } from '../../../../lib/aiProvider'
+import { logAIAuditRecord } from '../../../../lib/aiAudit'
 import { handleError } from '../../../../lib/errorHandler'
-import { AIFleetSummarySchema } from '../../../../lib/schemas'
-import { ValidationError } from '../../../../lib/errors'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request) {
+  const startTime = Date.now()
   try {
-    const ip = getClientIp(request)
-    const rateCheck = checkRateLimit(`ai_fleet_${ip}`, 15, 60000)
-    if (!rateCheck.success) {
-      return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
-    }
+    const user = await getSessionUser(request)
 
-    await requirePermission(request, PERMISSIONS.ACCESS_AI)
+    // User-specific fleet intelligence: load batteries ONLY belonging to this user
+    const userBatteries = await getUserBatteries(user.id)
 
-    const rawBody = await request.json().catch(() => ({}))
-    const parsed = AIFleetSummarySchema.safeParse(rawBody)
-    if (!parsed.success) {
-      const issue = parsed.error.issues[0]
-      throw new ValidationError(issue?.message || 'Invalid fleet summary payload', issue?.path?.join('.') || 'body')
-    }
-
-    const db = await getDB()
-    let devices = []
-    try {
-      devices = await db.collection('devices').find({}).toArray()
-    } catch (e) {
-      console.warn('[AIFleetSummary] DB devices fetch failed:', e.message)
-    }
-
-    // Also check live data for each device
-    const packSummaries = []
     let safeCount = 0
     let warningCount = 0
     let criticalCount = 0
 
-    for (const dev of devices) {
-      const id = dev.deviceId
-      let live = null
-      try {
-        live = await db.collection('live_data').findOne({ batteryId: id })
-      } catch (e) {}
-
-      const b = live?.battery || live || {}
-      const state = String(live?.safety?.state || b.safety || 'SAFE').toUpperCase()
-      const soh = b.soh != null ? Number(b.soh) : 100
-      const voltage = b.voltage != null ? Number(b.voltage) : null
-      const temp = live?.environment?.temperature ?? live?.temperature ?? null
-
+    const fleetOverview = userBatteries.map((b) => {
+      const state = b.state || 'SAFE'
       if (state === 'CRITICAL' || state === 'EMERGENCY') criticalCount++
       else if (state === 'WARNING' || state === 'CAUTION') warningCount++
       else safeCount++
 
-      packSummaries.push({
-        deviceId: id,
-        name: dev.name || id,
+      return {
+        batteryId: b.batteryId,
+        name: b.name,
+        chemistry: b.chemistry,
         state,
-        soh,
-        voltage,
-        temperature: temp,
-        activeProfileId: dev.activeProfileId || 'Default',
-      })
-    }
+        soh: b.soh || 89,
+      }
+    })
 
-    const totalPacks = packSummaries.length
+    const totalPacks = userBatteries.length
 
-    const prompt = `Synthesize an executive fleet health summary for an EV / ESS Fleet Operator:
-Total Connected Packs: ${totalPacks}
+    const prompt = `Synthesize an executive fleet health summary for User ${user.name} (${user.email}):
+Total User Owned Packs: ${totalPacks}
 Status Breakdown:
-- Optimal / Safe: ${safeCount}
-- Caution / Warning: ${warningCount}
-- Critical / Hazard: ${criticalCount}
+- Safe: ${safeCount}
+- Warning: ${warningCount}
+- Critical: ${criticalCount}
 
-Fleet Pack Details:
-${JSON.stringify(packSummaries.slice(0, 15), null, 2)}
+Packs Overview:
+${JSON.stringify(fleetOverview, null, 2)}
 
-Provide a concise fleet-wide operational narrative highlighting which packs need priority inspection and fleet trends.
-Respond with JSON only:
+Respond with structured JSON strictly matching:
 {
-  "fleetHeadline": "Short summary title like '3 of 12 packs show elevated thermal load'",
-  "fleetNarrative": "1-2 paragraphs summarizing cross-fleet trends and operational posture.",
+  "fleetHeadline": "Short summary title",
+  "fleetNarrative": "Clear explanation of user fleet posture.",
   "topPriorityActions": ["Action 1", "Action 2"]
 }`
 
-    const aiRes = await getAIResponse(prompt, {
-      json: true,
-      cacheKey: `fleet_summary_${totalPacks}_${criticalCount}`,
-      fallbackFn: () => ({
-        fleetHeadline: `${safeCount} of ${totalPacks} battery packs operating optimally`,
-        fleetNarrative: `The fleet currently comprises ${totalPacks} monitored battery units. ${safeCount} packs are operating within standard safety limits, ${warningCount} are in caution status, and ${criticalCount} require immediate engineering review.`,
-        topPriorityActions: [
-          criticalCount > 0 ? 'Prioritize inspection of packs reporting critical trip status.' : 'Continue routine daily fleet telemetry checks.',
-          'Verify temperature balance across parallel charge stations.',
-        ],
-      }),
+    const responseText = await callAIProvider({
+      taskType: 'report',
+      prompt,
+      systemInstruction: 'Output valid JSON strictly adhering to requested schema.',
     })
 
-    const parsedData = aiRes.parsed || {}
+    let result = null
+    try {
+      result = JSON.parse(responseText.replace(/```json|```/g, '').trim())
+    } catch (e) {
+      result = {
+        fleetHeadline: `${safeCount} of ${totalPacks} battery packs operating normally`,
+        fleetNarrative: `Your personal fleet comprises ${totalPacks} battery units. ${safeCount} packs are healthy, ${warningCount} require monitoring, and ${criticalCount} require immediate attention.`,
+        topPriorityActions: [
+          criticalCount > 0 ? 'Inspect critical packs immediately' : 'Perform routine charge balancing',
+        ],
+      }
+    }
+
+    await logAIAuditRecord({
+      userId: user.id,
+      batteryId: userBatteries[0]?.batteryId || 'BAT001',
+      endpoint: '/api/ai/fleet-summary',
+      responseTimeMs: Date.now() - startTime,
+    })
 
     return NextResponse.json({
       success: true,
+      userId: user.id,
       totalPacks,
       safeCount,
       warningCount,
       criticalCount,
-      fleetHeadline: parsedData.fleetHeadline || 'Fleet Telemetry Overview',
-      fleetNarrative: parsedData.fleetNarrative || 'Fleet status compiled.',
-      topPriorityActions: parsedData.topPriorityActions || [],
-      packs: packSummaries,
-      provider: aiRes.provider,
-      model: aiRes.model,
-      timestamp: Date.now(),
+      summary: result,
     })
   } catch (error) {
     return handleError(error, request)

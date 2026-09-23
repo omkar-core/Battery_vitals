@@ -14,16 +14,16 @@
 // ============================================================================
 
 struct SelfTestResults {
-  bool ina_ack;
-  bool dht_ok;
-  bool mq2_ok;
-  bool mq135_ok;
-  bool gpio_ok;
-  bool buzzer_ok;
-  bool wifi_ok;
-  bool config_ok;
-  bool passed;
-  char summary[96];
+  bool ina_ack = false;
+  bool dht_ok = false;
+  bool mq2_ok = false;
+  bool mq135_ok = false;
+  bool gpio_ok = false;
+  bool buzzer_ok = false;
+  bool wifi_ok = false;
+  bool config_ok = false;
+  bool passed = false;
+  char summary[96] = {0};
 };
 
 static SelfTestResults g_selfTest = {
@@ -32,7 +32,7 @@ static SelfTestResults g_selfTest = {
 
 inline SelfTestResults runHardwareSelfTest() {
   Serial.println(F("[SelfTest] Starting Layer 0 Hardware Self-Test Sequence..."));
-  SelfTestResults res;
+  SelfTestResults res = {};
   res.passed = true;
 
   // 1. INA219 I2C ACK check

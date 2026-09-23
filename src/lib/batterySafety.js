@@ -465,3 +465,25 @@ export function telemetrySnapshot(clean = {}) {
   for (const k of keys) out[k] = clean[k] != null ? clean[k] : null
   return out
 }
+
+export function evaluateBatterySafety(telemetry, profile) {
+  const { clean } = validateTelemetry(telemetry || {})
+  const config = profile?.voltage ? {
+    voltage: {
+      warnLow: profile.voltage.normalMin,
+      critLow: profile.voltage.warningLow,
+      emergLow: profile.voltage.minOperating,
+      warnHigh: profile.voltage.normalMax,
+      critHigh: profile.voltage.warningHigh,
+    },
+    current: {
+      chargeMax: profile.current?.maxCharge,
+      dischargeMax: profile.current?.maxDischarge,
+    },
+    thermal: {
+      warn: profile.temperature?.dischargeMax ? profile.temperature.dischargeMax - 20 : undefined,
+      crit: profile.temperature?.dischargeMax ? profile.temperature.dischargeMax - 15 : undefined,
+    },
+  } : {}
+  return computeSafety(clean, config)
+}

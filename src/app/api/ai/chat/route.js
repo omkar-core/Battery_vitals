@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server'
-import { getDB } from '../../../../lib/mongodb'
-import { chatWithContext, streamChatWithContext } from '../../../../lib/gemini'
-import { loadAiContext, ensureAiIndexes, CHAT_COLLECTION } from '../../../../lib/aiDb'
-import { checkRateLimit, getClientIp } from '../../../../lib/rateLimit'
+import { guardAIRequest } from '../../../../lib/securityGuard'
+import { buildAIContext, formatAIContextPrompt } from '../../../../lib/aiContext'
+import { callAIProvider } from '../../../../lib/aiProvider'
+import { logAIAuditRecord } from '../../../../lib/aiAudit'
+import { appendMessage } from '../../../../lib/conversations'
 import { sanitizeString } from '../../../../lib/security'
-import { requirePermission } from '../../../../lib/auth'
-import { PERMISSIONS } from '../../../../lib/permissions'
 import { handleError } from '../../../../lib/errorHandler'
 
 export const dynamic = 'force-dynamic'
@@ -14,156 +13,85 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 204 })
 }
 
-const streamHeaders = {
-  'Content-Type': 'text/event-stream',
-  'Cache-Control': 'no-cache, no-transform',
-  Connection: 'keep-alive',
-  'X-Accel-Buffering': 'no',
-}
-
-// GET -> per-battery chat history (for the assistant UI).
 export async function GET(request) {
   try {
-    const ip = getClientIp(request)
-    const rateCheck = checkRateLimit(`ai_chat_get_${ip}`, 60, 60000)
-    if (!rateCheck.success) {
-      return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
-    }
-
     const { searchParams } = new URL(request.url)
     const batteryId = sanitizeString(searchParams.get('batteryId') || 'BAT001', 30)
-    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '50', 10)))
 
-    let messages = []
-    try {
-      const db = await getDB()
-      await ensureAiIndexes()
-      messages = await db
-        .collection(CHAT_COLLECTION)
-        .find({ batteryId })
-        .sort({ createdAt: 1 })
-        .limit(limit)
-        .toArray()
-    } catch (dbErr) {
-      console.warn('[BatteryAI] chat history query failed:', dbErr.message)
+    const guard = await guardAIRequest(request, batteryId)
+    if (!guard.authorized) {
+      return NextResponse.json({ error: guard.error }, { status: guard.status })
     }
 
+    const aiContext = await buildAIContext({ userId: guard.user.id, batteryId: guard.batteryId })
     return NextResponse.json({
       success: true,
-      count: messages.length,
-      messages: messages.map((m) => ({
-        role: m.role,
-        content: m.content,
-        source: m.source || null,
-        createdAt: m.createdAt ? new Date(m.createdAt).getTime() : null,
-      })),
+      batteryId: guard.batteryId,
+      aiContext,
     })
   } catch (error) {
     return handleError(error, request)
   }
 }
 
-// POST -> ask the assistant. Streams SSE when body.stream is true.
 export async function POST(request) {
+  const startTime = Date.now()
   try {
-    const ip = getClientIp(request)
-    const rateCheck = checkRateLimit(`ai_chat_post_${ip}`, 10, 60000)
-    if (!rateCheck.success) {
-      return NextResponse.json({ error: 'AI chat rate limit exceeded. Please wait a moment.' }, { status: 429 })
-    }
-
-    await requirePermission(request, PERMISSIONS.ACCESS_AI)
-
     const body = await request.json().catch(() => ({}))
     const batteryId = sanitizeString(body.batteryId || 'BAT001', 30)
-    const question = sanitizeString(body.question || body.message || '', 1000)
+    const question = sanitizeString(body.question || body.message || '', 2000)
+    const conversationId = body.conversationId || null
+
     if (!question) {
       return NextResponse.json({ error: 'Missing question or message' }, { status: 400 })
     }
-    const stream = body.stream === true
 
-    const { latest, history, alerts } = await loadAiContext(batteryId)
-
-    // Load recent diagnostics so the assistant can reference past analyses.
-    let recentDiagnostics = []
-    try {
-      const db = await getDB()
-      await ensureAiIndexes()
-      recentDiagnostics = await db
-        .collection('ai_diagnostics')
-        .find({ batteryId })
-        .sort({ createdAt: -1 })
-        .limit(3)
-        .toArray()
-      recentDiagnostics = recentDiagnostics.map((d) => d.result)
-    } catch (e) { /* history is optional */ }
-
-    const saveMessage = async (role, content, source) => {
-      try {
-        const db = await getDB()
-        await db.collection(CHAT_COLLECTION).insertOne({ batteryId, role, content: sanitizeString(content, 4000), source: source || null, createdAt: new Date() })
-      } catch (e) {
-        console.warn('[BatteryAI] chat persistence failed:', e.message)
-      }
+    const guard = await guardAIRequest(request, batteryId)
+    if (!guard.authorized) {
+      return NextResponse.json({ error: guard.error }, { status: guard.status })
     }
 
-    await saveMessage('user', question, null)
+    const aiContext = await buildAIContext({ userId: guard.user.id, batteryId: guard.batteryId })
+    const contextPrompt = formatAIContextPrompt(aiContext)
 
-    const context = { question, telemetry: latest || {}, history, recentDiagnostics, alerts }
+    const prompt = `${contextPrompt}
 
-    if (stream) {
-      const encoder = new TextEncoder()
-      const readable = new ReadableStream({
-        async start(controller) {
-          let full = ''
-          let source = 'gemini'
-          try {
-            for await (const chunk of streamChatWithContext(context)) {
-              full += chunk
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: chunk })}\n\n`))
-            }
-          } catch (e) {
-            console.warn('[BatteryAI] chat SSE error:', e.message)
-            source = 'rule-based-fallback'
-          }
-          if (full) await saveMessage('assistant', full, source)
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`))
-          controller.close()
-        },
-      })
-      return new Response(readable, { headers: streamHeaders })
+USER QUERY:
+"${question}"`
+
+    // Call AI provider with prompt injection defense & safety engine grounding
+    const answer = await callAIProvider({
+      taskType: 'chat',
+      prompt,
+    })
+
+    // Store in multi-session conversation if conversationId is provided
+    if (conversationId) {
+      await appendMessage(conversationId, guard.user.id, 'user', question).catch(() => {})
+      await appendMessage(conversationId, guard.user.id, 'assistant', answer).catch(() => {})
     }
 
-    const outcome = await chatWithContext(context)
-    await saveMessage('assistant', outcome.reply, outcome.source)
-
-    // If query relates to trend/voltage/thermal, prepare inline mini sparkline dataset
-    let sparkline = null
-    const qLower = question.toLowerCase()
-    const isTrendQuery = ['trend', 'voltage', 'temp', 'temperature', 'graph', 'week', 'dip', 'spike', 'history', 'health'].some((k) => qLower.includes(k))
-    if (isTrendQuery && Array.isArray(history) && history.length > 0) {
-      const step = Math.max(1, Math.floor(history.length / 12))
-      sparkline = []
-      for (let idx = history.length - 1; idx >= 0; idx -= step) {
-        const h = history[idx]
-        sparkline.push({
-          v: Number(h.voltage ?? h.battery?.voltage ?? 0),
-          t: Number(h.temperature ?? h.environment?.temperature ?? 0),
-          ts: new Date(h.timestamp || h.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        })
-      }
-    }
+    await logAIAuditRecord({
+      userId: guard.user.id,
+      batteryId: guard.batteryId,
+      endpoint: '/api/ai/chat',
+      conversationId,
+      responseTimeMs: Date.now() - startTime,
+      deterministicSafetyState: aiContext.deterministicSafetyState.statusLabel,
+    })
 
     return NextResponse.json({
       success: true,
-      reply: outcome.reply,
-      source: outcome.source,
-      model: outcome.model,
-      sparkline,
-      timestamp: new Date().toISOString(),
+      answer,
+      response: answer,
+      batteryId: guard.batteryId,
+      aiContext: {
+        safetyState: aiContext.deterministicSafetyState.statusLabel,
+        sensorConfidence: aiContext.sensorConfidence.overallConfidence,
+        currentSOH: aiContext.currentTelemetry.soh,
+      },
     })
   } catch (error) {
-    console.error('[BatteryAI] chat route error:', error)
     return handleError(error, request)
   }
 }

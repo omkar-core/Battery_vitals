@@ -559,3 +559,8 @@ export async function getAIResponse(prompt, options = {}) {
     inFlightRequests.delete(dedupKey)
   }
 }
+
+export async function callAIProvider({ taskType = 'chat', prompt, systemInstruction = BASE_SYSTEM_INSTRUCTION }) {
+  const res = await getAIResponse(prompt, { task: taskType, system: systemInstruction })
+  return res.raw || res.text || (typeof res.parsed === 'object' ? JSON.stringify(res.parsed) : '')
+}

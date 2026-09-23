@@ -37,16 +37,16 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version: '22'
           cache: npm
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Run ESP32 payload test suite
         run: npx vitest run src/lib/esp32Payload.test.js
@@ -58,7 +58,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Arduino CLI
         uses: arduino/setup-arduino-cli@v1
@@ -72,6 +72,7 @@ jobs:
 
       - name: Install Required Arduino Libraries
         run: |
+          arduino-cli lib update-index
           arduino-cli lib install "Adafruit INA219"@1.2.2
           arduino-cli lib install "DHT sensor library"@1.4.6
           arduino-cli lib install "Adafruit Unified Sensor"@1.1.14
@@ -81,7 +82,7 @@ jobs:
       - name: Compile BatteryVital_v13.0 Sketch
         run: |
           arduino-cli compile \
-            --fqbn esp32:esp32:esp32:FlashFreq=80,FlashSize=4M \
+            --fqbn esp32:esp32:esp32 \
             --output-dir ./build_output \
             esp32/BatteryVital_v13.0/BatteryVital_v13.0.ino
 
@@ -100,7 +101,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install cppcheck
         run: sudo apt-get update && sudo apt-get install -y cppcheck
@@ -108,7 +109,7 @@ jobs:
       - name: Run cppcheck on ESP32 codebase
         run: |
           cppcheck --enable=warning,style,performance,portability \
-            --suppress=missingIncludeSystem \
-            --error-exitcode=0 \
+            --suppressions-list=cppcheck-suppressions.txt \
+            --inline-suppr \
             --language=c++ \
-            esp32/
+            esp32/BatteryVital_v13.0/

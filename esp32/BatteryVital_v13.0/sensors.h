@@ -12,69 +12,69 @@ static DHT dht(DHT_PIN, DHT_TYPE);
 
 struct SensorData {
   // Battery metrics (INA219)
-  float busVoltage;       // Volts (V)
-  float shuntVoltage;     // Volts (V)
-  float loadVoltage;      // Volts (V)
-  float current;          // Amperes (A), + = discharge, - = charge
-  float power;            // Watts (W)
-  float soc;              // State of charge (%, coulomb + OCV correction)
-  float soh;              // State of health (%, from live Rint)
-  bool sohValid;          // True only after a genuine load step
-  float bhi;              // Battery hazard index 0 (best) .. 100 (fail)
-  float resistance;       // Dynamic internal resistance (mOhm, -1 = calibrating)
-  float dV_dt;            // Voltage slope (V/min)
-  float dT_dt;            // Temperature slope (°C/min)
-  float energyWh;         // Cumulative energy throughput (Wh)
-  float cycles;           // Equivalent full cycles
-  uint32_t errors;        // Bit0 INA fail, Bit1 DHT fail
+  float busVoltage = 0.0f;       // Volts (V)
+  float shuntVoltage = 0.0f;     // Volts (V)
+  float loadVoltage = 0.0f;      // Volts (V)
+  float current = 0.0f;          // Amperes (A), + = discharge, - = charge
+  float power = 0.0f;            // Watts (W)
+  float soc = 0.0f;              // State of charge (%, coulomb + OCV correction)
+  float soh = 100.0f;            // State of health (%, from live Rint)
+  bool sohValid = false;         // True only after a genuine load step
+  float bhi = 0.0f;              // Battery hazard index 0 (best) .. 100 (fail)
+  float resistance = -1.0f;      // Dynamic internal resistance (mOhm, -1 = calibrating)
+  float dV_dt = 0.0f;            // Voltage slope (V/min)
+  float dT_dt = 0.0f;            // Temperature slope (°C/min)
+  float energyWh = 0.0f;         // Cumulative energy throughput (Wh)
+  float cycles = 0.0f;           // Equivalent full cycles
+  uint32_t errors = 0;           // Bit0 INA fail, Bit1 DHT fail
 
   // Environmental metrics
-  float temperature;      // Celsius (°C)
-  float humidity;         // Relative Humidity (%)
-  float mq2;              // MQ-2 scaled ADC (0..10000)
-  float mq135;            // MQ-135 scaled ADC (0..1000)
-  int aqi;                // Calculated Air Quality Index
-  bool gasWarm;           // MQ heater stabilised
+  float temperature = 25.0f;     // Celsius (°C)
+  float humidity = 50.0f;        // Relative Humidity (%)
+  float mq2 = 0.0f;              // MQ-2 scaled ADC (0..10000)
+  float mq135 = 0.0f;            // MQ-135 scaled ADC (0..1000)
+  int aqi = 0;                   // Calculated Air Quality Index
+  bool gasWarm = false;          // MQ heater stabilised
 
   // System status
-  String safetyState;     // SAFE/CAUTION/WARNING/CRITICAL/EMERGENCY/UNKNOWN/UNKNOWN_BATTERY/PROFILE_MISMATCH
-  String op;              // CHARGE/DISCHARGE/IDLE
-  String profileId;       // Active profile id (UNSET = configuration required)
-  int profileVersion;     // Active profile config version
-  bool inaConnected;
-  bool dhtConnected;
+  String safetyState = "UNKNOWN"; // SAFE/CAUTION/WARNING/CRITICAL/EMERGENCY/UNKNOWN/UNKNOWN_BATTERY/PROFILE_MISMATCH
+  String op = "IDLE";            // CHARGE/DISCHARGE/IDLE
+  String profileId = "UNSET";    // Active profile id (UNSET = configuration required)
+  int profileVersion = 0;        // Active profile config version
+  bool inaConnected = false;
+  bool dhtConnected = false;
 
   // Layer 18: Calibration & Baseline Drift Tracking
-  float zeroOffsetMA;     // Zero-current offset in mA
-  unsigned long calTime;  // Last calibration timestamp
-  float mq2Baseline;      // Post-warmup clean air baseline ADC
-  float mq135Baseline;    // Post-warmup clean air baseline ADC
+  float zeroOffsetMA = 0.0f;     // Zero-current offset in mA
+  unsigned long calTime = 0;     // Last calibration timestamp
+  float mq2Baseline = 0.0f;      // Post-warmup clean air baseline ADC
+  float mq135Baseline = 0.0f;    // Post-warmup clean air baseline ADC
 
   // Layer 19: Sensor Confidence (HIGH / MEDIUM / LOW)
-  String inaConfidence;
-  String dhtConfidence;
-  String mqConfidence;
+  String inaConfidence = "LOW";
+  String dhtConfidence = "LOW";
+  String mqConfidence = "LOW";
 };
 
 // ── Generic runtime profile (webapp deploys; firmware never guesses chemistry)
 // Logic below compares measured vs activeProfile limits only — no
 // `if battery == 12V` branches anywhere.
 struct ActiveProfile {
-  bool valid;             // false = UNKNOWN_BATTERY, configuration required
-  String profileId;
-  int version;
-  float vMin;             // minOperating
-  float vWarnLow;
-  float vNormMin;
-  float vNormMax;
-  float vWarnHigh;
-  float vMax;             // maxAllowed
-  float chargeMaxA;
-  float dischargeMaxA;
-  float tempChargeMax;
-  float tempDischargeMax;
-  float nominalV;
-  float capacityAh;
+  bool valid = false;            // false = UNKNOWN_BATTERY, configuration required
+  String profileId = "UNSET";
+  int version = 0;
+  float vMin = 0.0f;             // minOperating
+  float vWarnLow = 0.0f;
+  float vNormMin = 0.0f;
+  float vNormMax = 0.0f;
+  float vWarnHigh = 0.0f;
+  float vMax = 0.0f;             // maxAllowed
+  float chargeMaxA = 0.0f;
+  float dischargeMaxA = 0.0f;
+  float tempChargeMax = 0.0f;
+  float tempDischargeMax = 0.0f;
+  float nominalV = 0.0f;
+  float capacityAh = 0.0f;
 };
 
 // Generic fallback (explicit fallback, NOT identification): 12V-class band so
@@ -185,8 +185,9 @@ inline int calculateAQI(float mq135Val) {
   return (int)(200 + (mq135Val - 500.0f) * 0.3f);
 }
 
-inline float avgBuf(float *buf, int n) {
-  float s = 0;
+inline float avgBuf(const float *buf, int n) {
+  if (buf == nullptr || n <= 0) return 0.0f;
+  float s = 0.0f;
   for (int k = 0; k < n; k++) s += buf[k];
   return s / (float)n;
 }
@@ -288,7 +289,7 @@ inline String evaluateSafety(float v, float i, float p, float t, float mq2, floa
 }
 
 inline SensorData readAllSensors() {
-  SensorData data;
+  SensorData data = {};
   unsigned long now = millis();
 
   // 1. Read INA219 (with Layer 18 zero-current offset subtraction)
@@ -317,11 +318,15 @@ inline SensorData readAllSensors() {
   // 3. Gas sensors: 10-sample rolling average + warmup flag
   int mq2Raw = analogRead(MQ2_PIN);
   int mq135Raw = analogRead(MQ135_PIN);
-  s_mq2Buf[s_gasIdx % GAS_SAMPLES] = (float)mq2Raw;
-  s_mq135Buf[s_gasIdx % GAS_SAMPLES] = (float)mq135Raw;
+  int idx = (s_gasIdx >= 0) ? (s_gasIdx % GAS_SAMPLES) : 0;
+  s_mq2Buf[idx] = (float)mq2Raw;
+  s_mq135Buf[idx] = (float)mq135Raw;
   s_gasIdx++;
-  if (s_gasIdx >= GAS_SAMPLES) s_gasBufFull = true;
-  int win = s_gasBufFull ? GAS_SAMPLES : s_gasIdx;
+  if (s_gasIdx >= GAS_SAMPLES) {
+    s_gasBufFull = true;
+    s_gasIdx = 0;
+  }
+  int win = s_gasBufFull ? GAS_SAMPLES : (s_gasIdx > 0 ? s_gasIdx : 1);
   data.mq2 = avgBuf(s_mq2Buf, win) * (10000.0f / 4095.0f);
   data.mq135 = avgBuf(s_mq135Buf, win) * (1000.0f / 4095.0f);
   data.aqi = calculateAQI(data.mq135);
