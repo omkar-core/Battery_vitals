@@ -314,3 +314,90 @@ export function checkProfileInconsistency(measuredVoltage, nominalVoltage, toler
   }
 }
 
+/**
+ * Bootstrap numeric confidence interval for State of Health (SOH%).
+ * Resamples recent capacity and resistance measurements to quantify SOH uncertainty
+ * with P10/P50/P90 bounds alongside categorical label.
+ */
+export function estimateSohConfidenceInterval(history = [], nominalAh = PACK.nominalAh, iterations = 100) {
+  const rows = Array.isArray(history) ? history : []
+  const sohValues = []
+
+  for (const r of rows) {
+    // 1. Direct SOH if reported
+    const s = finite(r.soh ?? r.battery?.soh)
+    if (s != null && s > 0 && s <= 110) {
+      sohValues.push(s)
+      continue
+    }
+
+    // 2. Capacity-derived SOH
+    const cap = finite(r.capacityAh ?? r.capacity ?? r.battery?.capacityAh)
+    if (cap != null && cap > 0 && nominalAh > 0) {
+      sohValues.push(clamp((cap / nominalAh) * 100, 10, 110))
+      continue
+    }
+
+    // 3. Resistance-derived proxy SOH (nominal ~60mΩ; 120mΩ represents 80% SOH)
+    const res = finite(r.resistanceMohm ?? r.resistance ?? r.battery?.resistance)
+    if (res != null && res > 20) {
+      const estimatedFade = Math.min(30, Math.max(0, (res - 60) * 0.33))
+      sohValues.push(clamp(100 - estimatedFade, 60, 100))
+    }
+  }
+
+  if (sohValues.length === 0) {
+    return {
+      p10: 95.0,
+      p50: 98.0,
+      p90: 100.0,
+      marginPct: 2.5,
+      sampleCount: 0,
+      categoricalLabel: 'ESTIMATED',
+    }
+  }
+
+  if (sohValues.length === 1) {
+    const single = Math.round(sohValues[0] * 10) / 10
+    return {
+      p10: Math.max(0, single - 3.0),
+      p50: single,
+      p90: Math.min(100, single + 2.0),
+      marginPct: 2.5,
+      sampleCount: 1,
+      categoricalLabel: 'LOW',
+    }
+  }
+
+  // Bootstrap resampling
+  const resamples = []
+  for (let i = 0; i < iterations; i++) {
+    let sum = 0
+    for (let j = 0; j < sohValues.length; j++) {
+      const idx = Math.floor(Math.random() * sohValues.length)
+      sum += sohValues[idx]
+    }
+    resamples.push(sum / sohValues.length)
+  }
+
+  resamples.sort((a, b) => a - b)
+
+  const getP = (p) => resamples[Math.min(resamples.length - 1, Math.max(0, Math.floor(p * resamples.length)))]
+  const p10 = Math.round(getP(0.1) * 10) / 10
+  const p50 = Math.round(getP(0.5) * 10) / 10
+  const p90 = Math.round(getP(0.9) * 10) / 10
+  const marginPct = Math.round(((p90 - p10) / 2) * 10) / 10
+
+  const spread = p90 - p10
+  const categoricalLabel = spread <= 2.5 ? 'HIGH' : spread <= 5.0 ? 'MEDIUM' : 'LOW'
+
+  return {
+    p10,
+    p50,
+    p90,
+    marginPct,
+    sampleCount: sohValues.length,
+    categoricalLabel,
+  }
+}
+

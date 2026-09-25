@@ -31,6 +31,8 @@ const PRIMARY_MOBILE = [
 ]
 
 const MORE_NAV = [
+  { key: '/demo', label: 'Guided Tour (Demo)', icon: Zap },
+  { key: '/validation', label: 'Benchmark Validation', icon: Cpu },
   { key: '/analytics', label: 'Live Graphs', icon: Activity },
   { key: '/controls', label: 'Actuator Controls', icon: SlidersHorizontal },
   { key: '/diagnostics', label: 'Diagnostics', icon: Cpu },

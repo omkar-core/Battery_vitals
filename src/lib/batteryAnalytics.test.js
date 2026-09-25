@@ -136,5 +136,23 @@ describe('batteryAnalytics — Layer 8 Diagnostics (Sag, Oscillation, Inconsiste
     const normal = checkProfileInconsistency(13.1, 12.8);
     expect(normal.inconsistent).toBe(false);
   });
+
+  it('computes bootstrap numeric confidence interval for SOH (P10/P50/P90)', async () => {
+    const { estimateSohConfidenceInterval } = await import('./batteryAnalytics');
+    const history = [
+      { soh: 96.5, resistance: 64 },
+      { soh: 96.0, resistance: 65 },
+      { soh: 95.8, resistance: 66 },
+      { soh: 96.2, resistance: 64 },
+    ];
+    const ci = estimateSohConfidenceInterval(history, 7.0, 50);
+    expect(ci.p10).toBeDefined();
+    expect(ci.p50).toBeDefined();
+    expect(ci.p90).toBeDefined();
+    expect(ci.p10).toBeLessThanOrEqual(ci.p50);
+    expect(ci.p50).toBeLessThanOrEqual(ci.p90);
+    expect(ci.sampleCount).toBe(4);
+    expect(['HIGH', 'MEDIUM', 'LOW']).toContain(ci.categoricalLabel);
+  });
 });
 

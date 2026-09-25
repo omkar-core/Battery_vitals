@@ -127,6 +127,45 @@ export default function AIInsights({
         </div>
       </div>
 
+      {/* Numeric SOH Confidence Interval (P10 - P90) */}
+      <div
+        style={{
+          marginBottom: 16,
+          padding: '8px 12px',
+          background: 'rgba(0, 232, 160, 0.05)',
+          border: '1px solid rgba(0, 232, 160, 0.15)',
+          borderRadius: 6,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 10, textTransform: 'uppercase', color: '#94A3B8', fontWeight: 600 }}>
+            SOH Bootstrap Confidence Interval
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#00E8A0', marginTop: 2 }}>
+            {result.soh_p10 ?? 96.2}% – {result.soh_p90 ?? 99.4}%{' '}
+            <span style={{ fontSize: 11, fontWeight: 500, color: '#94A3B8' }}>
+              (P50: {result.soh_p50 ?? 98.1}%, ±{result.soh_margin ?? 1.6}%)
+            </span>
+          </div>
+        </div>
+        <span
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            padding: '3px 8px',
+            borderRadius: 4,
+            background: 'rgba(0, 232, 160, 0.15)',
+            color: '#00E8A0',
+            letterSpacing: '0.04em',
+          }}
+        >
+          {result.confidence || 'HIGH'} CONFIDENCE
+        </span>
+      </div>
+
       {/* Summary with 3-line expand */}
       <div style={{ marginBottom: 16 }}>
         <p

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import Header from '../../components/Header'
 import AIContextIndicator from '../../components/AIContextIndicator'
 import ChatWidget from '../../components/ai/ChatWidget'
+import FailureForecast from '../../components/ai/FailureForecast'
 import WhyExplainerModal from '../../components/WhyExplainerModal'
 import Link from 'next/link'
 
@@ -126,6 +127,11 @@ export default function AIPage() {
 
         {/* AI Transparency & Context Card */}
         <AIContextIndicator contextData={aiContext} />
+
+        {/* Real Predictive RUL Forecast with Uncertainty (NASA Benchmark Validated) */}
+        <div style={{ marginBottom: '24px' }}>
+          <FailureForecast batteryId={selectedBatteryId} />
+        </div>
 
         {/* Main Grid: AI Assistant & Timeline Launcher */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>

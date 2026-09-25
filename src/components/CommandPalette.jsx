@@ -31,6 +31,8 @@ import styles from './components.module.css'
 const COMMAND_ITEMS = [
   // Pages
   { id: 'p-dash', category: 'Pages', title: 'Dashboard', desc: 'Real-time telemetry and overview', icon: Home, path: '/' },
+  { id: 'p-demo', category: 'Pages', title: 'Competition Guided Tour (Demo)', desc: '5-step interactive judge presentation', icon: Zap, path: '/demo' },
+  { id: 'p-val', category: 'Pages', title: 'Prognostics Benchmark (Validation)', desc: 'NASA dataset validation report and baseline comparison', icon: Cpu, path: '/validation' },
   { id: 'p-analytics', category: 'Pages', title: 'Analytics & Graphs', desc: 'Live curves and multi-metric charts', icon: Activity, path: '/analytics' },
   { id: 'p-ai', category: 'Pages', title: 'AI Insights & Predictions', desc: 'Gemini-powered safety and degradation forecast', icon: Bot, path: '/ai' },
   { id: 'p-alerts', category: 'Pages', title: 'Alerts & Incidents', desc: 'Active safety warnings and history', icon: Bell, path: '/alerts' },

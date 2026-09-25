@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import Layout from '../components/Layout'
 import MetricCard from '../components/MetricCard'
 import LiveChart from '../components/LiveChart'
@@ -254,6 +255,46 @@ export default function Dashboard() {
           </h1>
           <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 4 }}>
             Real-time telemetry stream from ESP32 • Firebase Realtime Database • AI Predictive Safety
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+            <Link
+              href="/demo"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                padding: '3px 10px',
+                borderRadius: 6,
+                backgroundColor: 'rgba(2, 132, 199, 0.15)',
+                border: '1px solid rgba(56, 189, 248, 0.4)',
+                color: '#38bdf8',
+                fontSize: 11.5,
+                fontWeight: 600,
+                textDecoration: 'none',
+              }}
+            >
+              <span>🏆</span>
+              <span>Competition Guided Tour (5 Steps)</span>
+            </Link>
+            <Link
+              href="/validation"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                padding: '3px 10px',
+                borderRadius: 6,
+                backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                border: '1px solid rgba(16, 185, 129, 0.35)',
+                color: '#34d399',
+                fontSize: 11.5,
+                fontWeight: 600,
+                textDecoration: 'none',
+              }}
+            >
+              <span>📊</span>
+              <span>NASA Benchmark (18.8 MAE)</span>
+            </Link>
           </div>
         </div>
 

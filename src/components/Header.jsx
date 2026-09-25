@@ -194,7 +194,7 @@ export default function Header({
 
   const isMonitoringActive = pathname === '/battery' || pathname === '/environmental' || pathname === '/passport'
   const isAnalyticsActive = pathname === '/analytics' || pathname === '/history'
-  const isSafetyActive = pathname === '/ai' || pathname === '/alerts' || pathname === '/controls' || pathname === '/diagnostics'
+  const isSafetyActive = pathname === '/ai' || pathname === '/alerts' || pathname === '/controls' || pathname === '/diagnostics' || pathname === '/validation'
   const isSystemActive = pathname === '/settings' || pathname === '/about'
 
   return (
@@ -413,6 +413,28 @@ export default function Header({
                   <div>
                     <div className={styles.dropdownItemTitle}>Hardware Diagnostics</div>
                     <div className={styles.dropdownItemDesc}>ESP32 RSSI, heap memory &amp; I2C bus status</div>
+                  </div>
+                </Link>
+                <Link
+                  href="/validation"
+                  className={styles.dropdownMenuItem}
+                  onClick={() => setActiveDropdown(null)}
+                >
+                  <span style={{ fontSize: 16 }}>🔬</span>
+                  <div>
+                    <div className={styles.dropdownItemTitle}>Prognostics Benchmark</div>
+                    <div className={styles.dropdownItemDesc}>NASA dataset validation &amp; baseline models</div>
+                  </div>
+                </Link>
+                <Link
+                  href="/demo"
+                  className={styles.dropdownMenuItem}
+                  onClick={() => setActiveDropdown(null)}
+                >
+                  <span style={{ fontSize: 16 }}>🏆</span>
+                  <div>
+                    <div className={styles.dropdownItemTitle}>Competition Guided Tour</div>
+                    <div className={styles.dropdownItemDesc}>5-step interactive judge presentation</div>
                   </div>
                 </Link>
               </div>
@@ -819,6 +841,12 @@ export default function Header({
                 </Link>
                 <Link href="/diagnostics" className={styles.mobileNavLink} onClick={() => setMobileMenuOpen(false)}>
                   <Cpu size={16} color="#FFB800" /> <span>Hardware Diagnostics</span>
+                </Link>
+                <Link href="/validation" className={styles.mobileNavLink} onClick={() => setMobileMenuOpen(false)}>
+                  <span>🔬</span> <span>Prognostics Benchmark</span>
+                </Link>
+                <Link href="/demo" className={styles.mobileNavLink} onClick={() => setMobileMenuOpen(false)}>
+                  <span>🏆</span> <span>Competition Guided Tour</span>
                 </Link>
               </div>
 

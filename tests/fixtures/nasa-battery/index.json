@@ -1,0 +1,46 @@
+{
+  "source": "NASA Ames Prognostics Center of Excellence (PCoE) Battery Aging Dataset",
+  "description": "18650 LiCoO2/Graphite cells repeatedly charged and discharged at room temperature (24°C)",
+  "mappingDescription": {
+    "voltage": "Mapped to pack terminal voltage in Volts (V)",
+    "current": "Mapped to discharge current in Amperes (A)",
+    "temperature": "Mapped to DHT/NTC sensor temperature in °C",
+    "capacityAh": "Measured cycle discharge capacity in Amp-hours",
+    "soh": "State-of-Health percentage = (capacityAh / nominalCapacityAh) * 100",
+    "resistanceMohm": "Calculated load-step internal resistance in mΩ"
+  },
+  "cells": [
+    {
+      "cellId": "B0005",
+      "chemistry": "LI_ION_18650",
+      "totalCycles": 168,
+      "failureCycle": 114,
+      "initialCapacityAh": 1.857,
+      "finalCapacityAh": 1.37
+    },
+    {
+      "cellId": "B0006",
+      "chemistry": "LI_ION_18650",
+      "totalCycles": 168,
+      "failureCycle": 112,
+      "initialCapacityAh": 2.031,
+      "finalCapacityAh": 0.985
+    },
+    {
+      "cellId": "B0007",
+      "chemistry": "LI_ION_18650",
+      "totalCycles": 168,
+      "failureCycle": 163,
+      "initialCapacityAh": 1.88,
+      "finalCapacityAh": 1.558
+    },
+    {
+      "cellId": "B0018",
+      "chemistry": "LI_ION_18650",
+      "totalCycles": 132,
+      "failureCycle": 83,
+      "initialCapacityAh": 1.857,
+      "finalCapacityAh": 1.271
+    }
+  ]
+}
