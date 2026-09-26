@@ -16,17 +16,6 @@ import {
   Legend,
 } from 'recharts'
 import { format } from 'date-fns'
-import {
-  Download,
-  Calendar,
-  Layers,
-  TrendingUp,
-  Maximize2,
-  Minimize2,
-  RefreshCw,
-  GitCompare,
-  Sliders,
-} from 'lucide-react'
 import { exportToCSV, formatNumber } from '../lib/utils'
 import styles from '../styles/pages.module.css'
 
@@ -36,11 +25,12 @@ const TOOLTIP_STYLE = {
     border: '1px solid var(--border-strong)',
     borderRadius: 10,
     fontSize: 12,
+    color: 'var(--text-primary)',
     boxShadow: 'var(--shadow)',
     padding: '8px 12px',
   },
   labelStyle: { color: 'var(--text-tertiary)', fontWeight: 600, marginBottom: 4 },
-  itemStyle: { fontSize: 11, padding: '2px 0' },
+  itemStyle: { fontSize: 11, padding: '2px 0', color: 'var(--text-primary)' },
 }
 
 export default function RealtimeGraphs({ rawData = [], liveState = {}, profileBand }) {
@@ -190,7 +180,7 @@ export default function RealtimeGraphs({ rawData = [], liveState = {}, profileBa
             }}
             title="Overlay historical reference curve"
           >
-            <GitCompare size={13} />
+            <span>⚖️</span>
             <span>{compareMode ? 'Comparing vs Baseline' : 'Compare Baseline'}</span>
           </button>
 
@@ -210,7 +200,7 @@ export default function RealtimeGraphs({ rawData = [], liveState = {}, profileBa
               color: 'var(--text-primary)',
             }}
           >
-            <Download size={13} />
+            <span>💾</span>
             <span>Export CSV</span>
           </button>
         </div>
@@ -219,7 +209,7 @@ export default function RealtimeGraphs({ rawData = [], liveState = {}, profileBa
       {/* Loading state for historical graph data */}
       {chartData.length === 0 && (
         <div className={styles.chartLoadingPanel}>
-          <RefreshCw size={34} className={styles.spinAnimation} color="#00E8A0" />
+          <span style={{ fontSize: 34 }} className={styles.spinAnimation}>🔄</span>
           <div style={{ textAlign: 'center', marginTop: 14 }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
               Fetching historical data (last 24 hours)...

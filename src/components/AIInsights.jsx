@@ -21,8 +21,6 @@ const SEVERITY_COLOR = {
 }
 
 export default function AIInsights({ analysis, result, loading = false, onAnalyze }) {
-  const [inputMode, setInputMode] = useState(false)
-  const [form, setForm] = useState({})
   const [copied, setCopied] = useState(false)
   const [rawView, setRawView] = useState(false)
 
@@ -38,12 +36,6 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
 
   const toggleSection = (key) => {
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }))
-  }
-
-  const fields = ['voltage', 'current', 'temperature', 'humidity', 'soc', 'bhi', 'safety', 'resistance', 'power']
-
-  const submit = () => {
-    if (onAnalyze) onAnalyze(form)
   }
 
   const structured = result && typeof result === 'object'
@@ -170,7 +162,6 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
           className={styles.primaryBtn}
           disabled={loading}
           onClick={() => {
-            setInputMode(false)
             if (onAnalyze) onAnalyze({})
           }}
         >
@@ -186,42 +177,7 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
             </>
           )}
         </button>
-        <button
-          className={styles.secondaryBtn}
-          disabled={loading}
-          onClick={() => setInputMode(!inputMode)}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-        >
-          <span>⚙️</span>
-          <span>{inputMode ? 'Close Custom Simulation' : 'Simulate Custom Telemetry'}</span>
-        </button>
       </div>
-
-      {/* Custom Simulation Form */}
-      {inputMode && (
-        <div className={styles.aiForm}>
-          <div className={styles.aiFormLabel}>Simulate Custom Battery &amp; Sensor Telemetry</div>
-          <p style={{ fontSize: 11.5, color: 'var(--text-secondary)', margin: '4px 0 12px' }}>
-            Override live ESP32 readings with test parameters to validate deterministic safety thresholds and AI anomaly detection.
-          </p>
-          <div className={styles.aiGrid}>
-            {fields.map((f) => (
-              <label key={f} className={styles.aiField}>
-                <span className={styles.aiLabel}>{f.toUpperCase()}</span>
-                <input
-                  className={styles.aiInput}
-                  value={form[f] ?? ''}
-                  placeholder={`e.g. ${f === 'voltage' ? '12.4' : f === 'temperature' ? '28.5' : f === 'soc' ? '80' : '--'}`}
-                  onChange={(e) => setForm({ ...form, [f]: e.target.value })}
-                />
-              </label>
-            ))}
-          </div>
-          <button className={styles.primaryBtn} style={{ marginTop: 14 }} onClick={submit}>
-            Evaluate Simulated Parameters
-          </button>
-        </div>
-      )}
 
       {/* Loading State: Staged Pipeline Indicator */}
       {loading ? (
@@ -661,16 +617,16 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
                   <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span>🌡️</span> Thermal Stress Index (&lt;35°C Target)
                   </span>
-                  <span style={{ color: (snapshotData?.temperature || 25) > 40 ? '#FF2D55' : '#00E8A0', fontWeight: 700 }}>
-                    {snapshotData?.temperature != null ? `${snapshotData.temperature.toFixed(1)} °C` : '25.0 °C'}
+                  <span style={{ color: snapshotData?.temperature == null ? 'var(--text-muted)' : snapshotData.temperature > 40 ? '#FF2D55' : '#00E8A0', fontWeight: 700 }}>
+                    {snapshotData?.temperature != null ? `${snapshotData.temperature.toFixed(1)} °C` : '--'}
                   </span>
                 </div>
                 <div style={{ height: 8, borderRadius: 100, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
                   <div
                     style={{
-                      width: `${Math.min(100, Math.max(5, ((snapshotData?.temperature || 25) / 50.0) * 100))}%`,
+                      width: snapshotData?.temperature != null ? `${Math.min(100, Math.max(5, (snapshotData.temperature / 50.0) * 100))}%` : '0%',
                       height: '100%',
-                      background: (snapshotData?.temperature || 25) > 40 ? '#FF2D55' : '#FFB800',
+                      background: snapshotData?.temperature != null && snapshotData.temperature > 40 ? '#FF2D55' : '#FFB800',
                       borderRadius: 100,
                     }}
                   />
@@ -683,16 +639,16 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
                   <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span>💨</span> MQ-2 Gas Level (&lt;300 ppm Normal)
                   </span>
-                  <span style={{ color: (snapshotData?.gas || 85) > 300 ? '#FF2D55' : '#38BDF8', fontWeight: 700 }}>
-                    {snapshotData?.gas != null ? `${Math.round(snapshotData.gas)} ppm` : '85 ppm'}
+                  <span style={{ color: snapshotData?.gas == null ? 'var(--text-muted)' : snapshotData.gas > 300 ? '#FF2D55' : '#38BDF8', fontWeight: 700 }}>
+                    {snapshotData?.gas != null ? `${Math.round(snapshotData.gas)} ppm` : '--'}
                   </span>
                 </div>
                 <div style={{ height: 8, borderRadius: 100, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
                   <div
                     style={{
-                      width: `${Math.min(100, Math.max(5, ((snapshotData?.gas || 85) / 500.0) * 100))}%`,
+                      width: snapshotData?.gas != null ? `${Math.min(100, Math.max(5, (snapshotData.gas / 500.0) * 100))}%` : '0%',
                       height: '100%',
-                      background: (snapshotData?.gas || 85) > 300 ? '#FF2D55' : '#38BDF8',
+                      background: snapshotData?.gas != null && snapshotData.gas > 300 ? '#FF2D55' : '#38BDF8',
                       borderRadius: 100,
                     }}
                   />

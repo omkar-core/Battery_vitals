@@ -113,7 +113,7 @@ export async function GET(request) {
       data = await db.collection('live_data').findOne({ batteryId })
     }
 
-    if (!data)     if (!data) return NextResponse.json({ error: 'No data yet' }, { status: 404 })
+    if (!data) return NextResponse.json({ error: 'No data yet' }, { status: 404 })
     return NextResponse.json({ success: true, data: telemetryShape(data) })
   } catch (error) {
     return handleError(error, request)

@@ -24,24 +24,32 @@ export default function AnomalyCard({
     )
   }
 
-  const items = anomalies.length > 0 ? anomalies : [
-    {
-      metric: 'voltage',
-      title: 'Transient Voltage Dip',
-      zScore: 3.2,
-      explanation: 'Rapid drop of 0.8V coincided with an 8A discharge spike. Likely load step transient rather than cell breakdown.',
-      timestamp: '14:22:10',
-      severity: 'WARNING',
-    },
-    {
-      metric: 'temperature',
-      title: 'Thermal Gradient Excursion',
-      zScore: 2.7,
-      explanation: 'Ambient temperature climbed 4.2°C in under 3 minutes following peak continuous discharge.',
-      timestamp: '14:35:45',
-      severity: 'CAUTION',
-    },
-  ]
+  const items = Array.isArray(anomalies) ? anomalies : []
+
+  if (items.length === 0) {
+    return (
+      <div className={styles.card}>
+        <div className={styles.cardHeader}>
+          <div className={styles.titleGroup}>
+            <span className={styles.aiBadge}>✨ AI Explainer</span>
+            <h3 className={styles.cardTitle}>Correlated Anomaly Observations</h3>
+          </div>
+          <span style={{ fontSize: 11, color: 'var(--text-tertiary, #4E5A6B)' }}>
+            0 Flagged Events
+          </span>
+        </div>
+        <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+          <div style={{ fontSize: 24, marginBottom: 8 }}>✅</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+            No Active Telemetry Anomalies
+          </div>
+          <p style={{ fontSize: 12, margin: '6px auto 0', maxWidth: 440, color: 'var(--text-secondary)' }}>
+            Dual-stage statistical anomaly filter confirms that live voltage, current, and temperature excursions are within expected variance bounds.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   const getSeverityBadge = (sev) => {
     const s = String(sev || 'CAUTION').toUpperCase()
@@ -71,8 +79,8 @@ export default function AnomalyCard({
               key={idx}
               onClick={() => setSelectedAnomaly(isSelected ? null : idx)}
               style={{
-                background: '#141B28',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
+                background: 'var(--bg-surface-raised)',
+                border: '1px solid var(--border)',
                 borderRadius: 10,
                 padding: 14,
                 cursor: 'pointer',
@@ -84,7 +92,7 @@ export default function AnomalyCard({
                   <span style={{ fontSize: 14 }}>
                     {anom.metric === 'voltage' ? '⚡' : anom.metric === 'temperature' ? '🌡️' : '💨'}
                   </span>
-                  <strong style={{ fontSize: 13, color: 'var(--text-primary, #F0F4F8)' }}>
+                  <strong style={{ fontSize: 13, color: 'var(--text-primary)' }}>
                     {anom.title || `${anom.metric} Excursion`}
                   </strong>
                 </div>
@@ -102,13 +110,13 @@ export default function AnomalyCard({
                 </span>
               </div>
 
-              <p style={{ margin: '0 0 8px 0', fontSize: 12, color: 'var(--text-secondary, #8B95A5)', lineHeight: 1.45 }}>
+              <p style={{ margin: '0 0 8px 0', fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.45 }}>
                 {anom.explanation || `Z-score anomaly (${anom.zScore || 'elevated'}) detected on ${anom.metric}.`}
               </p>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, color: 'var(--text-tertiary, #4E5A6B)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, color: 'var(--text-tertiary)' }}>
                 <span>⏱️ {anom.timestamp || 'Recent'}</span>
-                <span style={{ color: 'var(--accent-primary, #00E8A0)' }}>
+                <span style={{ color: 'var(--accent-primary)' }}>
                   {isSelected ? 'Collapse details ▴' : 'View physical context ▾'}
                 </span>
               </div>
@@ -118,10 +126,10 @@ export default function AnomalyCard({
                   style={{
                     marginTop: 10,
                     paddingTop: 10,
-                    borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+                    borderTop: '1px solid var(--border)',
                     fontSize: 12,
-                    color: 'var(--text-primary, #F0F4F8)',
-                    background: 'rgba(0, 232, 160, 0.05)',
+                    color: 'var(--text-primary)',
+                    background: 'rgba(0, 232, 160, 0.08)',
                     padding: 10,
                     borderRadius: 6,
                   }}

@@ -107,7 +107,7 @@ export default function Controls() {
                 alignItems: 'center',
                 gap: 4,
                 background: 'transparent',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
+                border: '1px solid var(--border)',
                 borderRadius: 6,
                 color: 'var(--text-muted)',
                 fontSize: 11,

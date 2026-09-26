@@ -35,16 +35,6 @@ export async function GET(request) {
       console.warn('[RUL API] MongoDB history fetch failed:', e.message)
     }
 
-    // If database history is sparse in demo environment, fallback to structured live history or simulated cycling
-    if (history.length < 3) {
-      // Demo fallback representing recent operational cycles
-      history = [
-        { cycle: 1, soh: 99.2, resistanceMohm: 59, temperatureMax: 26 },
-        { cycle: 5, soh: 98.7, resistanceMohm: 61, temperatureMax: 27 },
-        { cycle: 12, soh: 98.1, resistanceMohm: 63, temperatureMax: 27 },
-        { cycle: 18, soh: 97.4, resistanceMohm: 66, temperatureMax: 28 },
-      ]
-    }
 
     const prediction = predictRulWithUncertainty(history, {
       threshold: 80.0,

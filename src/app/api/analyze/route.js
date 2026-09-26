@@ -66,19 +66,10 @@ export async function POST(request) {
     }
 
     if (!latest) {
-      latest = {
-        batteryId,
-        voltage: 12.6,
-        current: 0.5,
-        temperature: 26.5,
-        humidity: 48,
-        gasIndex: { mq2: 120, mq135: 85 },
-        soc: 95,
-        soh: 98,
-        bhi: 96,
-        safety: 'SAFE',
-        opDirection: 'DISCHARGING',
-      }
+      return NextResponse.json({
+        error: `No live sensor telemetry received from ESP32 for battery ${batteryId}`,
+        insufficient_data: true,
+      }, { status: 404 })
     }
 
     // -------------------------------------------------------------------------

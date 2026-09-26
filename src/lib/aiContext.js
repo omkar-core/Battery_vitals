@@ -15,41 +15,60 @@ export async function buildAIContext({ userId, batteryId, includeHistoryDays = 3
   const batteryMeta = (await getBatteryById(targetBatteryId)) || {}
   const profile = getBatteryProfile(batteryMeta.profileId || 'LIFEPO4_12V_100AH')
 
-  // 2. Load Current Telemetry (from MongoDB or fallback)
+  // 2. Load Current Telemetry (from Firebase RTDB or MongoDB)
   let latestTelemetry = null
   try {
-    const db = await getDB()
-    const doc = await db
-      .collection('telemetry')
-      .find({ $or: [{ batteryId: targetBatteryId }, { deviceId: targetBatteryId }] })
-      .sort({ timestamp: -1 })
-      .limit(1)
-      .next()
-
-    if (doc) {
-      const { _id, ...rest } = doc
-      latestTelemetry = rest
-    }
-  } catch (error) {
-    console.warn('[aiContext] Error loading latest telemetry:', error.message)
+    const { getLatestTelemetry } = await import('./firebaseAdmin')
+    latestTelemetry = await getLatestTelemetry(targetBatteryId)
+  } catch (e) {
+    // Continue to MongoDB fallback
   }
 
-  // Fallback realistic telemetry if database has no record yet
+  if (!latestTelemetry) {
+    try {
+      const db = await getDB()
+      if (db) {
+        const doc = await db
+          .collection('live_data')
+          .findOne({ $or: [{ batteryId: targetBatteryId }, { deviceId: targetBatteryId }] })
+        if (doc) {
+          const { _id, ...rest } = doc
+          latestTelemetry = rest
+        } else {
+          const rDoc = await db
+            .collection('readings')
+            .find({ $or: [{ batteryId: targetBatteryId }, { deviceId: targetBatteryId }] })
+            .sort({ timestamp: -1 })
+            .limit(1)
+            .next()
+          if (rDoc) {
+            const { _id, ...rest } = rDoc
+            latestTelemetry = rest
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('[aiContext] Error loading latest telemetry:', error.message)
+    }
+  }
+
+  // If no hardware telemetry has been received yet, use null fields without fabrication
   if (!latestTelemetry) {
     latestTelemetry = {
       batteryId: targetBatteryId,
-      voltage: 13.2,
-      current: 2.1,
-      temperature: 31.4,
-      humidity: 48,
-      mq2: 180,
-      soc: 78,
-      soh: 89,
-      cycles: 184,
-      internalResistance: 0.015,
-      ina_ok: true,
-      dht_ok: true,
-      timestamp: Date.now(),
+      voltage: null,
+      current: null,
+      temperature: null,
+      humidity: null,
+      mq2: null,
+      soc: null,
+      soh: null,
+      cycles: null,
+      internalResistance: null,
+      ina_ok: null,
+      dht_ok: null,
+      timestamp: null,
+      no_data: true,
     }
   }
 
@@ -77,33 +96,62 @@ export async function buildAIContext({ userId, batteryId, includeHistoryDays = 3
     console.warn('[aiContext] Failed to load alerts:', err.message)
   }
 
-  // 5. Calculate Historical Trends (e.g. 30-day SOH & Cycle changes)
-  const currentSOH = latestTelemetry.soh != null ? Number(latestTelemetry.soh) : 89
-  const currentCycles = latestTelemetry.cycles != null ? Number(latestTelemetry.cycles) : 184
-  const currentTemp = latestTelemetry.temperature != null ? Number(latestTelemetry.temperature) : 31.4
-  const currentRint = latestTelemetry.internalResistance != null ? Number(latestTelemetry.internalResistance) : 0.015
+  // 5. Calculate Historical Trends (from real DB readings only)
+  const currentSOH = latestTelemetry.soh != null ? Number(latestTelemetry.soh) : null
+  const currentCycles = latestTelemetry.cycles != null ? Number(latestTelemetry.cycles) : null
+  const currentTemp = latestTelemetry.temperature != null ? Number(latestTelemetry.temperature) : null
+  const currentRint = latestTelemetry.internalResistance != null ? Number(latestTelemetry.internalResistance) : null
+  const currentSOC = latestTelemetry.soc != null ? Number(latestTelemetry.soc) : null
 
-  // Historical comparisons (30 days ago reference baseline)
+  let previous30DaysAgo = null
+  let previous7DaysAgo = null
+  try {
+    const db = await getDB()
+    const now = Date.now()
+    const sevenDaysAgo = new Date(now - 7 * 86400000).toISOString()
+    const thirtyDaysAgo = new Date(now - 30 * 86400000).toISOString()
+
+    const doc7 = await db.collection('readings').findOne({
+      $or: [{ batteryId: targetBatteryId }, { deviceId: targetBatteryId }],
+      timestamp: { $lte: sevenDaysAgo },
+    }, { sort: { timestamp: -1 } })
+
+    if (doc7) {
+      previous7DaysAgo = {
+        soh: doc7.soh != null ? Number(doc7.soh) : null,
+        cycles: doc7.cycles != null ? Number(doc7.cycles) : null,
+        temperature: doc7.temperature != null ? Number(doc7.temperature) : null,
+        internalResistance: doc7.internalResistance != null ? Number(doc7.internalResistance) : null,
+      }
+    }
+
+    const doc30 = await db.collection('readings').findOne({
+      $or: [{ batteryId: targetBatteryId }, { deviceId: targetBatteryId }],
+      timestamp: { $lte: thirtyDaysAgo },
+    }, { sort: { timestamp: -1 } })
+
+    if (doc30) {
+      previous30DaysAgo = {
+        soh: doc30.soh != null ? Number(doc30.soh) : null,
+        cycles: doc30.cycles != null ? Number(doc30.cycles) : null,
+        temperature: doc30.temperature != null ? Number(doc30.temperature) : null,
+        internalResistance: doc30.internalResistance != null ? Number(doc30.internalResistance) : null,
+      }
+    }
+  } catch (err) {
+    console.warn('[aiContext] Failed to query historical readings:', err.message)
+  }
+
   const historicalTrends = {
     current: {
       soh: currentSOH,
       cycles: currentCycles,
       temperature: currentTemp,
       internalResistance: currentRint,
-      soc: latestTelemetry.soc != null ? Number(latestTelemetry.soc) : 78,
+      soc: currentSOC,
     },
-    previous30DaysAgo: {
-      soh: Math.min(100, currentSOH + 2), // 30-day baseline reference
-      cycles: Math.max(0, currentCycles - 22),
-      temperature: 29.5,
-      internalResistance: Math.max(0.005, currentRint - 0.002),
-    },
-    previous7DaysAgo: {
-      soh: Math.min(100, currentSOH + 1),
-      cycles: Math.max(0, currentCycles - 6),
-      temperature: 30.1,
-      internalResistance: Math.max(0.005, currentRint - 0.001),
-    },
+    previous30DaysAgo,
+    previous7DaysAgo,
   }
 
   // 6. Sensor Confidence Indicators
@@ -130,10 +178,10 @@ export async function buildAIContext({ userId, batteryId, includeHistoryDays = 3
       temperature: latestTelemetry.temperature,
       humidity: latestTelemetry.humidity,
       gasPpm: latestTelemetry.mq2,
-      soc: historicalTrends.current.soc,
-      soh: historicalTrends.current.soh,
-      cycles: historicalTrends.current.cycles,
-      internalResistance: historicalTrends.current.internalResistance,
+      soc: currentSOC,
+      soh: currentSOH,
+      cycles: currentCycles,
+      internalResistance: currentRint,
       timestamp: latestTelemetry.timestamp,
     },
 
@@ -155,28 +203,31 @@ export async function buildAIContext({ userId, batteryId, includeHistoryDays = 3
  * Format the sanitized AI Context into a structured text prompt prefix.
  */
 export function formatAIContextPrompt(aiContext) {
+  const ct = aiContext.currentTelemetry || {}
+  const p30 = aiContext.historicalTrends?.previous30DaysAgo
+
   return `
 === VERIFIED BATTERY CONTEXT ===
 Battery ID: ${aiContext.batteryId} (${aiContext.batteryName})
 Chemistry: ${aiContext.chemistry} | Nominal: ${aiContext.nominalVoltage}V | Capacity: ${aiContext.capacityAh}Ah
 
 CURRENT TELEMETRY:
-- Voltage: ${aiContext.currentTelemetry.voltage}V
-- Current: ${aiContext.currentTelemetry.current}A
-- Cell Temp: ${aiContext.currentTelemetry.temperature}°C
-- SOC: ${aiContext.currentTelemetry.soc}%
-- SOH: ${aiContext.currentTelemetry.soh}%
-- Charge Cycles: ${aiContext.currentTelemetry.cycles}
-- Internal Resistance: ${aiContext.currentTelemetry.internalResistance} Ω
+- Voltage: ${ct.voltage != null ? ct.voltage + 'V' : 'not reported'}
+- Current: ${ct.current != null ? ct.current + 'A' : 'not reported'}
+- Cell Temp: ${ct.temperature != null ? ct.temperature + '°C' : 'not reported'}
+- SOC: ${ct.soc != null ? ct.soc + '%' : 'not reported'}
+- SOH: ${ct.soh != null ? ct.soh + '%' : 'not reported'}
+- Charge Cycles: ${ct.cycles != null ? ct.cycles : 'not reported'}
+- Internal Resistance: ${ct.internalResistance != null ? ct.internalResistance + ' Ω' : 'not reported'}
 
 DETERMINISTIC SAFETY ENGINE STATE (SUPREME):
 - Safety Rank: ${aiContext.deterministicSafetyState.statusLabel} (Code ${aiContext.deterministicSafetyState.stateCode})
 - Active Trips: ${aiContext.deterministicSafetyState.activeTrips.length > 0 ? aiContext.deterministicSafetyState.activeTrips.map((t) => t.message).join('; ') : 'None'}
 
 HISTORICAL COMPARISON:
-- SOH: Current ${aiContext.historicalTrends.current.soh}% vs 30d ago ${aiContext.historicalTrends.previous30DaysAgo.soh}%
-- Cycles: Current ${aiContext.historicalTrends.current.cycles} vs 30d ago ${aiContext.historicalTrends.previous30DaysAgo.cycles}
-- Cell Temp: Current ${aiContext.historicalTrends.current.temperature}°C vs 30d ago ${aiContext.historicalTrends.previous30DaysAgo.temperature}°C
+${p30 ? `- SOH: Current ${ct.soh != null ? ct.soh + '%' : '--'} vs 30d ago ${p30.soh != null ? p30.soh + '%' : '--'}
+- Cycles: Current ${ct.cycles != null ? ct.cycles : '--'} vs 30d ago ${p30.cycles != null ? p30.cycles : '--'}
+- Cell Temp: Current ${ct.temperature != null ? ct.temperature + '°C' : '--'} vs 30d ago ${p30.temperature != null ? p30.temperature + '°C' : '--'}` : '- 30-Day Comparison: Insufficient historical samples (awaiting completed cycles)'}
 
 SENSOR CONFIDENCE: ${aiContext.sensorConfidence.overallConfidence}
 ================================

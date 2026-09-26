@@ -190,7 +190,7 @@ export default function ThresholdSuggestModal({
 
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, marginBottom: 16 }}>
               <thead>
-                <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: 'var(--text-tertiary, #4E5A6B)', textAlign: 'left' }}>
+                <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-tertiary)', textAlign: 'left' }}>
                   <th style={{ padding: '8px 6px', width: 32 }}>Apply</th>
                   <th style={{ padding: '8px 6px' }}>Parameter</th>
                   <th style={{ padding: '8px 6px' }}>Current</th>
@@ -210,9 +210,9 @@ export default function ThresholdSuggestModal({
                       key={key}
                       onClick={() => toggleRow(key)}
                       style={{
-                        borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                        borderBottom: '1px solid var(--border-subtle)',
                         cursor: 'pointer',
-                        background: isChecked ? 'rgba(0, 232, 160, 0.04)' : 'transparent',
+                        background: isChecked ? 'rgba(0, 232, 160, 0.08)' : 'transparent',
                       }}
                     >
                       <td style={{ padding: '8px 6px' }}>
@@ -223,16 +223,16 @@ export default function ThresholdSuggestModal({
                           onClick={(e) => e.stopPropagation()}
                         />
                       </td>
-                      <td style={{ padding: '8px 6px', color: 'var(--text-primary, #F0F4F8)' }}>
+                      <td style={{ padding: '8px 6px', color: 'var(--text-primary)' }}>
                         {LABELS[key] || key}
                       </td>
-                      <td style={{ padding: '8px 6px', color: 'var(--text-secondary, #8B95A5)' }}>
+                      <td style={{ padding: '8px 6px', color: 'var(--text-secondary)' }}>
                         {cur}
                       </td>
                       <td style={{ padding: '8px 6px', color: 'var(--accent-primary, #00E8A0)', fontWeight: 700 }}>
                         {sug}
                       </td>
-                      <td style={{ padding: '8px 6px', color: delta > 0 ? '#38BDF8' : delta < 0 ? '#FFB800' : 'var(--text-tertiary, #4E5A6B)' }}>
+                      <td style={{ padding: '8px 6px', color: delta > 0 ? '#38BDF8' : delta < 0 ? '#FFB800' : 'var(--text-tertiary)' }}>
                         {delta > 0 ? `+${delta}` : `${delta}`}
                       </td>
                     </tr>
@@ -242,15 +242,15 @@ export default function ThresholdSuggestModal({
             </table>
 
             {suggestion.rationale && (
-              <div style={{ background: '#141B28', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: 8, padding: 12, marginBottom: 16, fontSize: 12, color: 'var(--text-secondary, #8B95A5)', lineHeight: 1.45 }}>
-                <strong style={{ color: 'var(--text-primary, #F0F4F8)' }}>Engineering Rationale:</strong> {suggestion.rationale}
+              <div style={{ background: 'var(--bg-surface-raised)', border: '1px solid var(--border)', borderRadius: 8, padding: 12, marginBottom: 16, fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                <strong style={{ color: 'var(--text-primary)' }}>Engineering Rationale:</strong> {suggestion.rationale}
               </div>
             )}
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
               <button
                 onClick={onClose}
-                style={{ background: 'transparent', border: '1px solid rgba(255, 255, 255, 0.1)', color: 'var(--text-secondary, #8B95A5)', borderRadius: 8, padding: '8px 16px', fontSize: 12, cursor: 'pointer' }}
+                style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 8, padding: '8px 16px', fontSize: 12, cursor: 'pointer' }}
               >
                 Cancel
               </button>

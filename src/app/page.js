@@ -30,27 +30,6 @@ import {
   playAlertChime,
 } from '../lib/utils'
 import animStyles from '../styles/anim.module.css'
-import {
-  Zap,
-  Flame,
-  Gauge,
-  Activity,
-  Cpu,
-  Signal,
-  RefreshCw,
-  Droplets,
-  Battery,
-  ShieldAlert,
-  ShieldCheck,
-  ArrowUpRight,
-  ArrowDownRight,
-  Minus,
-  HardDrive,
-  Clock,
-  Volume2,
-  VolumeX,
-  AlertTriangle,
-} from 'lucide-react'
 import styles from '../styles/dashboard.module.css'
 
 const CIRC = 2 * Math.PI * 82
@@ -319,7 +298,7 @@ export default function Dashboard() {
             }}
             title="Toggle Audio Alert Chime"
           >
-            {soundEnabled ? <Volume2 size={13} /> : <VolumeX size={13} />}
+            <span>{soundEnabled ? '🔊' : '🔇'}</span>
             <span>Sound {soundEnabled ? 'ON' : 'OFF'}</span>
           </button>
 
@@ -385,7 +364,7 @@ export default function Dashboard() {
 
       {ddLock && (
         <div className={styles.lockBanner}>
-          <Battery size={18} color="#A78BFA" />
+          <span style={{ fontSize: 18 }}>🔋</span>
           <span>
             Deep-Discharge Lock Active — Battery output held in safety isolation mode to prevent cell
             inversion.
@@ -395,7 +374,7 @@ export default function Dashboard() {
 
       {gasWarm && (gasWRem > 0 || gasWarm === true) && (
         <div className={styles.mqBanner}>
-          <Flame size={16} /> MQ-2 / MQ-135 heating coil stabilization in progress (~
+          <span>🔥</span> MQ-2 / MQ-135 heating coil stabilization in progress (~
           {gasWRem || '45'}s remaining). Gas ppm calculations are warming up.
         </div>
       )}
@@ -412,44 +391,38 @@ export default function Dashboard() {
               : styles.opIdle
           }`}
         >
-          {op === 'CHARGING' ? (
-            <ArrowUpRight size={14} />
-          ) : op === 'DISCHARGING' ? (
-            <ArrowDownRight size={14} />
-          ) : (
-            <Minus size={14} />
-          )}
+          <span>{op === 'CHARGING' ? '↗️' : op === 'DISCHARGING' ? '↘️' : '⏸️'}</span>
           Mode: {op}
         </span>
 
         {profile && (
           <span className="chip">
-            <Cpu size={12} /> {profile}
+            <span>⚙️</span> {profile}
           </span>
         )}
         {phase && (
           <span className="chip">
-            <Zap size={12} /> {phase}
+            <span>⚡</span> {phase}
           </span>
         )}
         {net.uptime != null && (
           <span className="chip" title={`Raw uptime: ${net.uptime}s`}>
-            <Clock size={12} /> Uptime {formatUptime(net.uptime)}
+            <span>⏱️</span> Uptime {formatUptime(net.uptime)}
           </span>
         )}
         {net.rssi != null && (
           <span className="chip" style={{ color: wifiInfo.color }}>
-            <Signal size={12} /> WiFi {net.rssi} dBm ({wifiInfo.bars}/4 {wifiInfo.label})
+            <span>📶</span> WiFi {net.rssi} dBm ({wifiInfo.bars}/4 {wifiInfo.label})
           </span>
         )}
         {net.heap != null && (
           <span className="chip">
-            <HardDrive size={12} /> Heap {Math.round(net.heap / 1024)} KB free
+            <span>💾</span> Heap {Math.round(net.heap / 1024)} KB free
           </span>
         )}
         {net.errors != null && (
           <span className="chip" style={{ color: net.errors > 0 ? 'var(--state-critical)' : 'var(--state-safe)' }}>
-            <RefreshCw size={12} /> Errors: {net.errors}
+            <span>🔄</span> Errors: {net.errors}
           </span>
         )}
       </div>
@@ -469,9 +442,9 @@ export default function Dashboard() {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12 }}>
               {safety === 'CRITICAL' || safety === 'EMERGENCY' ? (
-                <ShieldAlert size={36} color="var(--state-critical)" />
+                <span style={{ fontSize: 36 }}>🚨</span>
               ) : (
-                <ShieldCheck size={36} color="var(--state-safe)" />
+                <span style={{ fontSize: 36 }}>🛡️</span>
               )}
               <div>
                 <div style={{ fontSize: 24, fontWeight: 700, fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}>
@@ -486,10 +459,10 @@ export default function Dashboard() {
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 20 }}>
             <span className={`${styles.opMode} ${op === 'CHARGING' ? styles.opCharging : op === 'DISCHARGING' ? styles.opDischarging : styles.opIdle}`}>
-              {op === 'CHARGING' ? <ArrowUpRight size={14} /> : op === 'DISCHARGING' ? <ArrowDownRight size={14} /> : <Minus size={14} />}
+              <span>{op === 'CHARGING' ? '↗️' : op === 'DISCHARGING' ? '↘️' : '⏸️'}</span>
               Mode: {op}
             </span>
-            {profile && <span className="chip"><Cpu size={12} /> {profile}</span>}
+            {profile && <span className="chip"><span>⚙️</span> {profile}</span>}
           </div>
         </div>
 
@@ -549,7 +522,7 @@ export default function Dashboard() {
           value={formatNumber(voltage)}
           unit="V"
           color="var(--state-caution)"
-          icon={Gauge}
+          icon="⚡"
           chip={voltageChip}
           subtext={voltageBand ? `Safe: ${voltageBand}` : 'Deploy a profile for band'}
         />
@@ -558,7 +531,7 @@ export default function Dashboard() {
           value={formatNumber(current)}
           unit="A"
           color={current < 0 ? 'var(--state-critical)' : 'var(--state-safe)'}
-          icon={Zap}
+          icon="🔌"
           chip={currentChip}
           subtext={current < 0 ? 'Discharging' : current > 0 ? 'Charging' : 'Idle'}
         />
@@ -567,7 +540,7 @@ export default function Dashboard() {
           value={formatNumber(power)}
           unit="W"
           color="var(--state-info)"
-          icon={Zap}
+          icon="💡"
           subtext={power != null ? `${(power * 1000).toFixed(0)} mW` : '--'}
         />
         <MetricCard
@@ -575,7 +548,7 @@ export default function Dashboard() {
           value={formatNumber(temperature, 1)}
           unit="°C"
           color="var(--state-critical)"
-          icon={Flame}
+          icon="🌡️"
           chip={tempChip}
           subtext="Limit < 50°C"
         />
@@ -584,7 +557,7 @@ export default function Dashboard() {
           value={formatNumber(humidity, 1)}
           unit="%"
           color="var(--state-safe)"
-          icon={Droplets}
+          icon="💧"
           chip={humChip}
           subtext="Ambient RH"
         />
@@ -593,7 +566,7 @@ export default function Dashboard() {
           value={formatNumber(soc, 0)}
           unit="%"
           color="var(--state-safe)"
-          icon={Battery}
+          icon="🔋"
           delta={soc == null ? null : Number(soc) - (sparkRows[sparkRows.length - 2]?.soc ?? soc)}
           subtext="State of Charge"
         />
@@ -606,7 +579,7 @@ export default function Dashboard() {
           value={formatNumber(gasMq2, 0)}
           unit="ADC"
           color="var(--state-caution)"
-          icon={Flame}
+          icon="💨"
           chip={gasMq2Chip}
           subtext="Combustible Gases"
         />
@@ -615,7 +588,7 @@ export default function Dashboard() {
           value={formatNumber(gasMq135, 0)}
           unit="ADC"
           color="var(--purple)"
-          icon={Flame}
+          icon="🌫️"
           chip={gasMq135Chip}
           subtext="Air Quality & VOC"
         />
@@ -624,7 +597,7 @@ export default function Dashboard() {
           value={formatNumber(resistance, 2)}
           unit="mΩ"
           color="var(--purple)"
-          icon={Gauge}
+          icon="🧬"
           subtext="Cell Degradation"
         />
         <MetricCard
@@ -632,7 +605,7 @@ export default function Dashboard() {
           value={formatNumber(efficiency, 0)}
           unit="%"
           color="var(--state-caution)"
-          icon={Activity}
+          icon="📈"
           subtext="Coulombic Return"
         />
         <MetricCard
@@ -640,7 +613,7 @@ export default function Dashboard() {
           value={formatNumber(cycles, 0)}
           unit="cyc"
           color="var(--purple)"
-          icon={RefreshCw}
+          icon="🔄"
           subtext="Equivalent Full Cycles"
         />
         <MetricCard
@@ -648,7 +621,7 @@ export default function Dashboard() {
           value={rul != null ? formatNumber(rul, 0) : '--'}
           unit="days"
           color="var(--state-safe)"
-          icon={Activity}
+          icon="⏳"
           subtext="Remaining Useful Life"
         />
       </div>

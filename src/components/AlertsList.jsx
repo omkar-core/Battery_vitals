@@ -412,8 +412,8 @@ export default function AlertsList({ alerts = [], loading, onRefresh }) {
                       style={{
                         marginTop: 10,
                         padding: '10px 14px',
-                        background: '#141B28',
-                        border: '1px solid rgba(56, 189, 248, 0.25)',
+                        background: 'var(--bg-surface-raised)',
+                        border: '1px solid rgba(56, 189, 248, 0.35)',
                         borderRadius: 8,
                         fontSize: 12,
                       }}

@@ -1,7 +1,6 @@
 'use client'
 
 import React from 'react'
-import { ShieldAlert, ShieldCheck, Wind, AlertTriangle } from 'lucide-react'
 import styles from '../../styles/dashboard.module.css'
 
 export default function GasDetection({ environmental }) {
@@ -17,7 +16,7 @@ export default function GasDetection({ environmental }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ background: `${mq2Color}18`, padding: 6, borderRadius: 8 }}>
-              <Wind size={18} color={mq2Color} />
+              <span style={{ fontSize: 18 }}>💨</span>
             </div>
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>MQ-2 Gas / Smoke</div>
@@ -43,7 +42,7 @@ export default function GasDetection({ environmental }) {
         </div>
 
         {/* Visual Progress Bar */}
-        <div style={{ width: '100%', height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 3, marginTop: 10, overflow: 'hidden' }}>
+        <div style={{ width: '100%', height: 6, background: 'var(--border)', borderRadius: 3, marginTop: 10, overflow: 'hidden' }}>
           <div
             style={{
               width: mq2 != null ? `${Math.min(100, (mq2 / 4000) * 100)}%` : '0%',
@@ -64,7 +63,7 @@ export default function GasDetection({ environmental }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ background: `${mq135Color}18`, padding: 6, borderRadius: 8 }}>
-              <AlertTriangle size={18} color={mq135Color} />
+              <span style={{ fontSize: 18 }}>🌫️</span>
             </div>
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>MQ-135 Air Quality</div>
@@ -89,7 +88,7 @@ export default function GasDetection({ environmental }) {
           {mq135 != null ? Math.round(mq135) : '--'} <span style={{ fontSize: 16, fontWeight: 600 }}>ppm</span>
         </div>
 
-        <div style={{ width: '100%', height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 3, marginTop: 10, overflow: 'hidden' }}>
+        <div style={{ width: '100%', height: 6, background: 'var(--border)', borderRadius: 3, marginTop: 10, overflow: 'hidden' }}>
           <div
             style={{
               width: mq135 != null ? `${Math.min(100, (mq135 / 800) * 100)}%` : '0%',

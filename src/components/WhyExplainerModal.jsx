@@ -46,16 +46,16 @@ export default function WhyExplainerModal({ metricName = 'State of Health (SOH)'
       padding: '16px',
     }}>
       <div style={{
-        backgroundColor: '#0f172a',
-        border: '1px solid #334155',
+        backgroundColor: 'var(--bg-surface)',
+        border: '1px solid var(--border)',
         borderRadius: '16px',
         maxWidth: '520px',
         width: '100%',
         padding: '24px',
-        boxShadow: '0 20px 25px -5px rgba(0,0,0,0.5)',
+        boxShadow: 'var(--shadow-lg)',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h3 style={{ margin: 0, fontSize: '18px', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <h3 style={{ margin: 0, fontSize: '18px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span>🧠</span> Why metric changed: {metricName}
           </h3>
           <button
@@ -63,7 +63,7 @@ export default function WhyExplainerModal({ metricName = 'State of Health (SOH)'
             style={{
               background: 'none',
               border: 'none',
-              color: '#94a3b8',
+              color: 'var(--text-tertiary)',
               fontSize: '20px',
               cursor: 'pointer',
               padding: '4px 8px',
@@ -84,18 +84,19 @@ export default function WhyExplainerModal({ metricName = 'State of Health (SOH)'
         ) : (
           <div>
             <div style={{
-              backgroundColor: '#1e293b',
+              backgroundColor: 'var(--bg-surface-raised)',
+              border: '1px solid var(--border)',
               borderRadius: '8px',
               padding: '14px',
               fontSize: '14px',
               lineHeight: '1.6',
-              color: '#cbd5e1',
+              color: 'var(--text-secondary)',
               whiteSpace: 'pre-line',
             }}>
               {explanation}
             </div>
 
-            <div style={{ marginTop: '16px', fontSize: '12px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ marginTop: '16px', fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span>🔒</span> Derived strictly from verified hardware sensor logs &amp; deterministic safety engine.
             </div>
           </div>

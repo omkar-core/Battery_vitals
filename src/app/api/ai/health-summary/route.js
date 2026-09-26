@@ -21,6 +21,13 @@ export async function GET(request) {
 
     const aiContext = await buildAIContext({ userId: guard.user.id, batteryId: guard.batteryId })
 
+    if (aiContext.no_data || aiContext.currentTelemetry?.voltage == null) {
+      return NextResponse.json({
+        error: `No live sensor telemetry received from ESP32 for battery ${guard.batteryId}`,
+        insufficient_data: true,
+      }, { status: 404 })
+    }
+
     // Compute telemetry fingerprint
     const fingerprint = `fp_${guard.batteryId}_${aiContext.currentTelemetry.soh}_${aiContext.currentTelemetry.cycles}_${aiContext.currentTelemetry.temperature}_${aiContext.deterministicSafetyState.statusLabel}`
 
@@ -60,10 +67,10 @@ export async function GET(request) {
 
 Generate a concise Battery Health Summary. Return JSON matching:
 {
-  "soh": "${aiContext.currentTelemetry.soh}%",
-  "trend": "${aiContext.historicalTrends.current.soh < aiContext.historicalTrends.previous30DaysAgo.soh ? 'Declining' : 'Stable'}",
-  "cycles": ${aiContext.currentTelemetry.cycles},
-  "thermalEvents": ${aiContext.recentAlerts.filter((a) => a.field === 'temperature').length || 1},
+  "soh": "${aiContext.currentTelemetry.soh != null ? aiContext.currentTelemetry.soh + '%' : 'not reported'}",
+  "trend": "${aiContext.historicalTrends?.current?.soh != null && aiContext.historicalTrends?.previous30DaysAgo?.soh != null && aiContext.historicalTrends.current.soh < aiContext.historicalTrends.previous30DaysAgo.soh ? 'Declining' : 'Stable'}",
+  "cycles": ${aiContext.currentTelemetry.cycles != null ? aiContext.currentTelemetry.cycles : 0},
+  "thermalEvents": ${aiContext.recentAlerts.filter((a) => a.field === 'temperature').length},
   "protectionEvents": ${aiContext.deterministicSafetyState.activeTrips.length || 0},
   "aiInterpretation": "Clear diagnostic interpretation of health trajectory and operational status."
 }`
@@ -79,11 +86,11 @@ Generate a concise Battery Health Summary. Return JSON matching:
       summaryObj = JSON.parse(aiResponseText.replace(/```json|```/g, '').trim())
     } catch (e) {
       summaryObj = {
-        soh: `${aiContext.currentTelemetry.soh}%`,
+        soh: aiContext.currentTelemetry.soh != null ? `${aiContext.currentTelemetry.soh}%` : '--',
         trend: 'Stable',
-        cycles: aiContext.currentTelemetry.cycles,
-        thermalEvents: 1,
-        protectionEvents: 0,
+        cycles: aiContext.currentTelemetry.cycles ?? 0,
+        thermalEvents: aiContext.recentAlerts.filter((a) => a.field === 'temperature').length,
+        protectionEvents: aiContext.deterministicSafetyState.activeTrips.length || 0,
         aiInterpretation: aiResponseText,
       }
     }

@@ -102,11 +102,11 @@ export default function AlertConfig() {
                 onChange={(e) => updateBat('voltage_min', e.target.value)}
                 style={{
                   width: '100%',
-                  background: 'rgba(0,0,0,0.3)',
-                  border: '1px solid var(--border-subtle)',
+                  background: 'var(--input-bg)',
+                  border: '1px solid var(--border)',
                   borderRadius: 6,
                   padding: '6px 10px',
-                  color: '#FFF',
+                  color: 'var(--text-primary)',
                   fontSize: 13,
                 }}
               />
@@ -123,11 +123,11 @@ export default function AlertConfig() {
                 onChange={(e) => updateBat('voltage_max', e.target.value)}
                 style={{
                   width: '100%',
-                  background: 'rgba(0,0,0,0.3)',
-                  border: '1px solid var(--border-subtle)',
+                  background: 'var(--input-bg)',
+                  border: '1px solid var(--border)',
                   borderRadius: 6,
                   padding: '6px 10px',
-                  color: '#FFF',
+                  color: 'var(--text-primary)',
                   fontSize: 13,
                 }}
               />
@@ -144,11 +144,11 @@ export default function AlertConfig() {
                 onChange={(e) => updateBat('current_max', e.target.value)}
                 style={{
                   width: '100%',
-                  background: 'rgba(0,0,0,0.3)',
-                  border: '1px solid var(--border-subtle)',
+                  background: 'var(--input-bg)',
+                  border: '1px solid var(--border)',
                   borderRadius: 6,
                   padding: '6px 10px',
-                  color: '#FFF',
+                  color: 'var(--text-primary)',
                   fontSize: 13,
                 }}
               />
@@ -174,11 +174,11 @@ export default function AlertConfig() {
                 onChange={(e) => updateEnv('temperature_max', e.target.value)}
                 style={{
                   width: '100%',
-                  background: 'rgba(0,0,0,0.3)',
-                  border: '1px solid var(--border-subtle)',
+                  background: 'var(--input-bg)',
+                  border: '1px solid var(--border)',
                   borderRadius: 6,
                   padding: '6px 10px',
-                  color: '#FFF',
+                  color: 'var(--text-primary)',
                   fontSize: 13,
                 }}
               />
@@ -195,11 +195,11 @@ export default function AlertConfig() {
                 onChange={(e) => updateEnv('mq2_threshold', e.target.value)}
                 style={{
                   width: '100%',
-                  background: 'rgba(0,0,0,0.3)',
-                  border: '1px solid var(--border-subtle)',
+                  background: 'var(--input-bg)',
+                  border: '1px solid var(--border)',
                   borderRadius: 6,
                   padding: '6px 10px',
-                  color: '#FFF',
+                  color: 'var(--text-primary)',
                   fontSize: 13,
                 }}
               />
@@ -216,11 +216,11 @@ export default function AlertConfig() {
                 onChange={(e) => updateEnv('mq135_threshold', e.target.value)}
                 style={{
                   width: '100%',
-                  background: 'rgba(0,0,0,0.3)',
-                  border: '1px solid var(--border-subtle)',
+                  background: 'var(--input-bg)',
+                  border: '1px solid var(--border)',
                   borderRadius: 6,
                   padding: '6px 10px',
-                  color: '#FFF',
+                  color: 'var(--text-primary)',
                   fontSize: 13,
                 }}
               />

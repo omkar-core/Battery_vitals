@@ -71,50 +71,6 @@ export async function getBatteryTimeline(userId, batteryId) {
     // Sort chronologically descending (newest first)
     events.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
 
-    // Fallback default timeline if no live DB events exist yet
-    if (events.length <= 1) {
-      const now = Date.now()
-      return [
-        {
-          id: 'evt_demo_5',
-          type: 'RECOVERY',
-          title: 'Thermal Recovery Verified',
-          description: 'Temperature returned to normal operating range (28.4°C) after active cooling.',
-          severity: 'INFO',
-          timestamp: new Date(now - 2 * 3600 * 1000).toISOString(),
-          icon: '✅',
-        },
-        {
-          id: 'evt_demo_4',
-          type: 'HIGH_TEMP',
-          title: 'High Temperature Spike',
-          description: 'Cell temperature exceeded warning threshold (38.5°C) during fast charge.',
-          severity: 'WARNING',
-          timestamp: new Date(now - 5 * 3600 * 1000).toISOString(),
-          icon: '🌡️',
-        },
-        {
-          id: 'evt_demo_3',
-          type: 'CHARGING',
-          title: 'Fast Charge Cycle Initiated',
-          description: 'Bulk charging at 14.2V / 15.0A commenced.',
-          severity: 'INFO',
-          timestamp: new Date(now - 8 * 3600 * 1000).toISOString(),
-          icon: '⚡',
-        },
-        {
-          id: 'evt_demo_2',
-          type: 'FIRST_CONN',
-          title: 'First Network Telemetry Received',
-          description: 'ESP32 node BAT001 online. Dual INA219 current sensors calibrated.',
-          severity: 'INFO',
-          timestamp: new Date(now - 24 * 3600 * 1000).toISOString(),
-          icon: '📡',
-        },
-        ...events,
-      ]
-    }
-
     return events
   } catch (error) {
     console.warn('[batteryTimeline] Failed to load DB timeline events:', error.message)

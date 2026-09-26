@@ -29,7 +29,7 @@ export default function GaugeChart({
             cx={size / 2}
             cy={size / 2}
             r={radius}
-            stroke="rgba(255, 255, 255, 0.08)"
+            stroke="var(--border)"
             strokeWidth={thickness}
             strokeDasharray={`${arcLength} ${arcLength}`}
             fill="transparent"

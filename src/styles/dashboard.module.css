@@ -168,8 +168,8 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(0, 232, 160, 0.3), transparent);
+  height: 2px;
+  background: rgba(0, 232, 160, 0.4);
 }
 
 .heroSafetyCard:hover {
@@ -201,8 +201,8 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.3), transparent);
+  height: 2px;
+  background: rgba(56, 189, 248, 0.4);
 }
 
 .heroSohCard:hover {
@@ -235,8 +235,8 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(0, 232, 160, 0.3), transparent);
+  height: 2px;
+  background: rgba(0, 232, 160, 0.4);
 }
 
 .heroSocCard:hover {
@@ -267,8 +267,8 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 184, 0, 0.3), transparent);
+  height: 2px;
+  background: rgba(255, 184, 0, 0.4);
 }
 
 .heroSparklineCard:hover {
@@ -444,9 +444,9 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--border-strong), transparent);
-  opacity: 0.4;
+  height: 2px;
+  background: var(--border-strong);
+  opacity: 0.6;
 }
 
 .sparklineMiniCard:hover {
@@ -552,8 +552,8 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(191, 90, 242, 0.2), transparent);
+  height: 2px;
+  background: rgba(191, 90, 242, 0.4);
 }
 
 .instrumentCard:hover {

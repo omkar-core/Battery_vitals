@@ -8,14 +8,15 @@ import { format } from 'date-fns'
 
 const DEFAULT_STYLE = {
   contentStyle: {
-    background: 'rgba(13, 18, 34, 0.95)',
-    border: '1px solid rgba(255,255,255,0.12)',
+    background: 'var(--tooltip-bg)',
+    border: '1px solid var(--border-strong)',
     borderRadius: 12,
     fontSize: 12,
-    boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+    color: 'var(--text-primary)',
+    boxShadow: 'var(--shadow-lg)',
   },
-  labelStyle: { color: '#9AA7BF' },
-  itemStyle: { color: '#E2E8F0' },
+  labelStyle: { color: 'var(--text-muted)' },
+  itemStyle: { color: 'var(--text-primary)' },
 }
 
 export default function TelemetryChart({
@@ -49,11 +50,11 @@ export default function TelemetryChart({
             </linearGradient>
           ))}
         </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-        <XAxis dataKey="timeLabel" stroke="#5C6B85" fontSize={10} tickMargin={6} minTickGap={30} />
-        <YAxis stroke="#5C6B85" fontSize={10} domain={yDomain} width={40} />
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
+        <XAxis dataKey="timeLabel" stroke="var(--chart-axis)" fontSize={10} tickMargin={6} minTickGap={30} />
+        <YAxis stroke="var(--chart-axis)" fontSize={10} domain={yDomain} width={40} />
         {series.some((s) => s.yAxisId === 'right') && (
-          <YAxis yAxisId="right" orientation="right" stroke="#5C6B85" fontSize={10} width={40} />
+          <YAxis yAxisId="right" orientation="right" stroke="var(--chart-axis)" fontSize={10} width={40} />
         )}
         <Tooltip {...DEFAULT_STYLE} />
         {series.length > 1 && <Legend wrapperStyle={{ fontSize: 11 }} />}

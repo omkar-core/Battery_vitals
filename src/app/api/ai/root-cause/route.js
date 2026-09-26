@@ -34,9 +34,9 @@ REQUIRED: You MUST explicitly label your primary operational explanation as "Hyp
 Respond with JSON only:
 {
   "event": "${eventName}",
-  "hypothesis": "Hypothesis: Cell internal resistance rise combined with high ambient temperature caused localized thermal elevation.",
-  "evidence": ["Evidence 1: Temperature slope +0.8°C/min", "Evidence 2: Voltage drop under load"],
-  "confidence": "85% (High Sensor Confidence)",
+  "hypothesis": "Hypothesis: <operational explanation grounded in measured parameters>",
+  "evidence": ["<sensor reading or slope evidence 1>", "<sensor reading or condition evidence 2>"],
+  "confidence": "<e.g. 85% Sensor-Correlated Confidence>",
   "safetyState": "${severity}",
   "generatedAt": "${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}"
 }`

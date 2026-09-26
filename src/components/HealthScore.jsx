@@ -1,7 +1,6 @@
 'use client'
 
 import React from 'react'
-import { Lightbulb } from 'lucide-react'
 import useAnimatedNumber from '../hooks/useAnimatedNumber'
 import { computeHealthScore } from '../lib/utils'
 import styles from '../styles/anim.module.css'
@@ -64,7 +63,7 @@ export default function HealthScore({ soh, cycles, temperature }) {
       <ul className={styles.healthScoreTips}>
         {result.tips.map((tip, i) => (
           <li key={i} className={styles.healthScoreTip}>
-            <Lightbulb size={13} />
+            <span>💡</span>
             <span>{tip}</span>
           </li>
         ))}

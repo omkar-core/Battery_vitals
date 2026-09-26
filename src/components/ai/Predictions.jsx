@@ -1,7 +1,6 @@
 'use client'
 
 import React from 'react'
-import { Sparkles, Calendar, TrendingDown, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import styles from '../../styles/pages.module.css'
 
 export default function Predictions({ prediction = {} }) {
@@ -32,7 +31,7 @@ export default function Predictions({ prediction = {} }) {
       <div className={styles.card}>
         <div className={styles.cardHeader}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Calendar size={18} color="#38BDF8" />
+            <span style={{ fontSize: 18 }}>📅</span>
             <h3 className={styles.cardTitle}>Predictive Maintenance Schedule</h3>
           </div>
           <span style={{ fontSize: 11, color: '#38BDF8', fontWeight: 700 }}>Gemini ML Model</span>
@@ -65,7 +64,7 @@ export default function Predictions({ prediction = {} }) {
       <div className={styles.card}>
         <div className={styles.cardHeader}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <TrendingDown size={18} color="#FFB800" />
+            <span style={{ fontSize: 18 }}>📉</span>
             <h3 className={styles.cardTitle}>Failure Probability Forecast</h3>
           </div>
         </div>

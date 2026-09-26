@@ -46,7 +46,7 @@ export default function ReportsPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#090d16', color: '#f8fafc' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-canvas)', color: 'var(--text-primary)' }}>
       <Header />
 
       <main style={{ maxWidth: '1280px', margin: '0 auto', padding: '24px 16px' }}>
@@ -55,7 +55,7 @@ export default function ReportsPage() {
             <h1 style={{ fontSize: '24px', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span>📑</span> My Reports History
             </h1>
-            <p style={{ margin: '4px 0 0 0', color: '#94a3b8', fontSize: '14px' }}>
+            <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)', fontSize: '14px' }}>
               Saved AI health, capacity retention &amp; safety reports.
             </p>
           </div>
@@ -97,13 +97,13 @@ export default function ReportsPage() {
         {/* Layout: Reports List vs Report Viewer */}
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 360px) 1fr', gap: '24px' }}>
           {/* Reports Sidebar */}
-          <div style={{ backgroundColor: '#121824', border: '1px solid #1e293b', borderRadius: '16px', padding: '16px' }}>
-            <h3 style={{ margin: '0 0 12px 0', fontSize: '15px', color: '#94a3b8' }}>Saved Reports ({reports.length})</h3>
+          <div style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '16px', padding: '16px' }}>
+            <h3 style={{ margin: '0 0 12px 0', fontSize: '15px', color: 'var(--text-secondary)' }}>Saved Reports ({reports.length})</h3>
 
             {loading ? (
-              <div style={{ padding: '20px', textAlign: 'center', color: '#94a3b8' }}>Loading reports...</div>
+              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-tertiary)' }}>Loading reports...</div>
             ) : reports.length === 0 ? (
-              <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>No saved reports found. Click generate above!</div>
+              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>No saved reports found. Click generate above!</div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {reports.map((r) => (
@@ -113,14 +113,14 @@ export default function ReportsPage() {
                     style={{
                       padding: '12px',
                       borderRadius: '10px',
-                      backgroundColor: selectedReport?.reportId === r.reportId ? '#1e293b' : 'transparent',
+                      backgroundColor: selectedReport?.reportId === r.reportId ? 'var(--bg-surface-raised)' : 'transparent',
                       border: '1px solid',
-                      borderColor: selectedReport?.reportId === r.reportId ? '#38BDF8' : '#1e293b',
+                      borderColor: selectedReport?.reportId === r.reportId ? 'var(--accent-primary)' : 'var(--border)',
                       cursor: 'pointer',
                     }}
                   >
-                    <div style={{ fontWeight: 600, fontSize: '14px', color: '#f8fafc' }}>{r.title}</div>
-                    <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px', display: 'flex', justifyContent: 'space-between' }}>
+                    <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)' }}>{r.title}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '4px', display: 'flex', justifyContent: 'space-between' }}>
                       <span>Period: {r.period}</span>
                       <span>{new Date(r.generatedAt).toLocaleDateString()}</span>
                     </div>
@@ -131,35 +131,35 @@ export default function ReportsPage() {
           </div>
 
           {/* Report Main Content Viewer */}
-          <div style={{ backgroundColor: '#121824', border: '1px solid #1e293b', borderRadius: '16px', padding: '24px' }}>
+          <div style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px' }}>
             {selectedReport ? (
               <div>
-                <h2 style={{ margin: '0 0 8px 0', fontSize: '20px', color: '#f8fafc' }}>{selectedReport.title}</h2>
-                <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '20px' }}>
+                <h2 style={{ margin: '0 0 8px 0', fontSize: '20px', color: 'var(--text-primary)' }}>{selectedReport.title}</h2>
+                <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginBottom: '20px' }}>
                   Generated on {new Date(selectedReport.generatedAt).toLocaleString()} • Battery ID: {selectedReport.batteryId}
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <div style={{ backgroundColor: '#1e293b', padding: '16px', borderRadius: '10px' }}>
+                  <div style={{ backgroundColor: 'var(--bg-surface-raised)', border: '1px solid var(--border)', padding: '16px', borderRadius: '10px' }}>
                     <h4 style={{ margin: '0 0 6px 0', color: '#00E8A0', fontSize: '14px' }}>Executive Summary</h4>
-                    <p style={{ margin: 0, fontSize: '14px', color: '#cbd5e1', lineHeight: '1.5' }}>
+                    <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
                       {selectedReport.summary || selectedReport.content?.executiveSummary}
                     </p>
                   </div>
 
                   {selectedReport.content?.healthAssessment && (
-                    <div style={{ backgroundColor: '#1e293b', padding: '16px', borderRadius: '10px' }}>
+                    <div style={{ backgroundColor: 'var(--bg-surface-raised)', border: '1px solid var(--border)', padding: '16px', borderRadius: '10px' }}>
                       <h4 style={{ margin: '0 0 6px 0', color: '#38BDF8', fontSize: '14px' }}>Health &amp; Capacity Retention</h4>
-                      <p style={{ margin: 0, fontSize: '14px', color: '#cbd5e1', lineHeight: '1.5' }}>
+                      <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
                         {selectedReport.content.healthAssessment}
                       </p>
                     </div>
                   )}
 
                   {selectedReport.content?.actionableRecommendations && (
-                    <div style={{ backgroundColor: '#1e293b', padding: '16px', borderRadius: '10px' }}>
+                    <div style={{ backgroundColor: 'var(--bg-surface-raised)', border: '1px solid var(--border)', padding: '16px', borderRadius: '10px' }}>
                       <h4 style={{ margin: '0 0 8px 0', color: '#FFB800', fontSize: '14px' }}>Actionable Recommendations</h4>
-                      <ul style={{ margin: 0, paddingLeft: '20px', color: '#cbd5e1', fontSize: '14px' }}>
+                      <ul style={{ margin: 0, paddingLeft: '20px', color: 'var(--text-secondary)', fontSize: '14px' }}>
                         {selectedReport.content.actionableRecommendations.map((rec, idx) => (
                           <li key={idx} style={{ marginBottom: '4px' }}>{rec}</li>
                         ))}
@@ -169,7 +169,7 @@ export default function ReportsPage() {
                 </div>
               </div>
             ) : (
-              <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
+              <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
                 Select a report from the left sidebar to view details.
               </div>
             )}

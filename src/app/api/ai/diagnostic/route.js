@@ -39,21 +39,10 @@ export async function POST(request) {
       latest = body
     }
     if (!latest) {
-      // Nominal baseline packet so AI diagnostic validation is always executable
-      latest = {
-        batteryId,
-        voltage: 12.6,
-        current: 0.5,
-        temperature: 26.5,
-        humidity: 48,
-        gasIndex: { mq2: 120, mq135: 85 },
-        soc: 95,
-        soh: 98,
-        bhi: 96,
-        state: 'SAFE',
-        opDirection: 'DISCHARGING',
-        timestamp: new Date().toISOString(),
-      }
+      return NextResponse.json({
+        error: `No live sensor telemetry received from ESP32 for battery ${batteryId}`,
+        insufficient_data: true,
+      }, { status: 404 })
     }
 
     const outcome = await runBatteryDiagnostic({ latest, history, alerts, forced })

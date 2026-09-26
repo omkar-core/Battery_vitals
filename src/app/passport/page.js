@@ -8,22 +8,7 @@ import { useRealTimeData } from '../../hooks/useRealTimeData'
 import { useActiveProfile } from '../../hooks/useActiveProfile'
 import { formatNumber } from '../../lib/utils'
 import { groupFaultsByFingerprint } from '../../lib/faultFingerprint'
-import {
-  ShieldCheck,
-  QrCode,
-  Download,
-  Share2,
-  FileCheck,
-  Award,
-  Hash,
-  Database,
-  Calendar,
-  CheckCircle2,
-  Activity,
-  Layers,
-  Copy,
-  Check,
-} from 'lucide-react'
+
 import styles from '../../styles/pages.module.css'
 
 export default function PassportPage() {
@@ -167,11 +152,11 @@ export default function PassportPage() {
       {/* Main Passport Card */}
       <div
         style={{
-          background: '#0B111E',
-          border: '1.5px solid rgba(0, 232, 160, 0.35)',
+          background: 'var(--bg-surface)',
+          border: '1.5px solid var(--border)',
           borderRadius: 20,
           padding: 24,
-          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.7)',
+          boxShadow: 'var(--shadow-card)',
           marginBottom: 20,
           position: 'relative',
         }}
@@ -184,7 +169,7 @@ export default function PassportPage() {
             alignItems: 'center',
             flexWrap: 'wrap',
             gap: 16,
-            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+            borderBottom: '1px solid var(--border)',
             paddingBottom: 16,
             marginBottom: 20,
           }}
@@ -208,7 +193,7 @@ export default function PassportPage() {
               <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1 }}>
                 European Union &amp; Global Standard Battery Passport
               </div>
-              <div style={{ fontSize: 18, fontWeight: 900, color: '#fff', fontFamily: 'monospace' }}>
+              <div style={{ fontSize: 18, fontWeight: 900, color: 'var(--text-primary)', fontFamily: 'monospace' }}>
                 {passportId}
               </div>
             </div>
@@ -238,7 +223,7 @@ export default function PassportPage() {
             <div style={{ fontSize: 24, fontWeight: 800, color: '#00E8A0', fontFamily: 'var(--mono)' }}>
               {data?.battery?.soh != null ? `${formatNumber(data.battery.soh, 0)}%` : '--'}
             </div>
-            <div style={{ fontSize: 10, color: '#9AA7BF' }}>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
               {data?.battery?.soh != null ? `${(100 - Number(data.battery.soh)).toFixed(1)}% Degradation` : 'Awaiting sensor reading'}
             </div>
           </div>
@@ -248,7 +233,7 @@ export default function PassportPage() {
             <div style={{ fontSize: 24, fontWeight: 800, color: '#38BDF8', fontFamily: 'var(--mono)' }}>
               {data?.battery?.cycles != null ? `${data.battery.cycles} cycles` : '--'}
             </div>
-            <div style={{ fontSize: 10, color: '#9AA7BF' }}>Equivalent Full Cycles</div>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Equivalent Full Cycles</div>
           </div>
 
           <div>
@@ -256,7 +241,7 @@ export default function PassportPage() {
             <div style={{ fontSize: 24, fontWeight: 800, color: '#FFD60A', fontFamily: 'var(--mono)' }}>
               {data?.battery?.energyWh != null ? `${(data.battery.energyWh / 1000).toFixed(2)} kWh` : '--'}
             </div>
-            <div style={{ fontSize: 10, color: '#9AA7BF' }}>Real Cumulative Measured</div>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Real Cumulative Measured</div>
           </div>
 
           <div>
@@ -264,7 +249,7 @@ export default function PassportPage() {
             <div style={{ fontSize: 24, fontWeight: 800, color: '#A78BFA', fontFamily: 'var(--mono)' }}>
               {data?.battery?.resistance != null ? `${formatNumber(data.battery.resistance, 1)} mΩ` : '--'}
             </div>
-            <div style={{ fontSize: 10, color: '#9AA7BF' }}>Target: &lt; 65 mΩ</div>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Target: &lt; 65 mΩ</div>
           </div>
         </div>
 
@@ -275,16 +260,16 @@ export default function PassportPage() {
             gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
             gap: 12,
             padding: '12px 14px',
-            background: 'rgba(255, 255, 255, 0.03)',
+            background: 'var(--bg-surface-raised)',
             borderRadius: 10,
-            border: '1px solid rgba(255, 255, 255, 0.06)',
+            border: '1px solid var(--border)',
             marginBottom: 20,
             fontSize: 11,
           }}
         >
           <div>
             <span style={{ color: 'var(--text-muted)' }}>Firmware Version: </span>
-            <strong style={{ color: '#fff', fontFamily: 'var(--mono)' }}>{data?.firmware || 'v13.1.0'}</strong>
+            <strong style={{ color: 'var(--text-primary)', fontFamily: 'var(--mono)' }}>{data?.firmware || 'v13.1.0'}</strong>
           </div>
           <div>
             <span style={{ color: 'var(--text-muted)' }}>Profile Revision: </span>
@@ -306,7 +291,7 @@ export default function PassportPage() {
         <div
           style={{
             padding: '14px 18px',
-            background: 'rgba(191, 90, 242, 0.08)',
+            background: 'var(--bg-surface-raised)',
             border: '1px solid rgba(191, 90, 242, 0.3)',
             borderRadius: 12,
             marginBottom: 20,
@@ -325,7 +310,7 @@ export default function PassportPage() {
               {lifecycleLoading ? 'Updating…' : '↻ Regenerate'}
             </button>
           </div>
-          <div style={{ fontSize: 12.5, lineHeight: 1.55, color: '#E2E8F0' }}>
+          <div style={{ fontSize: 12.5, lineHeight: 1.55, color: 'var(--text-secondary)' }}>
             {lifecycleLoading
               ? 'Analyzing cumulative cycle throughput and capacity degradation...'
               : lifecycleSummary || 'Pack exhibits pristine operating history with minimal cyclic degradation. All thermal excursion indices remain within manufacturer-specified operating boundaries.'}
@@ -335,7 +320,7 @@ export default function PassportPage() {
         {/* Layer 11: Fingerprinted Fault History Section */}
         <div style={{ marginBottom: 20 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <span style={{ fontSize: 13, fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
               <span>⚠️</span> Certified Fault History &amp; Recurrence Log
             </span>
             <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
@@ -353,33 +338,33 @@ export default function PassportPage() {
                   key={f.fingerprint}
                   style={{
                     padding: '12px 14px',
-                    background: 'rgba(255, 255, 255, 0.02)',
+                    background: 'var(--bg-surface-raised)',
                     border: `1px solid ${f.severity === 'CRITICAL' || f.severity === 'EMERGENCY' ? 'rgba(255, 45, 85, 0.4)' : 'rgba(255, 214, 10, 0.3)'}`,
                     borderRadius: 10,
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <span style={{ fontWeight: 700, fontSize: 12, color: '#fff' }}>{f.title}</span>
+                    <span style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-primary)' }}>{f.title}</span>
                     <span
                       className="chip"
                       style={{
                         fontSize: 10,
                         fontWeight: 800,
                         color: f.severity === 'CRITICAL' ? '#FF2D55' : '#FFD60A',
-                        background: 'rgba(0,0,0,0.3)',
+                        background: 'var(--bg-canvas)',
                       }}
                     >
                       {f.severity}
                     </span>
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>{f.message}</div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 10, color: '#9AA7BF' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 10, color: 'var(--text-muted)' }}>
                     <span>Fingerprint: <code style={{ color: '#38BDF8' }}>{f.fingerprint}</code></span>
                     <span
                       style={{
                         padding: '2px 8px',
-                        background: f.count > 1 ? 'rgba(255, 107, 53, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                        border: `1px solid ${f.count > 1 ? '#FF6B35' : 'rgba(255, 255, 255, 0.1)'}`,
+                        background: f.count > 1 ? 'rgba(255, 107, 53, 0.2)' : 'var(--bg-surface)',
+                        border: `1px solid ${f.count > 1 ? '#FF6B35' : 'var(--border)'}`,
                         borderRadius: 6,
                         color: f.count > 1 ? '#FF6B35' : 'inherit',
                         fontWeight: 700,
@@ -397,7 +382,7 @@ export default function PassportPage() {
         {/* Layer 3: Connection & Charging Session History */}
         <div style={{ marginBottom: 20 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <span style={{ fontSize: 13, fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
               <span>🔌</span> Connection Lifecycle &amp; Session History
             </span>
             <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
@@ -405,7 +390,7 @@ export default function PassportPage() {
             </span>
           </div>
           {sessions.length === 0 ? (
-            <div style={{ padding: 14, background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: 10, fontSize: 12, color: 'var(--text-muted)' }}>
+            <div style={{ padding: 14, background: 'var(--bg-surface-raised)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 12, color: 'var(--text-muted)' }}>
               Active live session running: <code style={{ color: '#38BDF8' }}>{data?.sessionId || 'sess_BAT001_primary'}</code>
             </div>
           ) : (
@@ -415,7 +400,7 @@ export default function PassportPage() {
                   key={s.sessionId}
                   style={{
                     padding: '12px 14px',
-                    background: 'rgba(255, 255, 255, 0.02)',
+                    background: 'var(--bg-surface-raised)',
                     border: '1px solid rgba(56, 189, 248, 0.2)',
                     borderRadius: 10,
                   }}
@@ -424,14 +409,14 @@ export default function PassportPage() {
                     <span style={{ fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, color: '#38BDF8' }}>
                       {s.sessionId}
                     </span>
-                    <span className="chip" style={{ fontSize: 10, color: '#00E8A0', background: 'rgba(0,0,0,0.3)' }}>
+                    <span className="chip" style={{ fontSize: 10, color: '#00E8A0', background: 'var(--bg-canvas)' }}>
                       {s.lastEventType || 'ACTIVE'}
                     </span>
                   </div>
                   <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                    Initial Voltage: <strong style={{ color: '#fff' }}>{s.initialVoltage != null ? `${s.initialVoltage} V` : '--'}</strong> • Events: {s.eventCount}
+                    Initial Voltage: <strong style={{ color: 'var(--text-primary)' }}>{s.initialVoltage != null ? `${s.initialVoltage} V` : '--'}</strong> • Events: {s.eventCount}
                   </div>
-                  <div style={{ fontSize: 9.5, color: '#64748B', marginTop: 4 }}>
+                  <div style={{ fontSize: 9.5, color: 'var(--text-muted)', marginTop: 4 }}>
                     Started: {s.firstSeen ? new Date(s.firstSeen).toLocaleDateString() : 'Active session'}
                   </div>
                 </div>
@@ -449,22 +434,22 @@ export default function PassportPage() {
             flexWrap: 'wrap',
             gap: 16,
             padding: '16px 18px',
-            background: 'rgba(0, 0, 0, 0.4)',
-            border: '1px solid rgba(255, 255, 255, 0.06)',
+            background: 'var(--bg-surface-raised)',
+            border: '1px solid var(--border)',
             borderRadius: 12,
           }}
         >
           <div style={{ flex: 1, minWidth: 260 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
               <span style={{ fontSize: 14 }}>#️⃣</span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: '#E2E8F0' }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>
                 Live Telemetry Integrity Proof
               </span>
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace', wordBreak: 'break-all' }}>
               {telemetryHash}
             </div>
-            <div style={{ fontSize: 10, color: '#9AA7BF', marginTop: 4 }}>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>
               Content hash of the latest real battery snapshot (updates with each telemetry frame)
             </div>
           </div>
@@ -482,11 +467,12 @@ export default function PassportPage() {
               style={{
                 width: 44,
                 height: 44,
-                background: '#fff',
+                background: 'var(--bg-canvas)',
+                border: '1px solid var(--border)',
                 borderRadius: 8,
                 display: 'grid',
                 placeItems: 'center',
-                boxShadow: '0 0 12px rgba(255,255,255,0.2)',
+                boxShadow: 'var(--shadow-card)',
                 fontSize: 22,
               }}
               title="Live telemetry integrity hash (QR view)"

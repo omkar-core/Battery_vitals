@@ -1,13 +1,6 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import {
-  DollarSign,
-  TrendingUp,
-  Cpu,
-  Award,
-  Sliders,
-} from 'lucide-react'
 import styles from '../styles/pages.module.css'
 
 export default function BatteryTools({ currentVitals = {} }) {
@@ -17,6 +10,7 @@ export default function BatteryTools({ currentVitals = {} }) {
   const soh = currentVitals?.battery?.soh != null ? currentVitals.battery.soh : null
   const ir = currentVitals?.battery?.resistance != null ? currentVitals.battery.resistance : null
   const bhi = currentVitals?.risk?.bhi != null ? currentVitals.risk.bhi : null
+  const liveTemp = currentVitals?.battery?.temperature != null ? Math.round(currentVitals.battery.temperature) : 25
 
   // Tool 1: Cost & ROI Calculator State
   const [tariff, setTariff] = useState(0.15) // $/kWh
@@ -33,7 +27,7 @@ export default function BatteryTools({ currentVitals = {} }) {
   const yearsToBreakEven = (replacementCost / Math.max(1, annualCost * 1.5)).toFixed(1)
 
   // Tool 2: Simulation Mode ("What-If" Analysis) State
-  const [simTemp, setSimTemp] = useState(25) // °C
+  const [simTemp, setSimTemp] = useState(liveTemp) // °C
   const [simCRate, setSimCRate] = useState(0.5) // C-rate
   const [simDepthOfDischarge, setSimDepthOfDischarge] = useState(80) // % DOD
 
@@ -98,7 +92,7 @@ export default function BatteryTools({ currentVitals = {} }) {
     <div className={styles.card}>
       <div className={styles.cardHeader}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Sliders size={18} color="#00E8A0" />
+          <span style={{ fontSize: 18 }}>🎛️</span>
           <h3 className={styles.cardTitle} style={{ margin: 0 }}>
             Battery Intelligence &amp; Analytical Toolset
           </h3>
@@ -107,24 +101,21 @@ export default function BatteryTools({ currentVitals = {} }) {
         {/* Tab Buttons */}
         <div style={{ display: 'flex', gap: 6 }}>
           {[
-            { id: 'cost', label: 'Energy & ROI Calculator', icon: DollarSign },
-            { id: 'sim', label: 'Simulation Mode (What-If)', icon: TrendingUp },
-            { id: 'chem', label: 'Chemistry Profiles', icon: Cpu },
-            { id: 'bench', label: 'Benchmarking', icon: Award },
-          ].map((t) => {
-            const Icon = t.icon
-            return (
-              <button
-                key={t.id}
-                onClick={() => setToolTab(t.id)}
-                className={`${styles.filterBtn} ${toolTab === t.id ? styles.filterActive : ''}`}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-              >
-                <Icon size={12} />
-                <span>{t.label}</span>
-              </button>
-            )
-          })}
+            { id: 'cost', label: 'Energy & ROI Calculator', icon: '💲' },
+            { id: 'sim', label: 'Simulation Mode (What-If)', icon: '📈' },
+            { id: 'chem', label: 'Chemistry Profiles', icon: '⚙️' },
+            { id: 'bench', label: 'Benchmarking', icon: '🏆' },
+          ].map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setToolTab(t.id)}
+              className={`${styles.filterBtn} ${toolTab === t.id ? styles.filterActive : ''}`}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <span>{t.icon}</span>
+              <span>{t.label}</span>
+            </button>
+          ))}
         </div>
       </div>
 
@@ -174,7 +165,7 @@ export default function BatteryTools({ currentVitals = {} }) {
 
           {/* Results Grid */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
-            <div style={{ padding: 14, background: 'rgba(0,0,0,0.3)', borderRadius: 10, border: '1px solid rgba(0,232,160,0.2)' }}>
+            <div style={{ padding: 14, background: 'var(--bg-surface-raised)', borderRadius: 10, border: '1px solid rgba(0,232,160,0.35)' }}>
               <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Cost Per Full Charge</div>
               <div style={{ fontSize: 22, fontWeight: 800, color: '#00E8A0', fontFamily: 'monospace', marginTop: 4 }}>
                 ${costPerCycle.toFixed(3)}
@@ -182,7 +173,7 @@ export default function BatteryTools({ currentVitals = {} }) {
               <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>Based on {packKWh.toFixed(2)} kWh pack</div>
             </div>
 
-            <div style={{ padding: 14, background: 'rgba(0,0,0,0.3)', borderRadius: 10, border: '1px solid rgba(56,189,248,0.2)' }}>
+            <div style={{ padding: 14, background: 'var(--bg-surface-raised)', borderRadius: 10, border: '1px solid rgba(56,189,248,0.35)' }}>
               <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Annual Operating Cost</div>
               <div style={{ fontSize: 22, fontWeight: 800, color: '#38BDF8', fontFamily: 'monospace', marginTop: 4 }}>
                 ${annualCost.toFixed(2)} / yr
@@ -190,7 +181,7 @@ export default function BatteryTools({ currentVitals = {} }) {
               <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>{annualEnergyKWh.toFixed(0)} kWh cycled/year</div>
             </div>
 
-            <div style={{ padding: 14, background: 'rgba(0,0,0,0.3)', borderRadius: 10, border: '1px solid rgba(167,139,250,0.2)' }}>
+            <div style={{ padding: 14, background: 'var(--bg-surface-raised)', borderRadius: 10, border: '1px solid rgba(167,139,250,0.35)' }}>
               <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>CO₂ Carbon Offset</div>
               <div style={{ fontSize: 22, fontWeight: 800, color: '#A78BFA', fontFamily: 'monospace', marginTop: 4 }}>
                 {carbonKgSavedPerYear.toFixed(1)} kg CO₂
@@ -198,7 +189,7 @@ export default function BatteryTools({ currentVitals = {} }) {
               <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>Clean cycling vs fossil baseline</div>
             </div>
 
-            <div style={{ padding: 14, background: 'rgba(0,0,0,0.3)', borderRadius: 10, border: '1px solid rgba(255,214,10,0.2)' }}>
+            <div style={{ padding: 14, background: 'var(--bg-surface-raised)', borderRadius: 10, border: '1px solid rgba(255,214,10,0.35)' }}>
               <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Estimated Payback ROI</div>
               <div style={{ fontSize: 22, fontWeight: 800, color: '#FFD60A', fontFamily: 'monospace', marginTop: 4 }}>
                 {yearsToBreakEven} Years
@@ -389,7 +380,7 @@ export default function BatteryTools({ currentVitals = {} }) {
           >
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Award size={20} color="#00E8A0" />
+                <span style={{ fontSize: 20 }}>🏆</span>
                 <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)' }}>
                   Live Health Benchmark
                 </span>
@@ -416,7 +407,7 @@ export default function BatteryTools({ currentVitals = {} }) {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-            <div style={{ padding: 12, background: 'rgba(0,0,0,0.3)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div style={{ padding: 12, background: 'var(--bg-surface-raised)', borderRadius: 8, border: '1px solid var(--border)' }}>
               <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>State of Health</div>
               <div style={{ fontSize: 18, fontWeight: 800, color: '#00E8A0', marginTop: 4 }}>
                 {soh != null ? `${soh}%` : '--'}
@@ -424,7 +415,7 @@ export default function BatteryTools({ currentVitals = {} }) {
               <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Reported by device calibration</div>
             </div>
 
-            <div style={{ padding: 12, background: 'rgba(0,0,0,0.3)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div style={{ padding: 12, background: 'var(--bg-surface-raised)', borderRadius: 8, border: '1px solid var(--border)' }}>
               <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Internal Resistance</div>
               <div style={{ fontSize: 18, fontWeight: 800, color: '#FFD60A', marginTop: 4 }}>
                 {ir != null ? `${ir} mΩ` : '--'}
@@ -432,7 +423,7 @@ export default function BatteryTools({ currentVitals = {} }) {
               <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>INA219 coulomb-counter measurement</div>
             </div>
 
-            <div style={{ padding: 12, background: 'rgba(0,0,0,0.3)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div style={{ padding: 12, background: 'var(--bg-surface-raised)', borderRadius: 8, border: '1px solid var(--border)' }}>
               <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Battery Health Index (BHI)</div>
               <div style={{ fontSize: 18, fontWeight: 800, color: '#38BDF8', marginTop: 4 }}>
                 {bhi != null ? `${bhi} / 100` : '--'}

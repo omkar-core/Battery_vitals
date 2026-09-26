@@ -50,7 +50,7 @@ export default function HistoryChart({ data = [], height = 320, metric = 'voltag
               <stop offset="95%" stopColor={activeCfg.color} stopOpacity={0.0} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
           <XAxis
             dataKey="time"
             stroke="var(--text-tertiary)"
@@ -65,11 +65,11 @@ export default function HistoryChart({ data = [], height = 320, metric = 'voltag
           />
           <Tooltip
             contentStyle={{
-              background: 'rgba(14, 19, 28, 0.95)',
-              border: '1px solid rgba(255,255,255,0.12)',
+              background: 'var(--tooltip-bg)',
+              border: '1px solid var(--border-strong)',
               borderRadius: 8,
               fontSize: 12,
-              color: '#F0F4F8',
+              color: 'var(--text-primary)',
             }}
           />
           <Legend wrapperStyle={{ fontSize: 12, paddingTop: 6 }} />

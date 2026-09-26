@@ -149,10 +149,23 @@ export async function recordSession(payload) {
  * unexpired session record in MongoDB. If the store is unreachable we reject
  * rather than risk replaying a revoked token.
  */
+let _sessionsIndexed = false
+async function ensureSessionIndexes(db) {
+  if (_sessionsIndexed) return
+  try {
+    const col = db.collection('sessions')
+    await col.createIndex({ jti: 1 })
+    await col.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 })
+    _sessionsIndexed = true
+  } catch (e) {
+    // Best-effort; indexes may already exist or permissions may differ
+  }
+}
+
 async function assertSessionActive(payload) {
   try {
     const db = await getDB()
-    await db.collection('sessions').createIndex({ jti: 1 }).catch(() => {})
+    await ensureSessionIndexes(db)
     const session = await db.collection('sessions').findOne({ jti: payload.jti })
     if (!session || session.revoked === true) throw new InvalidTokenError()
     if (Date.now() > new Date(session.expiresAt).getTime()) throw new TokenExpiredError(payload.exp)

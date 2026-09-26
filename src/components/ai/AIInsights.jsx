@@ -78,7 +78,7 @@ export default function AIInsights({
             <path
               d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
               fill="none"
-              stroke="rgba(255, 255, 255, 0.08)"
+              stroke="var(--border)"
               strokeWidth="3.2"
             />
             <path
@@ -224,35 +224,35 @@ export default function AIInsights({
       )}
 
       {/* Failure Probability Mini-Bars (30d / 90d / 1yr) */}
-      <div style={{ marginBottom: 16, background: 'rgba(20, 27, 40, 0.6)', padding: 12, borderRadius: 8 }}>
-        <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-tertiary, #4E5A6B)', fontWeight: 700, marginBottom: 8 }}>
+      <div style={{ marginBottom: 16, background: 'var(--bg-surface-raised)', border: '1px solid var(--border)', padding: 12, borderRadius: 8 }}>
+        <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-tertiary)', fontWeight: 700, marginBottom: 8 }}>
           Failure Risk Horizon
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 4 }}>
-              <span style={{ color: 'var(--text-tertiary, #4E5A6B)' }}>30 Days</span>
+              <span style={{ color: 'var(--text-tertiary)' }}>30 Days</span>
               <strong style={{ color: getRiskColor(p30) }}>{p30}%</strong>
             </div>
-            <div style={{ height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden' }}>
+            <div style={{ height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
               <div style={{ height: '100%', width: `${p30}%`, background: getRiskColor(p30) }} />
             </div>
           </div>
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 4 }}>
-              <span style={{ color: 'var(--text-tertiary, #4E5A6B)' }}>90 Days</span>
+              <span style={{ color: 'var(--text-tertiary)' }}>90 Days</span>
               <strong style={{ color: getRiskColor(p90) }}>{p90}%</strong>
             </div>
-            <div style={{ height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden' }}>
+            <div style={{ height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
               <div style={{ height: '100%', width: `${p90}%`, background: getRiskColor(p90) }} />
             </div>
           </div>
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 4 }}>
-              <span style={{ color: 'var(--text-tertiary, #4E5A6B)' }}>1 Year</span>
+              <span style={{ color: 'var(--text-tertiary)' }}>1 Year</span>
               <strong style={{ color: getRiskColor(p1y) }}>{p1y}%</strong>
             </div>
-            <div style={{ height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden' }}>
+            <div style={{ height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
               <div style={{ height: '100%', width: `${p1y}%`, background: getRiskColor(p1y) }} />
             </div>
           </div>

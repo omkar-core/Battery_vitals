@@ -34,7 +34,7 @@ export default function EnvironmentalChart({ data = [], height = 280 }) {
     <div style={{ width: '100%', height }}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
           <XAxis
             dataKey="time"
             stroke="var(--text-tertiary)"
@@ -58,11 +58,11 @@ export default function EnvironmentalChart({ data = [], height = 280 }) {
           />
           <Tooltip
             contentStyle={{
-              background: 'rgba(14, 19, 28, 0.95)',
-              border: '1px solid rgba(255,255,255,0.12)',
+              background: 'var(--tooltip-bg)',
+              border: '1px solid var(--border-strong)',
               borderRadius: 8,
               fontSize: 12,
-              color: '#F0F4F8',
+              color: 'var(--text-primary)',
             }}
           />
           <Legend wrapperStyle={{ fontSize: 12, paddingTop: 6 }} />

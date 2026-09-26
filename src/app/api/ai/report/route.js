@@ -40,12 +40,19 @@ export async function POST(request) {
 
     const aiContext = await buildAIContext({ userId: guard.user.id, batteryId: guard.batteryId })
 
+    if (aiContext.no_data || aiContext.currentTelemetry?.voltage == null) {
+      return NextResponse.json({
+        error: `No live sensor telemetry received from ESP32 for battery ${guard.batteryId}`,
+        insufficient_data: true,
+      }, { status: 404 })
+    }
+
     const prompt = `Generate a ${period.toUpperCase()} Health & Safety Report for Battery ${guard.batteryId} (${aiContext.batteryName}).
 Metrics:
-- SOH: ${aiContext.currentTelemetry.soh}%
-- SOC: ${aiContext.currentTelemetry.soc}%
-- Cycles: ${aiContext.currentTelemetry.cycles}
-- Temp: ${aiContext.currentTelemetry.temperature}°C
+- SOH: ${aiContext.currentTelemetry.soh != null ? aiContext.currentTelemetry.soh + '%' : 'not reported'}
+- SOC: ${aiContext.currentTelemetry.soc != null ? aiContext.currentTelemetry.soc + '%' : 'not reported'}
+- Cycles: ${aiContext.currentTelemetry.cycles != null ? aiContext.currentTelemetry.cycles : 'not reported'}
+- Temp: ${aiContext.currentTelemetry.temperature != null ? aiContext.currentTelemetry.temperature + '°C' : 'not reported'}
 - Safety Rank: ${aiContext.deterministicSafetyState.statusLabel}
 
 Respond with JSON strictly matching:

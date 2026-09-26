@@ -30,25 +30,18 @@ export default function FleetSummaryCard({
   }
 
   const data = fleetData || {
-    totalPacks: 8,
-    safeCount: 6,
-    warningCount: 1,
-    criticalCount: 1,
-    fleetHeadline: '1 of 8 packs requires thermal inspection (BAT004)',
-    fleetNarrative: 'Fleet operations are stable overall with 87.5% fleet availability. Pack BAT004 has entered warning state due to elevated ambient temperature during charging.',
+    totalPacks: 1,
+    safeCount: 1,
+    warningCount: 0,
+    criticalCount: 0,
+    fleetHeadline: 'Active Hardware Node Online (BAT001)',
+    fleetNarrative: 'Hardware monitoring node BAT001 is active and transmitting real telemetry over Firebase Realtime Database and MongoDB.',
     topPriorityActions: [
-      'Inspect cooling airflow at Station 4 (BAT004).',
-      'Verify state of charge balance across all active packs.',
+      'Maintain continuous telemetry ingestion on node BAT001.',
+      'Review threshold profiles against cell chemistry specifications.',
     ],
     packs: [
-      { deviceId: 'BAT001', name: 'Pack 1 (ESS)', state: 'SAFE', soh: 98, voltage: 12.6, temperature: 24 },
-      { deviceId: 'BAT002', name: 'Pack 2 (Forklift)', state: 'SAFE', soh: 97, voltage: 12.5, temperature: 25 },
-      { deviceId: 'BAT003', name: 'Pack 3 (Solar)', state: 'SAFE', soh: 95, voltage: 12.4, temperature: 26 },
-      { deviceId: 'BAT004', name: 'Pack 4 (EV-Cart)', state: 'WARNING', soh: 91, voltage: 12.1, temperature: 42 },
-      { deviceId: 'BAT005', name: 'Pack 5 (Backup)', state: 'SAFE', soh: 99, voltage: 12.6, temperature: 23 },
-      { deviceId: 'BAT006', name: 'Pack 6 (Robotics)', state: 'SAFE', soh: 94, voltage: 12.3, temperature: 27 },
-      { deviceId: 'BAT007', name: 'Pack 7 (Bench)', state: 'SAFE', soh: 96, voltage: 12.5, temperature: 24 },
-      { deviceId: 'BAT008', name: 'Pack 8 (Cold-Test)', state: 'CAUTION', soh: 92, voltage: 11.9, temperature: 14 },
+      { deviceId: 'BAT001', name: 'Primary Node (BAT001)', state: 'SAFE', soh: null, voltage: null, temperature: null },
     ],
   }
 
@@ -78,18 +71,18 @@ export default function FleetSummaryCard({
       {/* AI Narrative Banner Above Grid */}
       <div
         style={{
-          background: 'rgba(20, 27, 40, 0.7)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          borderLeft: '4px solid var(--accent-primary, #00E8A0)',
+          background: 'var(--bg-surface-raised)',
+          border: '1px solid var(--border)',
+          borderLeft: '4px solid var(--accent-primary)',
           borderRadius: 8,
           padding: 12,
           marginBottom: 16,
         }}
       >
-        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary, #F0F4F8)', marginBottom: 4 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
           {data.fleetHeadline}
         </div>
-        <div style={{ fontSize: 12, color: 'var(--text-secondary, #8B95A5)', lineHeight: 1.45 }}>
+        <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.45 }}>
           {data.fleetNarrative}
         </div>
       </div>
@@ -108,8 +101,8 @@ export default function FleetSummaryCard({
                 if (onSelectPack) onSelectPack(p.deviceId)
               }}
               style={{
-                background: isSelected ? 'rgba(255, 255, 255, 0.08)' : '#141B28',
-                border: `1px solid ${isSelected ? color : 'rgba(255, 255, 255, 0.08)'}`,
+                background: isSelected ? 'var(--bg-surface-raised)' : 'var(--bg-surface)',
+                border: `1px solid ${isSelected ? color : 'var(--border)'}`,
                 borderTop: `3px solid ${color}`,
                 borderRadius: 8,
                 padding: 10,
@@ -118,19 +111,19 @@ export default function FleetSummaryCard({
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-primary, #F0F4F8)' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-primary)' }}>
                   {p.deviceId}
                 </span>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: color }} />
               </div>
 
-              <div style={{ fontSize: 10, color: 'var(--text-tertiary, #4E5A6B)', marginBottom: 6, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+              <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 6, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
                 {p.name}
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
-                <span style={{ color: 'var(--text-secondary, #8B95A5)' }}>SOH: {p.soh}%</span>
-                <span style={{ color: 'var(--text-tertiary, #4E5A6B)' }}>{p.temperature ? `${p.temperature}°C` : '--'}</span>
+                <span style={{ color: 'var(--text-secondary)' }}>SOH: {p.soh != null ? `${p.soh}%` : '--'}</span>
+                <span style={{ color: 'var(--text-tertiary)' }}>{p.temperature != null ? `${p.temperature}°C` : '--'}</span>
               </div>
             </div>
           )
@@ -139,9 +132,9 @@ export default function FleetSummaryCard({
 
       {/* Active Pack Drilldown Strip */}
       {activePack && (
-        <div style={{ background: '#0E131C', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 8, padding: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
+        <div style={{ background: 'var(--bg-surface-raised)', border: '1px solid var(--border)', borderRadius: 8, padding: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
           <div>
-            <strong>Selected: {activePack.deviceId} ({activePack.name})</strong> — Status: <span style={{ color: getStateColor(activePack.state) }}>{activePack.state}</span> | Voltage: {activePack.voltage}V | Temp: {activePack.temperature}°C
+            <strong>Selected: {activePack.deviceId} ({activePack.name})</strong> — Status: <span style={{ color: getStateColor(activePack.state) }}>{activePack.state}</span> | Voltage: {activePack.voltage != null ? `${activePack.voltage}V` : '--'} | Temp: {activePack.temperature != null ? `${activePack.temperature}°C` : '--'}
           </div>
           <button
             onClick={() => setActivePack(null)}

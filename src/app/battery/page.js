@@ -113,9 +113,9 @@ function BatteryPageInner() {
                   key={m}
                   onClick={() => setActiveMetric(m)}
                   style={{
-                    background: activeMetric === m ? 'rgba(0,232,160,0.18)' : 'rgba(255,255,255,0.04)',
+                    background: activeMetric === m ? 'rgba(0,232,160,0.18)' : 'var(--bg-surface-raised)',
                     color: activeMetric === m ? '#00E8A0' : 'var(--text-secondary)',
-                    border: activeMetric === m ? '1px solid rgba(0,232,160,0.4)' : '1px solid var(--border-subtle)',
+                    border: activeMetric === m ? '1px solid #00E8A0' : '1px solid var(--border)',
                     padding: '4px 10px',
                     borderRadius: 6,
                     fontSize: 11,

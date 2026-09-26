@@ -106,10 +106,10 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'login' }) {
         style={{
           width: '100%',
           maxWidth: 440,
-          backgroundColor: 'var(--bg-surface, #121826)',
-          border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.12))',
+          backgroundColor: 'var(--bg-surface)',
+          border: '1px solid var(--border)',
           borderRadius: 16,
-          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
+          boxShadow: 'var(--shadow-lg)',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
@@ -120,7 +120,7 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'login' }) {
         <div
           style={{
             padding: '20px 24px 16px',
-            borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+            borderBottom: '1px solid var(--border)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -229,9 +229,9 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'login' }) {
                     width: '100%',
                     padding: '10px 14px',
                     borderRadius: 8,
-                    border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.15))',
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    color: 'var(--text-primary, #F8FAFC)',
+                    border: '1px solid var(--border)',
+                    backgroundColor: 'var(--input-bg)',
+                    color: 'var(--text-primary)',
                     fontSize: 14,
                     outline: 'none',
                   }}
@@ -239,7 +239,7 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'login' }) {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary, #94A3B8)', marginBottom: 6 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6 }}>
                   Password
                 </label>
                 <input
@@ -252,9 +252,9 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'login' }) {
                     width: '100%',
                     padding: '10px 14px',
                     borderRadius: 8,
-                    border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.15))',
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    color: 'var(--text-primary, #F8FAFC)',
+                    border: '1px solid var(--border)',
+                    backgroundColor: 'var(--input-bg)',
+                    color: 'var(--text-primary)',
                     fontSize: 14,
                     outline: 'none',
                   }}
@@ -337,9 +337,9 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'login' }) {
                     width: '100%',
                     padding: '8px 12px',
                     borderRadius: 8,
-                    border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.15))',
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    color: 'var(--text-primary, #F8FAFC)',
+                    border: '1px solid var(--border)',
+                    backgroundColor: 'var(--input-bg)',
+                    color: 'var(--text-primary)',
                     fontSize: 13,
                     outline: 'none',
                   }}
@@ -347,7 +347,7 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'login' }) {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary, #94A3B8)', marginBottom: 4 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>
                   Email Address
                 </label>
                 <input
@@ -360,9 +360,9 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'login' }) {
                     width: '100%',
                     padding: '8px 12px',
                     borderRadius: 8,
-                    border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.15))',
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    color: 'var(--text-primary, #F8FAFC)',
+                    border: '1px solid var(--border)',
+                    backgroundColor: 'var(--input-bg)',
+                    color: 'var(--text-primary)',
                     fontSize: 13,
                     outline: 'none',
                   }}
@@ -370,7 +370,7 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'login' }) {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary, #94A3B8)', marginBottom: 4 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>
                   Password (min 6 chars)
                 </label>
                 <input
@@ -384,9 +384,9 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'login' }) {
                     width: '100%',
                     padding: '8px 12px',
                     borderRadius: 8,
-                    border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.15))',
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    color: 'var(--text-primary, #F8FAFC)',
+                    border: '1px solid var(--border)',
+                    backgroundColor: 'var(--input-bg)',
+                    color: 'var(--text-primary)',
                     fontSize: 13,
                     outline: 'none',
                   }}
@@ -394,7 +394,7 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'login' }) {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary, #94A3B8)', marginBottom: 4 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>
                   System Role (RBAC)
                 </label>
                 <select
@@ -404,9 +404,9 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'login' }) {
                     width: '100%',
                     padding: '8px 12px',
                     borderRadius: 8,
-                    border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.15))',
-                    backgroundColor: '#1E293B',
-                    color: 'var(--text-primary, #F8FAFC)',
+                    border: '1px solid var(--border)',
+                    backgroundColor: 'var(--input-bg)',
+                    color: 'var(--text-primary)',
                     fontSize: 13,
                     outline: 'none',
                   }}

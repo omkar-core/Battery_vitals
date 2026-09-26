@@ -1,12 +1,11 @@
 'use client'
 
 import React from 'react'
-import { Activity, Wind, Info } from 'lucide-react'
 import styles from '../../styles/dashboard.module.css'
 
-export default function AirQualityIndex({ aqi = 45, category = 'Good', color = '#00E8A0' }) {
-  const clampedAqi = Math.max(0, Math.min(500, aqi))
-  const percentage = (clampedAqi / 500) * 100
+export default function AirQualityIndex({ aqi = null, category = 'Awaiting Data', color = 'var(--text-muted)' }) {
+  const clampedAqi = aqi != null ? Math.max(0, Math.min(500, aqi)) : null
+  const percentage = clampedAqi != null ? (clampedAqi / 500) * 100 : 0
 
   const levels = [
     { name: 'Good', range: '0–50', color: '#00E8A0' },
@@ -21,7 +20,7 @@ export default function AirQualityIndex({ aqi = 45, category = 'Good', color = '
     <div className={styles.metricCard}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Wind size={18} color={color} />
+          <span style={{ fontSize: 18 }}>🌬️</span>
           <div>
             <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
               Air Quality Index (AQI)
@@ -32,9 +31,9 @@ export default function AirQualityIndex({ aqi = 45, category = 'Good', color = '
 
         <span
           style={{
-            background: `${color}18`,
+            background: aqi != null ? `${color}18` : 'var(--bg-surface-raised)',
             color: color,
-            border: `1px solid ${color}44`,
+            border: `1px solid ${aqi != null ? `${color}44` : 'var(--border)'}`,
             padding: '3px 10px',
             borderRadius: 14,
             fontSize: 11,
@@ -46,8 +45,8 @@ export default function AirQualityIndex({ aqi = 45, category = 'Good', color = '
       </div>
 
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 12 }}>
-        <span style={{ fontSize: 36, fontWeight: 900, color: color, letterSpacing: '-1px' }}>
-          {clampedAqi}
+        <span style={{ fontSize: 36, fontWeight: 900, color: aqi != null ? color : 'var(--text-muted)', letterSpacing: '-1px' }}>
+          {clampedAqi != null ? clampedAqi : '--'}
         </span>
         <span style={{ fontSize: 14, color: 'var(--text-secondary)', fontWeight: 600 }}>/ 500 AQI</span>
       </div>
@@ -84,8 +83,8 @@ export default function AirQualityIndex({ aqi = 45, category = 'Good', color = '
             style={{
               padding: '4px 8px',
               borderRadius: 6,
-              background: category === lvl.name ? `${lvl.color}22` : 'rgba(255,255,255,0.03)',
-              border: category === lvl.name ? `1px solid ${lvl.color}66` : '1px solid transparent',
+              background: category === lvl.name ? `${lvl.color}22` : 'var(--bg-surface-raised)',
+              border: category === lvl.name ? `1px solid ${lvl.color}66` : '1px solid var(--border)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',

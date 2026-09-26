@@ -9,7 +9,7 @@ export const DEFAULT_DEMO_BATTERY = {
   ownerId: GUEST_USER_ID,
   profileId: 'LIFEPO4_12V_100AH',
   deviceId: 'BAT001',
-  name: 'Demo LiFePO4 Pack',
+  name: 'ESP32 Monitored Pack (BAT001)',
   chemistry: 'LiFePO4',
   nominalVoltage: 12.8,
   capacityAh: 100,

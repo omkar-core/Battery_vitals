@@ -18,6 +18,13 @@ export async function POST(request) {
 
     const aiContext = await buildAIContext({ userId: guard.user.id, batteryId: guard.batteryId })
 
+    if (aiContext.no_data || !aiContext.historicalTrends?.previous30DaysAgo) {
+      return NextResponse.json({
+        error: `Insufficient historical cycle data for battery ${aiContext.batteryId} to perform comparative period analysis.`,
+        insufficient_data: true,
+      }, { status: 400 })
+    }
+
     const prompt = `Perform a side-by-side historical comparison analysis for Battery ${aiContext.batteryId}.
 Period requested: ${period.toUpperCase()} comparison.
 

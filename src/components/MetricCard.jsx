@@ -70,7 +70,11 @@ export default function MetricCard({
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'help' }}>
             {Icon ? (
               <span className={styles.metricIcon}>
-                <Icon size={16} color={color} />
+                {typeof Icon === 'string' ? (
+                  <span style={{ fontSize: 16 }}>{Icon}</span>
+                ) : (
+                  <Icon size={16} color={color} />
+                )}
               </span>
             ) : null}
             <span className={styles.metricTitle}>{title}</span>

@@ -49,8 +49,8 @@ export default function LabelScanResult({
             style={{
               width: '100%',
               height: 200,
-              background: '#141B28',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
+              background: 'var(--bg-surface-raised)',
+              border: '1px solid var(--border)',
               borderRadius: 10,
               overflow: 'hidden',
               display: 'grid',
@@ -159,8 +159,8 @@ export default function LabelScanResult({
                 onClick={onCancel}
                 style={{
                   background: 'transparent',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  color: 'var(--text-secondary, #8B95A5)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-secondary)',
                   borderRadius: 8,
                   padding: '6px 14px',
                   fontSize: 12,

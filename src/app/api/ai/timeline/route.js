@@ -53,6 +53,10 @@ export async function POST(request) {
     const events = await getBatteryTimeline(guard.user.id, guard.batteryId)
     const targetEvent = events.find((e) => e.id === eventId) || events[0]
 
+    if (!targetEvent) {
+      return NextResponse.json({ error: 'No timeline events recorded yet for this battery' }, { status: 404 })
+    }
+
     const prompt = `Analyze this specific battery event on timeline:
 Event Title: ${targetEvent.title}
 Event Type: ${targetEvent.type}

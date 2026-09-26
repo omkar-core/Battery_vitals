@@ -8,54 +8,69 @@ export function useEnvironmental() {
 
   const environmental = useMemo(() => {
     const raw = data?.environmental || data || {}
-    const temperature = raw.temperature != null ? Number(raw.temperature) : 25.4
-    const humidity = raw.humidity != null ? Number(raw.humidity) : 58.0
-    const mq2 = raw.mq2 != null ? Number(raw.mq2) : (raw.gasIndex?.mq2 != null ? Number(raw.gasIndex.mq2) : 340)
-    const mq135 = raw.mq135 != null ? Number(raw.mq135) : (raw.gasIndex?.mq135 != null ? Number(raw.gasIndex.mq135) : 115)
+    const temperature = raw.temperature != null ? Number(raw.temperature) : null
+    const humidity = raw.humidity != null ? Number(raw.humidity) : null
+    const mq2 = raw.mq2 != null ? Number(raw.mq2) : (raw.gasIndex?.mq2 != null ? Number(raw.gasIndex.mq2) : null)
+    const mq135 = raw.mq135 != null ? Number(raw.mq135) : (raw.gasIndex?.mq135 != null ? Number(raw.gasIndex.mq135) : null)
     
-    // Calculate AQI (0-500 scale)
-    let aqi = raw.aqi != null ? Number(raw.aqi) : Math.round(mq135 * 0.45)
-    if (aqi < 0) aqi = 0
-    if (aqi > 500) aqi = 500
+    // Calculate AQI (0-500 scale) if MQ-135 reading is available
+    let aqi = null
+    let aqiCategory = 'Awaiting Data'
+    let aqiColor = 'var(--text-muted)'
 
-    let aqiCategory = 'Good'
-    let aqiColor = '#00E8A0'
-    if (aqi > 300) {
-      aqiCategory = 'Hazardous'
-      aqiColor = '#7E0023'
-    } else if (aqi > 200) {
-      aqiCategory = 'Very Unhealthy'
-      aqiColor = '#8F3F97'
-    } else if (aqi > 150) {
-      aqiCategory = 'Unhealthy'
-      aqiColor = '#FF2D55'
-    } else if (aqi > 100) {
-      aqiCategory = 'Unhealthy for Sensitive Groups'
-      aqiColor = '#FF9500'
-    } else if (aqi > 50) {
-      aqiCategory = 'Moderate'
-      aqiColor = '#FFB800'
+    if (raw.aqi != null) {
+      aqi = Math.max(0, Math.min(500, Number(raw.aqi)))
+    } else if (mq135 != null) {
+      aqi = Math.max(0, Math.min(500, Math.round(mq135 * 0.45)))
     }
 
-    // Heat Index approximation
-    const heatIndex = Number((temperature + 0.5555 * ((humidity / 100) * 6.11 * Math.exp(5417.7530 * (1/273.16 - 1/(273.15 + temperature))) - 10)).toFixed(1))
-    
-    // Dew Point calculation
-    const a = 17.27
-    const b = 237.7
-    const alpha = ((a * temperature) / (b + temperature)) + Math.log(humidity / 100)
-    const dewPoint = Number(((b * alpha) / (a - alpha)).toFixed(1))
+    if (aqi != null) {
+      if (aqi > 300) {
+        aqiCategory = 'Hazardous'
+        aqiColor = '#7E0023'
+      } else if (aqi > 200) {
+        aqiCategory = 'Very Unhealthy'
+        aqiColor = '#8F3F97'
+      } else if (aqi > 150) {
+        aqiCategory = 'Unhealthy'
+        aqiColor = '#FF2D55'
+      } else if (aqi > 100) {
+        aqiCategory = 'Unhealthy for Sensitive Groups'
+        aqiColor = '#FF9500'
+      } else if (aqi > 50) {
+        aqiCategory = 'Moderate'
+        aqiColor = '#FFB800'
+      } else {
+        aqiCategory = 'Good'
+        aqiColor = '#00E8A0'
+      }
+    }
+
+    // Heat Index approximation & Dew Point (only if real temp and humidity are present)
+    let heatIndex = null
+    let dewPoint = null
+
+    if (temperature != null && humidity != null && humidity > 0) {
+      const calcHi = Number((temperature + 0.5555 * ((humidity / 100) * 6.11 * Math.exp(5417.7530 * (1/273.16 - 1/(273.15 + temperature))) - 10)).toFixed(1))
+      heatIndex = isNaN(calcHi) ? temperature : calcHi
+      
+      const a = 17.27
+      const b = 237.7
+      const alpha = ((a * temperature) / (b + temperature)) + Math.log(humidity / 100)
+      const calcDp = Number(((b * alpha) / (a - alpha)).toFixed(1))
+      dewPoint = isNaN(calcDp) ? null : calcDp
+    }
 
     // Hazard Status
-    const isGasAlert = mq2 > 800
-    const isTempAlert = temperature > 45.0
-    const isHumidityAlert = humidity > 80.0
+    const isGasAlert = mq2 != null ? mq2 > 800 : false
+    const isTempAlert = temperature != null ? temperature > 45.0 : false
+    const isHumidityAlert = humidity != null ? humidity > 80.0 : false
 
     return {
       temperature,
       humidity,
-      heatIndex: isNaN(heatIndex) ? temperature : heatIndex,
-      dewPoint: isNaN(dewPoint) ? 14.5 : dewPoint,
+      heatIndex,
+      dewPoint,
       mq2,
       mq135,
       aqi,

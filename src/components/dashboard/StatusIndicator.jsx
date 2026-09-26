@@ -1,7 +1,6 @@
 'use client'
 
 import React from 'react'
-import { Bell, Volume2, VolumeX, Lightbulb, Radio } from 'lucide-react'
 import styles from '../../styles/dashboard.module.css'
 
 export default function StatusIndicator({ hardware = {}, safety = 'SAFE' }) {
@@ -34,7 +33,7 @@ export default function StatusIndicator({ hardware = {}, safety = 'SAFE' }) {
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Radio size={18} color="#00E8A0" />
+          <span style={{ fontSize: 18 }}>📻</span>
           <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
             Hardware Actuator States (ESP32)
           </span>
@@ -147,7 +146,7 @@ export default function StatusIndicator({ hardware = {}, safety = 'SAFE' }) {
             gap: 10,
           }}
         >
-          {buzzer ? <Volume2 size={16} color="#FF2D55" /> : <VolumeX size={16} color="#3A4455" />}
+          {buzzer ? <span style={{ fontSize: 16 }}>🔊</span> : <span style={{ fontSize: 16 }}>🔇</span>}
           <div>
             <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>Buzzer Alarm</div>
             <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>GPIO25 ({buzzer ? 'ACTIVE' : 'MUTED'})</div>

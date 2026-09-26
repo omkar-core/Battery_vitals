@@ -82,24 +82,40 @@ export default function FailureForecast({
   const chartData =
     prediction?.projectionCurve && prediction.projectionCurve.length > 0
       ? prediction.projectionCurve
-      : data.length > 0
+      : Array.isArray(data) && data.length > 0
       ? data
-      : [
-          { label: '3M Ago', measured: 100, median: 100, p10: 99, p90: 100 },
-          { label: '2M Ago', measured: 99.2, median: 99.2, p10: 98, p90: 100 },
-          { label: '1M Ago', measured: 98.5, median: 98.5, p10: 97, p90: 99.5 },
-          { label: 'Today', measured: 98.1, median: 98.1, p10: 96.5, p90: 99.2 },
-          { label: '+1M', predicted: 97.4, median: 97.4, p10: 95.5, p90: 98.8 },
-          { label: '+3M', predicted: 96.2, median: 96.2, p10: 93.5, p90: 98.0 },
-          { label: '+6M', predicted: 94.5, median: 94.5, p10: 90.0, p90: 97.0 },
-          { label: '+12M', predicted: 91.0, median: 91.0, p10: 84.0, p90: 95.0 },
-        ]
+      : []
 
-  const p10Cycles = prediction?.p10_cycles ?? 380
-  const p50Cycles = prediction?.p50_cycles ?? 420
-  const p90Cycles = prediction?.p90_cycles ?? 460
-  const p50Days = prediction?.p50_days ?? Math.round(p50Cycles * 1.0)
-  const sensitivityNote = prediction?.dominant_sensitivity ?? 'Internal resistance drift accounts for the widest spread'
+  if (prediction?.insufficient_data || chartData.length === 0) {
+    return (
+      <div className={styles.card} style={{ position: 'relative' }}>
+        <div className={styles.cardHeader}>
+          <div className={styles.titleGroup}>
+            <span className={styles.aiBadge}>✨ AI Forecast</span>
+            <h3 className={styles.cardTitle}>Predictive RUL &amp; SOH Degradation</h3>
+          </div>
+        </div>
+        <div style={{ padding: '36px 16px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+          <div style={{ fontSize: 32, marginBottom: 10 }}>📊</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
+            Awaiting Sufficient Charge/Discharge Cycles
+          </div>
+          <p style={{ fontSize: 12, margin: '0 auto 16px', maxWidth: 480, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+            {prediction?.message || 'Bootstrap RUL prognostics requires a minimum of 3 recorded operational cycles from the ESP32 to compute calibrated degradation curves without fabricating synthetic data.'}
+          </p>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, background: 'var(--bg-surface-raised)', border: '1px solid var(--border)', padding: '6px 12px', borderRadius: 8, color: 'var(--text-tertiary)' }}>
+            <span>🔒</span> Zero synthetic data policy active: only verified sensor cycles will be projected.
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const p10Cycles = prediction?.p10_cycles != null ? prediction.p10_cycles : null
+  const p50Cycles = prediction?.p50_cycles != null ? prediction.p50_cycles : null
+  const p90Cycles = prediction?.p90_cycles != null ? prediction.p90_cycles : null
+  const p50Days = prediction?.p50_days ?? (p50Cycles != null ? Math.round(p50Cycles * 1.0) : null)
+  const sensitivityNote = prediction?.dominant_sensitivity ?? 'Degradation projection computed from real sensor cycles.'
 
   return (
     <div className={styles.card} style={{ position: 'relative' }}>
@@ -163,11 +179,11 @@ export default function FailureForecast({
             left: 20,
             zIndex: 30,
             maxWidth: 420,
-            background: '#0B111E',
+            background: 'var(--bg-surface)',
             border: '1px solid #00E8A0',
             borderRadius: 10,
             padding: 16,
-            boxShadow: '0 12px 30px rgba(0, 0, 0, 0.6)',
+            boxShadow: 'var(--shadow-lg)',
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
@@ -176,24 +192,24 @@ export default function FailureForecast({
             </span>
             <button
               onClick={() => setShowModelBadge(false)}
-              style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', fontSize: 14 }}
+              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 14 }}
             >
               ✕
             </button>
           </div>
-          <p style={{ fontSize: 12, color: '#CBD5E1', lineHeight: 1.5, margin: '0 0 10px 0' }}>
+          <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 10px 0' }}>
             This live RUL estimate uses the identical dual-use statistical model validated against the public
             <strong> NASA Ames PCoE 18650 Li-ion Aging Dataset</strong>.
           </p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 12, background: '#111827', padding: 8, borderRadius: 6 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 12, background: 'var(--bg-surface-raised)', border: '1px solid var(--border)', padding: 8, borderRadius: 6 }}>
             <div>
-              <div style={{ fontSize: 10, color: '#94A3B8' }}>BENCHMARK MAE</div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: '#F8FAFC' }}>18.9 Cycles</div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>BENCHMARK MAE</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>18.9 Cycles</div>
               <div style={{ fontSize: 9, color: '#00E8A0' }}>Beats all 3 baselines</div>
             </div>
             <div>
-              <div style={{ fontSize: 10, color: '#94A3B8' }}>P10–P90 COVERAGE</div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: '#F8FAFC' }}>67% Empirical</div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>P10–P90 COVERAGE</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>67% Empirical</div>
               <div style={{ fontSize: 9, color: '#38BDF8' }}>N=4 Held-Out Cells</div>
             </div>
           </div>
@@ -216,14 +232,15 @@ export default function FailureForecast({
       <div style={{ width: '100%', height: 240, marginBottom: 16 }}>
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-            <XAxis dataKey="label" stroke="#4E5A6B" fontSize={11} tickLine={false} />
-            <YAxis domain={[70, 102]} stroke="#4E5A6B" fontSize={11} tickLine={false} />
+            <XAxis dataKey="label" stroke="var(--chart-axis)" fontSize={11} tickLine={false} />
+            <YAxis domain={[70, 102]} stroke="var(--chart-axis)" fontSize={11} tickLine={false} />
             <Tooltip
               contentStyle={{
-                background: '#0E131C',
-                border: '1px solid rgba(255, 255, 255, 0.12)',
+                background: 'var(--tooltip-bg)',
+                border: '1px solid var(--border-strong)',
                 borderRadius: 8,
                 fontSize: 12,
+                color: 'var(--text-primary)',
               }}
               formatter={(value, name) => {
                 if (name === 'p90') return [`${value}%`, 'P90 (Upper Bound)']
@@ -260,7 +277,7 @@ export default function FailureForecast({
               type="monotone"
               dataKey="p10"
               stroke="none"
-              fill="#0E131C"
+              fill="var(--card-bg, var(--bg-surface))"
             />
 
             {/* Measured Line */}
@@ -289,11 +306,11 @@ export default function FailureForecast({
 
       {/* 3 KPI Mini-Cards in a Row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-        <div style={{ background: '#141B28', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 8, padding: '10px 12px' }}>
-          <div style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--text-tertiary, #4E5A6B)', fontWeight: 700 }}>
+        <div style={{ background: 'var(--bg-surface-raised)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 12px' }}>
+          <div style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--text-tertiary)', fontWeight: 700 }}>
             Est. Remaining Life (P50)
           </div>
-          <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary, #F0F4F8)', marginTop: 2 }}>
+          <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)', marginTop: 2 }}>
             {p50Cycles} Cycles ({p50Days}d)
           </div>
           <div style={{ fontSize: 10, color: '#38BDF8', marginTop: 2 }}>
@@ -301,11 +318,11 @@ export default function FailureForecast({
           </div>
         </div>
 
-        <div style={{ background: '#141B28', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 8, padding: '10px 12px' }}>
-          <div style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--text-tertiary, #4E5A6B)', fontWeight: 700 }}>
+        <div style={{ background: 'var(--bg-surface-raised)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 12px' }}>
+          <div style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--text-tertiary)', fontWeight: 700 }}>
             Prediction Horizon
           </div>
-          <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary, #F0F4F8)', marginTop: 2 }}>
+          <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)', marginTop: 2 }}>
             EOL &lt; 80% SOH
           </div>
           <div style={{ fontSize: 10, color: '#00E8A0', marginTop: 2 }}>
@@ -313,14 +330,14 @@ export default function FailureForecast({
           </div>
         </div>
 
-        <div style={{ background: '#141B28', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 8, padding: '10px 12px' }}>
-          <div style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--text-tertiary, #4E5A6B)', fontWeight: 700 }}>
+        <div style={{ background: 'var(--bg-surface-raised)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 12px' }}>
+          <div style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--text-tertiary)', fontWeight: 700 }}>
             Uncertainty Driver
           </div>
           <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent-primary, #00E8A0)', marginTop: 2, lineHeight: 1.3 }}>
             {sensitivityNote}
           </div>
-          <div style={{ fontSize: 10, color: 'var(--text-tertiary, #4E5A6B)', marginTop: 2 }}>
+          <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 2 }}>
             Bootstrap N=150 resamples
           </div>
         </div>

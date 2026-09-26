@@ -382,7 +382,7 @@ export default function DiagnosticsPage() {
           <div
             style={{
               padding: 14,
-              background: 'rgba(0,0,0,0.25)',
+              background: 'var(--input-bg)',
               border: `1px solid ${inaStatus === 'OK' ? 'rgba(0, 232, 160, 0.25)' : 'rgba(255, 45, 85, 0.4)'}`,
               borderRadius: 10,
             }}
@@ -416,7 +416,7 @@ export default function DiagnosticsPage() {
           <div
             style={{
               padding: 14,
-              background: 'rgba(0,0,0,0.25)',
+              background: 'var(--input-bg)',
               border: `1px solid ${dhtStatus === 'OK' ? 'rgba(0, 232, 160, 0.25)' : 'rgba(255, 45, 85, 0.4)'}`,
               borderRadius: 10,
             }}
@@ -510,7 +510,7 @@ export default function DiagnosticsPage() {
         </div>
 
         {/* AI Hardware Troubleshooting Assistant Card */}
-        <div style={{ marginTop: 16, padding: '14px 18px', background: '#0F1624', border: '1px solid rgba(191,90,242,0.3)', borderRadius: 12 }}>
+        <div style={{ marginTop: 16, padding: '14px 18px', background: 'var(--bg-surface-raised)', border: '1px solid rgba(191,90,242,0.3)', borderRadius: 12 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <span style={{ fontSize: 11, fontWeight: 800, color: '#BF5AF2', textTransform: 'uppercase', letterSpacing: 0.5 }}>
               ✨ AI Hardware Troubleshooting Assistant
@@ -541,15 +541,15 @@ export default function DiagnosticsPage() {
           </div>
 
           {aiTroubleshootResult && (
-            <div style={{ marginTop: 12, padding: 12, background: 'rgba(0,0,0,0.3)', borderRadius: 8, borderLeft: '3px solid #BF5AF2' }}>
+            <div style={{ marginTop: 12, padding: 12, background: 'var(--bg-canvas)', borderRadius: 8, borderLeft: '3px solid #BF5AF2', border: '1px solid var(--border)' }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: '#BF5AF2', marginBottom: 4 }}>
                 Root-Cause Hypothesis (Confidence: {aiTroubleshootResult.confidence || '88%'})
               </div>
-              <div style={{ fontSize: 12.5, color: '#E2E8F0', lineHeight: 1.5 }}>
+              <div style={{ fontSize: 12.5, color: 'var(--text-primary)', lineHeight: 1.5 }}>
                 {aiTroubleshootResult.hypothesis}
               </div>
               {aiTroubleshootResult.recommendedInspection && (
-                <div style={{ fontSize: 11.5, color: '#94A3B8', marginTop: 6 }}>
+                <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 6 }}>
                   👉 Inspection: {aiTroubleshootResult.recommendedInspection}
                 </div>
               )}
@@ -620,8 +620,8 @@ export default function DiagnosticsPage() {
 
         <pre
           style={{
-            background: 'rgba(0,0,0,0.4)',
-            border: '1px solid rgba(255,255,255,0.06)',
+            background: 'var(--input-bg)',
+            border: '1px solid var(--border)',
             borderRadius: 10,
             padding: 16,
             fontSize: 12,

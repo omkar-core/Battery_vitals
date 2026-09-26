@@ -1,7 +1,6 @@
 'use client'
 
 import React from 'react'
-import { Zap, Gauge, Activity, Cpu, ArrowUpRight, ArrowDownRight } from 'lucide-react'
 import styles from '../../styles/dashboard.module.css'
 
 export default function PowerMetrics({ battery }) {
@@ -22,7 +21,7 @@ export default function PowerMetrics({ battery }) {
       <div className={styles.metricCard}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>Bus Voltage (INA219)</span>
-          <Zap size={16} color="#00E8A0" />
+          <span style={{ fontSize: 16 }}>⚡</span>
         </div>
         <div style={{ fontSize: 28, fontWeight: 800, color: '#00E8A0', letterSpacing: '-0.5px' }}>
           {voltage != null ? voltage.toFixed(2) : '--'} <span style={{ fontSize: 16, fontWeight: 600 }}>V</span>
@@ -36,12 +35,12 @@ export default function PowerMetrics({ battery }) {
       <div className={styles.metricCard}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>Current Flow</span>
-          <Activity size={16} color="#38BDF8" />
+          <span style={{ fontSize: 16 }}>🔌</span>
         </div>
         <div style={{ fontSize: 28, fontWeight: 800, color: '#38BDF8', letterSpacing: '-0.5px', display: 'flex', alignItems: 'center', gap: 6 }}>
           {current != null ? current.toFixed(2) : '--'} <span style={{ fontSize: 16, fontWeight: 600 }}>A</span>
           {current != null && Math.abs(current) > 0.05 && (
-            isPositive ? <ArrowUpRight size={20} color="#00E8A0" /> : <ArrowDownRight size={20} color="#FF9500" />
+            isPositive ? <span style={{ fontSize: 18 }}>↗️</span> : <span style={{ fontSize: 18 }}>↘️</span>
           )}
         </div>
         <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 4 }}>
@@ -53,7 +52,7 @@ export default function PowerMetrics({ battery }) {
       <div className={styles.metricCard}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>Active Power</span>
-          <Gauge size={16} color="#FFB800" />
+          <span style={{ fontSize: 16 }}>⚡</span>
         </div>
         <div style={{ fontSize: 28, fontWeight: 800, color: '#FFB800', letterSpacing: '-0.5px' }}>
           {power != null ? power.toFixed(2) : '--'} <span style={{ fontSize: 16, fontWeight: 600 }}>W</span>
@@ -67,7 +66,7 @@ export default function PowerMetrics({ battery }) {
       <div className={styles.metricCard}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>Shunt Drop / Load V</span>
-          <Cpu size={16} color="#BF5AF2" />
+          <span style={{ fontSize: 16 }}>🎛️</span>
         </div>
         <div style={{ fontSize: 24, fontWeight: 800, color: '#BF5AF2', letterSpacing: '-0.5px' }}>
           {shuntVoltage != null ? (shuntVoltage * 1000).toFixed(1) : '--'} <span style={{ fontSize: 14, fontWeight: 600 }}>mV</span>

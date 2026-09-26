@@ -185,8 +185,8 @@ export default function ChatWidget({ initialBatteryId = 'BAT001', embedded = fal
 
   return (
     <div style={{
-      backgroundColor: '#0f172a',
-      border: '1px solid #1e293b',
+      backgroundColor: 'var(--bg-surface)',
+      border: '1px solid var(--border)',
       borderRadius: '16px',
       display: 'flex',
       flexDirection: 'column',
@@ -195,18 +195,18 @@ export default function ChatWidget({ initialBatteryId = 'BAT001', embedded = fal
       position: embedded ? 'relative' : 'fixed',
       bottom: embedded ? '0' : '24px',
       right: embedded ? '0' : '24px',
-      boxShadow: embedded ? 'none' : '0 20px 25px -5px rgba(0,0,0,0.5)',
+      boxShadow: embedded ? 'none' : 'var(--shadow-lg)',
       zIndex: 999,
       overflow: 'hidden',
     }}>
       {/* Top Header */}
       <div style={{
         padding: '12px 16px',
-        backgroundColor: '#1e293b',
+        backgroundColor: 'var(--bg-surface-raised)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        borderBottom: '1px solid #334155',
+        borderBottom: '1px solid var(--border)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
@@ -216,7 +216,7 @@ export default function ChatWidget({ initialBatteryId = 'BAT001', embedded = fal
           >
             📋 Sessions ({conversations.length})
           </button>
-          <span style={{ fontWeight: 600, fontSize: '14px', color: '#f8fafc' }}>
+          <span style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)' }}>
             Battery Vital AI ({batteryId})
           </span>
         </div>
@@ -226,7 +226,7 @@ export default function ChatWidget({ initialBatteryId = 'BAT001', embedded = fal
             onClick={handleNewConversation}
             style={{
               backgroundColor: '#00E8A0',
-              color: '#090d16',
+              color: '#06090F',
               border: 'none',
               borderRadius: '6px',
               padding: '4px 8px',
@@ -238,7 +238,7 @@ export default function ChatWidget({ initialBatteryId = 'BAT001', embedded = fal
             + New
           </button>
           {!embedded && (
-            <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '18px', cursor: 'pointer' }}>
+            <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', fontSize: '18px', cursor: 'pointer' }}>
               ✕
             </button>
           )}
@@ -255,17 +255,17 @@ export default function ChatWidget({ initialBatteryId = 'BAT001', embedded = fal
             top: 0,
             bottom: 0,
             width: '220px',
-            backgroundColor: '#090d16',
-            borderRight: '1px solid #1e293b',
+            backgroundColor: 'var(--bg-surface)',
+            borderRight: '1px solid var(--border)',
             padding: '12px',
             zIndex: 10,
             overflowY: 'auto',
           }}>
-            <div style={{ fontSize: '12px', fontWeight: 600, color: '#94a3b8', marginBottom: '8px' }}>
+            <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px' }}>
               PREVIOUS CONVERSATIONS
             </div>
             {conversations.length === 0 ? (
-              <div style={{ fontSize: '12px', color: '#64748b' }}>No saved sessions yet</div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>No saved sessions yet</div>
             ) : (
               conversations.map((c) => (
                 <div
@@ -278,8 +278,8 @@ export default function ChatWidget({ initialBatteryId = 'BAT001', embedded = fal
                     padding: '8px',
                     borderRadius: '6px',
                     fontSize: '12px',
-                    color: activeConversationId === c.conversationId ? '#00E8A0' : '#cbd5e1',
-                    backgroundColor: activeConversationId === c.conversationId ? '#1e293b' : 'transparent',
+                    color: activeConversationId === c.conversationId ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                    backgroundColor: activeConversationId === c.conversationId ? 'var(--bg-surface-raised)' : 'transparent',
                     cursor: 'pointer',
                     marginBottom: '4px',
                     whiteSpace: 'nowrap',
@@ -301,8 +301,9 @@ export default function ChatWidget({ initialBatteryId = 'BAT001', embedded = fal
               key={idx}
               style={{
                 alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
-                backgroundColor: m.role === 'user' ? '#00E8A0' : '#1e293b',
-                color: m.role === 'user' ? '#090d16' : '#f8fafc',
+                backgroundColor: m.role === 'user' ? '#00E8A0' : 'var(--bg-surface-raised)',
+                color: m.role === 'user' ? '#06090F' : 'var(--text-primary)',
+                border: m.role === 'user' ? 'none' : '1px solid var(--border)',
                 padding: '10px 14px',
                 borderRadius: m.role === 'user' ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
                 maxWidth: '85%',
@@ -315,7 +316,7 @@ export default function ChatWidget({ initialBatteryId = 'BAT001', embedded = fal
             </div>
           ))}
           {loading && (
-            <div style={{ alignSelf: 'flex-start', backgroundColor: '#1e293b', color: '#38BDF8', padding: '8px 12px', borderRadius: '12px', fontSize: '13px' }}>
+            <div style={{ alignSelf: 'flex-start', backgroundColor: 'var(--bg-surface-raised)', border: '1px solid var(--border)', color: '#38BDF8', padding: '8px 12px', borderRadius: '12px', fontSize: '13px' }}>
               ⚡ Battery Vital AI is generating context-aware diagnosis...
             </div>
           )}
@@ -324,15 +325,15 @@ export default function ChatWidget({ initialBatteryId = 'BAT001', embedded = fal
       </div>
 
       {/* Quick Chips */}
-      <div style={{ padding: '6px 12px', display: 'flex', gap: '6px', overflowX: 'auto', borderTop: '1px solid #1e293b' }}>
+      <div style={{ padding: '6px 12px', display: 'flex', gap: '6px', overflowX: 'auto', borderTop: '1px solid var(--border)', backgroundColor: 'var(--bg-surface)' }}>
         {QUICK_CHIPS.map((chip, idx) => (
           <button
             key={idx}
             onClick={() => handleSend(chip)}
             style={{
-              backgroundColor: '#1e293b',
-              color: '#94a3b8',
-              border: '1px solid #334155',
+              backgroundColor: 'var(--bg-surface-raised)',
+              color: 'var(--text-secondary)',
+              border: '1px solid var(--border)',
               borderRadius: '12px',
               padding: '4px 8px',
               fontSize: '11px',
@@ -351,7 +352,7 @@ export default function ChatWidget({ initialBatteryId = 'BAT001', embedded = fal
           e.preventDefault()
           handleSend()
         }}
-        style={{ padding: '12px', backgroundColor: '#1e293b', display: 'flex', gap: '8px' }}
+        style={{ padding: '12px', backgroundColor: 'var(--bg-surface-raised)', borderTop: '1px solid var(--border)', display: 'flex', gap: '8px' }}
       >
         <input
           type="text"
@@ -360,11 +361,11 @@ export default function ChatWidget({ initialBatteryId = 'BAT001', embedded = fal
           placeholder={`Ask about battery ${batteryId}...`}
           style={{
             flex: 1,
-            backgroundColor: '#090d16',
-            border: '1px solid #334155',
+            backgroundColor: 'var(--input-bg)',
+            border: '1px solid var(--border)',
             borderRadius: '8px',
             padding: '8px 12px',
-            color: '#f8fafc',
+            color: 'var(--text-primary)',
             fontSize: '13px',
           }}
         />
@@ -373,7 +374,7 @@ export default function ChatWidget({ initialBatteryId = 'BAT001', embedded = fal
           disabled={loading || !input.trim()}
           style={{
             backgroundColor: '#00E8A0',
-            color: '#090d16',
+            color: '#06090F',
             border: 'none',
             borderRadius: '8px',
             padding: '8px 14px',

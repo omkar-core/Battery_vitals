@@ -1,7 +1,6 @@
 'use client'
 
 import React from 'react'
-import { Zap } from 'lucide-react'
 import styles from '../styles/anim.module.css'
 
 // K1 - Animated SVG battery icon that fills/drains in real time from SOC.
@@ -67,17 +66,15 @@ export default function AnimatedBatteryIcon({ soc, charging = false, size = 40 }
 
         {/* Charging bolt overlay */}
         {charging && (
-          <g className={styles.batteryBoltPulse}>
-            <Zap
-              x="12.5"
-              y="26"
-              size={15}
-              color="#38BDF8"
-              fill="#38BDF8"
-              strokeWidth={1}
-              style={{ overflow: 'visible' }}
-            />
-          </g>
+          <text
+            x="20"
+            y="42"
+            textAnchor="middle"
+            fontSize="18"
+            className={styles.batteryBoltPulse}
+          >
+            ⚡
+          </text>
         )}
       </svg>
     </div>

@@ -114,7 +114,7 @@
 .filterActive {
   color: var(--green);
   border-color: rgba(0, 232, 160, 0.45);
-  background: linear-gradient(120deg, rgba(0, 232, 160, 0.12), rgba(56, 189, 248, 0.08));
+  background: rgba(0, 232, 160, 0.12);
 }
 
 /* analytics chart grid */
@@ -266,7 +266,7 @@
   padding: 8px 16px;
   border-radius: 8px;
   border: none;
-  background: linear-gradient(90deg, #00E8A0, #00C07A);
+  background: var(--accent-primary, #00E8A0);
   color: #06121b;
   font-size: 12px;
   font-weight: 700;
@@ -1160,7 +1160,7 @@
 .chartLoadingProgressInner {
   height: 100%;
   width: 50%;
-  background: linear-gradient(90deg, #00E8A0, #38BDF8);
+  background: var(--accent-primary, #00E8A0);
   border-radius: 10px;
   animation: chartLoadingMove 1.5s infinite ease-in-out;
 }

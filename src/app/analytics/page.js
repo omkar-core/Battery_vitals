@@ -8,7 +8,6 @@ import RealtimeGraphs from '../../components/RealtimeGraphs'
 import { useRealTimeData } from '../../hooks/useRealTimeData'
 import { useActiveProfile } from '../../hooks/useActiveProfile'
 import { normalizeTelemetry, formatNumber, safetyColor, safetyLabel, bhiStatus, exportToCSV } from '../../lib/utils'
-import { FileSpreadsheet } from 'lucide-react'
 import styles from '../../styles/pages.module.css'
 
 export default function Analytics() {
@@ -143,7 +142,7 @@ export default function Analytics() {
             className={styles.filterBtn}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px' }}
           >
-            <FileSpreadsheet size={15} color="var(--accent-primary)" />
+            <span style={{ fontSize: 14 }}>📊</span>
             <span>Export Graph CSV</span>
           </button>
         </div>
@@ -151,13 +150,13 @@ export default function Analytics() {
 
       {/* AI Trend Summary Banner if triggered */}
       {aiSummary && (
-        <div style={{ padding: '14px 18px', background: '#0F1624', border: '1px solid rgba(191,90,242,0.3)', borderRadius: 12, marginBottom: 20 }}>
+        <div style={{ padding: '14px 18px', background: 'var(--bg-surface-raised)', border: '1px solid rgba(191,90,242,0.35)', borderRadius: 12, marginBottom: 20 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
             <span style={{ fontSize: 11, fontWeight: 800, color: '#BF5AF2', textTransform: 'uppercase', letterSpacing: 0.5 }}>
               ✨ AI Operating Trend Summary
             </span>
             <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-              Grade: <strong style={{ color: 'var(--accent-primary)' }}>{aiSummary.grade || 'A'}</strong>
+              Grade: <strong style={{ color: 'var(--accent-primary)' }}>{aiSummary.grade || '--'}</strong>
             </span>
           </div>
           <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: 'var(--text-secondary)' }}>

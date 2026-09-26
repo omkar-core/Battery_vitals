@@ -233,14 +233,59 @@ export function executeBenchmarkValidation(options = {}) {
     { quantile: 'Above P90 (>90%)', observedCount: calibrationBuckets.above_p90, observedPct: Math.round((calibrationBuckets.above_p90 / totalEvaluations) * 100) },
   ]
 
-  // Phase 5: Hardware domain drift detection
-  results.domainDrift = detectTelemetryDrift([
-    { voltage: 3.75, temperature: 24.2 },
-    { voltage: 3.71, temperature: 24.5 },
-    { voltage: 3.68, temperature: 25.0 },
-    { voltage: 3.64, temperature: 25.2 },
-    { voltage: 3.60, temperature: 25.6 },
-  ])
+  // Phase 5: Hardware domain drift detection using verified live ESP32 frames
+  results.domainDrift = detectTelemetryDrift(options.liveTelemetry || [])
+
+  // Generate real cell curves directly from loaded NASA dataset fixtures
+  results.cellCurves = {}
+  for (const cell of cells) {
+    const cutoff = Math.floor(cell.failureCycle * 0.70)
+    const history = cell.cycles.filter((c) => c.cycle <= cutoff)
+    const modelPred = predictRulWithUncertainty(history, { threshold: 80.0 })
+    const linPred = linearTrendBaseline(history, { threshold: 80.0 })
+    const expPred = exponentialTrendBaseline(history, { threshold: 80.0 })
+    const capPred = capacityThresholdBaseline(history, { threshold: 80.0 })
+
+    const points = cell.cycles.map((c) => {
+      const isPast = c.cycle <= cutoff
+      const item = {
+        cycle: c.cycle,
+        label: `C${c.cycle}`,
+        actualSoh: Math.round(c.soh * 10) / 10,
+      }
+      if (isPast) {
+        item.observedSoh = item.actualSoh
+      } else {
+        const delta = c.cycle - cutoff
+        if (modelPred.p50_cycles) {
+          const dropPerCycle = (history[history.length - 1].soh - 80.0) / Math.max(1, modelPred.p50_cycles)
+          const baseMedian = Math.max(65, Math.round((history[history.length - 1].soh - delta * dropPerCycle) * 10) / 10)
+          item.modelMedian = baseMedian
+          item.modelP90 = Math.min(100, Math.round((baseMedian + delta * 0.08) * 10) / 10)
+          item.modelP10 = Math.max(60, Math.round((baseMedian - delta * 0.1) * 10) / 10)
+        }
+        if (linPred.rulCycles) {
+          const dropPerCycle = (history[history.length - 1].soh - 80.0) / Math.max(1, linPred.rulCycles)
+          item.linearBaseline = Math.max(65, Math.round((history[history.length - 1].soh - delta * dropPerCycle) * 10) / 10)
+        }
+        if (expPred.rulCycles) {
+          const dropPerCycle = (history[history.length - 1].soh - 80.0) / Math.max(1, expPred.rulCycles)
+          item.exponentialBaseline = Math.max(65, Math.round((history[history.length - 1].soh - delta * dropPerCycle) * 10) / 10)
+        }
+        if (capPred.rulCycles) {
+          const dropPerCycle = (history[history.length - 1].soh - 80.0) / Math.max(1, capPred.rulCycles)
+          item.capacityBaseline = Math.max(65, Math.round((history[history.length - 1].soh - delta * dropPerCycle) * 10) / 10)
+        }
+      }
+      return item
+    })
+
+    results.cellCurves[cell.cellId] = {
+      points,
+      cutoff,
+      actualFailure: cell.failureCycle,
+    }
+  }
 
   // ────────────────────────────────────────────────────────────
   // 2. ABLATION STUDY (Signal Attribution Verification)

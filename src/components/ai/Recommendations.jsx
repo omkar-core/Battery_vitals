@@ -25,12 +25,29 @@ export default function Recommendations({
     )
   }
 
-  // Fallback items if none provided
-  const items = recommendations.length > 0 ? recommendations : [
-    { priority: 'medium', action: 'Inspect Thermal Ventilation', reason: 'Ambient sensor registered peaks near 38°C under continuous load.' },
-    { priority: 'low', action: 'Schedule Capacity Calibration', reason: 'Pack has completed 45 cycles since last full OCV baseline reset.' },
-    { priority: 'high', action: 'Verify Current Shunt Wiring', reason: 'High discharge transient observed near 8.5A upper margin.' },
-  ]
+  const items = Array.isArray(recommendations) ? recommendations : []
+
+  if (items.length === 0) {
+    return (
+      <div className={styles.card}>
+        <div className={styles.cardHeader}>
+          <div className={styles.titleGroup}>
+            <span className={styles.aiBadge}>✨ AI Guidance</span>
+            <h3 className={styles.cardTitle}>Actionable Operational Recommendations</h3>
+          </div>
+        </div>
+        <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+          <div style={{ fontSize: 24, marginBottom: 8 }}>🛡️</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+            All Parameters Nominal
+          </div>
+          <p style={{ fontSize: 12, margin: '6px auto 0', maxWidth: 440, color: 'var(--text-secondary)' }}>
+            No corrective intervention needed based on live sensor telemetry. Continue standard operating profile.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   const getPriorityClass = (priority) => {
     const p = String(priority || 'medium').toLowerCase()

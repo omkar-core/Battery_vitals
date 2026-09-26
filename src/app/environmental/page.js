@@ -7,18 +7,6 @@ import GasDetection from '../../components/environmental/GasDetection'
 import AirQualityIndex from '../../components/environmental/AirQualityIndex'
 import EnvironmentalChart from '../../components/charts/EnvironmentalChart'
 import { useEnvironmental } from '../../hooks/useEnvironmental'
-import {
-  Flame,
-  Wind,
-  Droplets,
-  ShieldAlert,
-  ShieldCheck,
-  Activity,
-  AlertTriangle,
-  Radio,
-  Clock,
-  TrendingUp,
-} from 'lucide-react'
 import styles from '../../styles/pages.module.css'
 
 export default function EnvironmentalPage() {
@@ -55,7 +43,7 @@ function EnvironmentalPageInner() {
       <div className={styles.pageHeader}>
         <div>
           <h1 className={styles.pageTitle}>
-            <Wind size={24} style={{ verticalAlign: 'middle', marginRight: 8 }} color="#38BDF8" />
+            <span style={{ fontSize: 24, verticalAlign: 'middle', marginRight: 8 }}>🌬️</span>
             Environmental <span className="gradText">Safety Station</span>
           </h1>
           <p className={styles.subtitle} style={{ marginBottom: 0 }}>
@@ -78,8 +66,8 @@ function EnvironmentalPageInner() {
               gap: 6,
             }}
           >
-            {hasHazards ? <AlertTriangle size={14} /> : <ShieldCheck size={14} />}
-            {hasHazards ? 'HAZARD ELEVATED' : 'ENVIRONMENT SECURE'}
+            <span>{hasHazards ? '⚠️' : '🛡️'}</span>
+            <span>{hasHazards ? 'HAZARD ELEVATED' : 'ENVIRONMENT SECURE'}</span>
           </span>
         </div>
       </div>
@@ -104,7 +92,7 @@ function EnvironmentalPageInner() {
           <div className={styles.card}>
             <div className={styles.cardHeader}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <ShieldAlert size={18} color={hasHazards ? '#FF2D55' : '#00E8A0'} />
+                <span style={{ fontSize: 18 }}>🚨</span>
                 <h3 className={styles.cardTitle}>Threshold Violation Feed</h3>
               </div>
               <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
@@ -114,7 +102,7 @@ function EnvironmentalPageInner() {
 
             {violations.length === 0 ? (
               <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                <ShieldCheck size={32} color="#00E8A0" style={{ margin: '0 auto 8px', display: 'block' }} />
+                <span style={{ fontSize: 32, margin: '0 auto 8px', display: 'block' }}>🛡️</span>
                 <div style={{ fontWeight: 600, fontSize: 14 }}>All Environmental Sensors In Safe Limits</div>
                 <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 4 }}>
                   No gas leaks, smoke traces, or thermal runaway risks detected.
@@ -161,7 +149,7 @@ function EnvironmentalPageInner() {
         <div className={styles.card} style={{ display: 'flex', flexDirection: 'column' }}>
           <div className={styles.cardHeader}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <TrendingUp size={18} color="#00E8A0" />
+              <span style={{ fontSize: 18 }}>📈</span>
               <h3 className={styles.cardTitle}>Ambient History &amp; Gas Dynamics</h3>
             </div>
             <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>Rolling time-series</span>

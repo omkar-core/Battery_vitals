@@ -30,7 +30,7 @@ export async function POST(request) {
         name: b.name,
         chemistry: b.chemistry,
         state,
-        soh: b.soh || 89,
+        soh: b.soh != null ? b.soh : null,
       }
     })
 
