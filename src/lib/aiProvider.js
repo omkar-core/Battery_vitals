@@ -9,6 +9,7 @@ import {
   FREE_MODEL_ALLOWLIST,
   assertModelAllowed,
   PROVIDER_QUOTAS,
+  DIAGNOSTIC_SCHEMA,
 } from './aiModels'
 
 // Non-negotiable system instruction enforced on all AI calls across all models.
@@ -35,12 +36,12 @@ export const openRouterBreaker = new CircuitBreaker({
   resetTimeoutMs: 30000,
 })
 
-const DEFAULT_TIMEOUT_MS = 6000
+const DEFAULT_TIMEOUT_MS = 12000
 
 // In-flight request deduplication map (fingerprint -> Promise)
 const inFlightRequests = new Map()
 
-// Provider rate tracking counters
+// Provider rate tracking counters with daily quota persistence
 function getNextUtcMidnight() {
   const d = new Date()
   d.setUTCHours(24, 0, 0, 0)
@@ -66,20 +67,18 @@ function checkAndUpdateQuota(providerKey, rpmCap, rpdCap) {
   const now = Date.now()
   const q = quotaState[providerKey]
 
-  // Reset minute bucket
   if (now >= q.minReset) {
     q.minuteCount = 0
     q.minReset = now + 60000
   }
 
-  // Reset daily bucket
   if (now >= q.dayReset) {
     q.dayCount = 0
     q.dayReset = getNextUtcMidnight()
   }
 
   if (q.minuteCount >= rpmCap || q.dayCount >= rpdCap) {
-    return false // Rate or quota exhausted
+    return false
   }
 
   q.minuteCount++
@@ -112,7 +111,7 @@ export function getProviderHealthStatus() {
 }
 
 export const getGeminiModel = () => process.env.GEMINI_MODEL || 'gemini-1.5-flash'
-export const getOpenRouterModel = () => process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct:free'
+export const getOpenRouterModel = () => process.env.OPENROUTER_MODEL || 'liquid/lfm-40b:free'
 
 /**
  * Extract clean JSON from model output text, handling markdown fences or loose braces.
@@ -122,9 +121,7 @@ export function extractJson(text) {
   const trimmed = text.trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim()
   try {
     return JSON.parse(trimmed)
-  } catch (e) {
-    // Fall through to slice extraction
-  }
+  } catch (e) {}
   const start = trimmed.indexOf('{')
   const end = trimmed.lastIndexOf('}')
   if (start !== -1 && end > start) {
@@ -175,6 +172,44 @@ export function clampRiskToDeterministic(parsedResult, safetyState, safetyScore 
   }
 
   return res
+}
+
+/**
+ * Validate diagnostic response against schema and apply corrections if needed.
+ */
+function validateAndCorrectDiagnostic(parsed, safetyState, safetyScore, provider, task) {
+  if (!parsed || typeof parsed !== 'object') return null
+
+  const res = { ...parsed }
+
+  // Ensure required fields exist with valid values
+  if (!res.overall_status || !['SAFE', 'CAUTION', 'WARNING', 'CRITICAL', 'EMERGENCY'].includes(res.overall_status)) {
+    res.overall_status = safetyState
+  }
+  if (typeof res.risk_score !== 'number' || !Number.isFinite(res.risk_score)) {
+    res.risk_score = safetyScore
+  }
+  if (typeof res.confidence !== 'number' || !Number.isFinite(res.confidence) || res.confidence < 0 || res.confidence > 1) {
+    res.confidence = provider === 'deterministic' ? 0.6 : 0.5
+  }
+  if (!res.summary || typeof res.summary !== 'string' || res.summary.length < 10) {
+    res.summary = `Battery is in ${res.overall_status} state. Deterministic safety engine confirms this status.`
+  }
+  if (!Array.isArray(res.key_drivers) || res.key_drivers.length === 0) {
+    res.key_drivers = [{ metric: 'overall', value: safetyScore, threshold: safetyScore, contribution: 'high' }]
+  }
+  if (!Array.isArray(res.recommendations) || res.recommendations.length === 0) {
+    res.recommendations = [{ priority: 'medium', action: 'Continue routine monitoring of all battery parameters.', reason: 'No immediate action required based on current telemetry.' }]
+  }
+  if (!res.failure_probability || typeof res.failure_probability !== 'object') {
+    res.failure_probability = { '30_days': 0, '90_days': 0, '1_year': 0 }
+  }
+  if (!res.provider_used) {
+    res.provider_used = provider
+  }
+
+  // Apply safety clamping
+  return clampRiskToDeterministic(res, safetyState, safetyScore)
 }
 
 /**
@@ -247,6 +282,7 @@ async function callGemini({ prompt, system, json, vision, model, temperature = 0
 
 /**
  * Call OpenRouter API (OpenAI-compatible chat completions).
+ * Required headers: HTTP-Referer and X-Title
  */
 async function callOpenRouter({ prompt, system, json, vision, model, temperature = 0.2, maxTokens = 2048, timeoutMs = DEFAULT_TIMEOUT_MS }) {
   const apiKey = process.env.OPENROUTER_API_KEY
@@ -390,6 +426,22 @@ export function getDeterministicFallback(task, prompt, safetyState = 'SAFE', jso
     return `Battery Vital AI is operating in deterministic basic mode. Your battery is currently in ${state} state. For detailed diagnostics, please consult the Smart Analysis and Diagnostics tabs.`
   }
 
+  if (task === 'insights' || task === 'diagnostics') {
+    return {
+      overall_status: state,
+      risk_score: state === 'EMERGENCY' ? 95 : state === 'CRITICAL' ? 75 : state === 'WARNING' ? 50 : state === 'CAUTION' ? 25 : 5,
+      confidence: 0.6,
+      summary: `Deterministic safety assessment: battery is in ${state} state. All values evaluated against validated thresholds.`,
+      key_drivers: [{ metric: 'safety_state', value: state === 'EMERGENCY' ? 95 : state === 'CRITICAL' ? 75 : state === 'WARNING' ? 50 : state === 'CAUTION' ? 25 : 5, threshold: 0, contribution: 'high' }],
+      recommendations: [
+        { priority: 'high', action: 'Verify all sensor connections and firmware operation.', reason: 'Deterministic engine is the sole source of truth when AI providers are unavailable.' },
+        { priority: 'medium', action: 'Review recent telemetry in History tab for trend anomalies.', reason: 'Pattern recognition requires live data history.' },
+      ],
+      failure_probability: { '30_days': state === 'EMERGENCY' ? 15 : state === 'CRITICAL' ? 8 : state === 'WARNING' ? 3 : 1, '90_days': state === 'EMERGENCY' ? 35 : state === 'CRITICAL' ? 20 : state === 'WARNING' ? 10 : 3, '1_year': state === 'EMERGENCY' ? 60 : state === 'CRITICAL' ? 40 : state === 'WARNING' ? 20 : 5 },
+      provider_used: 'deterministic',
+    }
+  }
+
   return json
     ? { status: state, mode: 'deterministic-fallback', message: 'AI model offline; deterministic safety verified.' }
     : `Operating in deterministic fallback mode. Battery State: ${state}.`
@@ -438,14 +490,14 @@ export async function getAIResponse(prompt, options = {}) {
     let result = null
     let lastError = null
 
-    // 3. Try Gemini
-    const canTryGemini =
+    // 3. Try Gemini (primary model)
+    const canTryGeminiPrimary =
       (provider === 'auto' || provider === 'gemini') &&
       Boolean(process.env.GEMINI_API_KEY) &&
       geminiBreaker.state !== 'OPEN' &&
       checkAndUpdateQuota('gemini', PROVIDER_QUOTAS.GEMINI_FREE_RPM, PROVIDER_QUOTAS.GEMINI_FREE_RPD)
 
-    if (canTryGemini) {
+    if (canTryGeminiPrimary) {
       try {
         const targetModel = model || taskConfig.primary || getGeminiModel()
         result = await geminiBreaker.execute(() =>
@@ -469,23 +521,62 @@ export async function getAIResponse(prompt, options = {}) {
           )
         )
       } catch (e) {
-        console.warn('[AIProvider] Gemini attempt failed:', e.message)
+        console.warn('[AIProvider] Gemini primary attempt failed:', e.message)
         lastError = e
       }
     }
 
-    // 4. Try OpenRouter Fallback (if non-vision task or vision supported)
+    // 4. Try Gemini secondary model (pro) for deep reasoning tasks
+    const canTryGeminiSecondary =
+      !result &&
+      (provider === 'auto' || provider === 'gemini') &&
+      Boolean(process.env.GEMINI_API_KEY) &&
+      geminiBreaker.state !== 'OPEN' &&
+      taskConfig.secondary &&
+      checkAndUpdateQuota('gemini', PROVIDER_QUOTAS.GEMINI_FREE_RPM, PROVIDER_QUOTAS.GEMINI_FREE_RPD)
+
+    if (canTryGeminiSecondary) {
+      try {
+        const targetModel = taskConfig.secondary
+        result = await geminiBreaker.execute(() =>
+          retryWithBackoff(
+            () =>
+              callGemini({
+                prompt,
+                system,
+                json,
+                vision,
+                model: targetModel,
+                temperature,
+                maxTokens,
+                timeoutMs,
+              }),
+            {
+              maxAttempts: 1,
+              initialDelayMs: 500,
+              shouldRetry: (err) => err?.status !== 429 && err?.statusCode !== 429,
+            }
+          )
+        )
+      } catch (e) {
+        console.warn('[AIProvider] Gemini secondary attempt failed:', e.message)
+        lastError = e
+      }
+    }
+
+    // 5. Try OpenRouter Fallback (if non-vision task or vision supported)
     const canTryOpenRouter =
       !result &&
-      !taskConfig.isVision && // Don't route vision tasks to unverified OpenRouter models
+      !taskConfig.isVision &&
       (provider === 'auto' || provider === 'openrouter') &&
       Boolean(process.env.OPENROUTER_API_KEY) &&
       openRouterBreaker.state !== 'OPEN' &&
+      taskConfig.openRouter &&
       checkAndUpdateQuota('openrouter', PROVIDER_QUOTAS.OPENROUTER_FREE_RPM, PROVIDER_QUOTAS.OPENROUTER_FREE_RPD)
 
     if (canTryOpenRouter) {
       try {
-        const targetModel = model || taskConfig.openRouter || getOpenRouterModel()
+        const targetModel = taskConfig.openRouter
         result = await openRouterBreaker.execute(() =>
           retryWithBackoff(
             () =>
@@ -512,7 +603,7 @@ export async function getAIResponse(prompt, options = {}) {
       }
     }
 
-    // 5. Deterministic rule-based fallback if models unavailable
+    // 6. Deterministic rule-based fallback if models unavailable
     if (!result) {
       const fbData = getDeterministicFallback(task, prompt, safetyState, json)
       result = {
@@ -523,13 +614,18 @@ export async function getAIResponse(prompt, options = {}) {
       }
     }
 
-    // 6. Parse JSON if requested
+    // 7. Parse JSON if requested
     let parsed = null
     if (json || typeof result.text === 'object') {
       parsed = typeof result.text === 'object' ? result.text : extractJson(result.text)
     }
 
-    // 7. Invariant #1: Clamping
+    // 8. Validate and correct diagnostic response against schema
+    if (parsed && (task === 'insights' || task === 'diagnostics' || task === 'root-cause' || task === 'report')) {
+      parsed = validateAndCorrectDiagnostic(parsed, safetyState, safetyScore, result.provider, task)
+    }
+
+    // 9. Invariant #1: Clamping (for any task with structured output)
     if (parsed && safetyState) {
       parsed = clampRiskToDeterministic(parsed, safetyState, safetyScore)
     }
@@ -544,9 +640,29 @@ export async function getAIResponse(prompt, options = {}) {
       timestamp: Date.now(),
     }
 
-    // 8. Cache output
+    // 10. Cache output
     if (cacheKey && result.provider !== 'none') {
       cacheSet(cacheKey, output, cacheTtlMs)
+    }
+
+    // 11. Log to ai_diagnostics in MongoDB (best-effort)
+    if (result.provider !== 'deterministic' || options.logDiagnostics !== false) {
+      try {
+        const { getDB } = await import('./mongodb')
+        const db = await getDB()
+        await db.collection('ai_diagnostics').insertOne({
+          task,
+          provider: result.provider,
+          model: result.model,
+          safetyState,
+          safetyScore,
+          isFallback: Boolean(result.isFallback),
+          timestamp: new Date().toISOString(),
+          promptHash: require('crypto').createHash('sha256').update(prompt).digest('hex').slice(0, 16),
+        })
+      } catch (e) {
+        console.warn('[AIProvider] Failed to log diagnostic:', e.message)
+      }
     }
 
     return output

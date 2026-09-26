@@ -20,17 +20,21 @@ const SEVERITY_COLOR = {
   CRITICAL: '#FF2D55',
 }
 
+const PRIORITY_STYLE = {
+  high: { bg: 'rgba(255,45,85,0.15)', color: '#FF2D55', border: 'rgba(255,45,85,0.3)' },
+  medium: { bg: 'rgba(255,214,10,0.15)', color: '#FFD60A', border: 'rgba(255,214,10,0.3)' },
+  low: { bg: 'rgba(0,232,160,0.15)', color: '#00E8A0', border: 'rgba(0,232,160,0.3)' },
+}
+
 export default function AIInsights({ analysis, result, loading = false, onAnalyze }) {
   const [copied, setCopied] = useState(false)
   const [rawView, setRawView] = useState(false)
 
-  // Collapsible section toggles for detailed insights
   const [openSections, setOpenSections] = useState({
     summary: true,
-    findings: true,
-    anomalies: true,
+    drivers: true,
     recommendations: true,
-    predictions: true,
+    probabilities: true,
     safety: true,
   })
 
@@ -38,7 +42,7 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }))
   }
 
-  const structured = result && typeof result === 'object'
+  const structured = result && typeof result === 'object' && result.overall_status
   const copyText = structured ? JSON.stringify(result, null, 2) : analysis
 
   const handleCopy = () => {
@@ -73,32 +77,15 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
     return STATUS_META.SAFE
   }, [result, analysis, structured])
 
-  // Loading steps
   const LOADING_STAGES = [
     'Retrieving live ESP32 telemetry & I2C sensor bus',
     'Validating sensor ranges & deterministic threshold bounds',
-    'Querying Gemini AI Safety Intelligence Engine',
+    'Querying AI Safety Intelligence Engine (Gemini &rarr; OpenRouter &rarr; Deterministic)',
     'Synthesizing risk appraisal & condition recommendations',
   ]
 
-  // Extract snapshot telemetry values from structured result or form
-  const snapshotData = useMemo(() => {
-    if (!structured) return null
-    return {
-      voltage: result.voltage != null ? Number(result.voltage) : null,
-      current: result.current != null ? Number(result.current) : null,
-      temperature: result.temperature != null ? Number(result.temperature) : null,
-      humidity: result.humidity != null ? Number(result.humidity) : null,
-      soc: result.soc != null ? Number(result.soc) : null,
-      gas: result.gas_ppm != null ? Number(result.gas_ppm) : null,
-      power: result.power != null ? Number(result.power) : null,
-      resistance: result.internal_resistance != null ? Number(result.internal_resistance) : null,
-    }
-  }, [structured, result])
-
   return (
     <div className={styles.aiCard}>
-      {/* Top Header & Action Bar */}
       <div className={styles.aiHeader}>
         <div
           style={{
@@ -116,7 +103,7 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
         </div>
         <div style={{ flex: 1 }}>
           <h3 className={styles.panelTitle} style={{ margin: 0, fontSize: 16 }}>
-            AI Safety &amp; Degradation Intelligence
+            AI Safety & Degradation Intelligence
           </h3>
           <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginTop: 2 }}>
             Deterministic safety validation &rarr; Neural risk appraisal &rarr; Verified condition insights
@@ -156,7 +143,6 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
         )}
       </div>
 
-      {/* Main Trigger Actions */}
       <div className={styles.aiActions}>
         <button
           className={styles.primaryBtn}
@@ -179,7 +165,6 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
         </button>
       </div>
 
-      {/* Loading State: Staged Pipeline Indicator */}
       {loading ? (
         <div className={styles.aiLoading}>
           <div className={styles.aiBrainPulseWrap} style={{ fontSize: 44, textAlign: 'center' }}>
@@ -200,13 +185,8 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
           </div>
         </div>
       ) : structured && !rawView ? (
-        /* ========================================================================= */
-        /* 3-CARD STRUCTURED LAYOUT                                                  */
-        /* ========================================================================= */
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 16 }}>
-          {/* ======================================================================= */}
-          {/* CARD 1: 📊 ANALYSIS SUMMARY CARD                                      */}
-          {/* ======================================================================= */}
+          {/* CARD 1: ANALYSIS SUMMARY */}
           <div
             style={{
               background: 'var(--bg-surface-raised)',
@@ -237,12 +217,12 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
                     Analysis Summary
                   </div>
                   <div style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>
-                    Battery Node: <strong>{result.battery_id || 'BAT001'}</strong> · Generated: {formatTime(result.generated_at)}
+                    Battery Node: <strong>{result.battery_id || 'BAT001'}</strong> · Generated:{' '}
+                    {formatTime(result.generated_at)}
                   </div>
                 </div>
               </div>
 
-              {/* Status Badge */}
               <span
                 className="chip"
                 style={{
@@ -288,8 +268,57 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
               </div>
             </div>
 
+            {/* Confidence indicator */}
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 6 }}>
+                <span style={{ color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  AI Confidence
+                </span>
+                <span style={{ color: '#BF5AF2', fontWeight: 800, fontSize: 13 }}>
+                  {Math.round((Number(result.confidence) || 0) * 100)}%
+                </span>
+              </div>
+              <div
+                style={{
+                  height: 6,
+                  borderRadius: 100,
+                  background: 'rgba(255,255,255,0.06)',
+                  overflow: 'hidden',
+                }}
+              >
+                <div
+                  style={{
+                    width: `${Math.max(0, Math.min(100, Math.round((Number(result.confidence) || 0) * 100)))}%`,
+                    height: '100%',
+                    background: '#BF5AF2',
+                    transition: 'width 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Provider badge */}
+            <div style={{ marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
+                Provider:
+              </span>
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  padding: '3px 8px',
+                  borderRadius: 100,
+                  background: result.provider_used?.includes('gemini') ? 'rgba(2,132,199,0.15)' : result.provider_used?.includes('openrouter') ? 'rgba(191,90,242,0.15)' : 'rgba(0,232,160,0.15)',
+                  color: result.provider_used?.includes('gemini') ? '#38BDF8' : result.provider_used?.includes('openrouter') ? '#BF5AF2' : '#00E8A0',
+                  border: `1px solid ${result.provider_used?.includes('gemini') ? 'rgba(56,189,248,0.3)' : result.provider_used?.includes('openrouter') ? 'rgba(191,90,242,0.3)' : 'rgba(0,232,160,0.3)'}`,
+                }}
+              >
+                {formatProvider(result.provider_used)}
+              </span>
+            </div>
+
             {/* Battery Health Summary Text */}
-            {result.battery_health_summary && (
+            {result.summary && (
               <div
                 style={{
                   padding: '12px 14px',
@@ -305,62 +334,52 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
                 <strong style={{ color: '#BF5AF2', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                   <span>ℹ️</span> Diagnostic Appraisal:
                 </strong>
-                {result.battery_health_summary}
+                {result.summary}
               </div>
             )}
 
-            {/* Telemetry Metrics Snapshot Grid */}
-            {snapshotData && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8, marginTop: 10 }}>
-                {snapshotData.voltage != null && (
-                  <div style={{ padding: '8px 10px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-subtle)' }}>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Voltage</div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#00E8A0' }}>{snapshotData.voltage.toFixed(2)} V</div>
-                  </div>
-                )}
-                {snapshotData.current != null && (
-                  <div style={{ padding: '8px 10px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-subtle)' }}>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Current</div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#38BDF8' }}>{snapshotData.current.toFixed(2)} A</div>
-                  </div>
-                )}
-                {snapshotData.temperature != null && (
-                  <div style={{ padding: '8px 10px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-subtle)' }}>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Temperature</div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: snapshotData.temperature > 40 ? '#FF6B35' : '#00E8A0' }}>
-                      {snapshotData.temperature.toFixed(1)} °C
-                    </div>
-                  </div>
-                )}
-                {snapshotData.soc != null && (
-                  <div style={{ padding: '8px 10px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-subtle)' }}>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>SOC</div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: snapshotData.soc < 20 ? '#FF2D55' : '#00E8A0' }}>
-                      {Math.round(snapshotData.soc)}%
-                    </div>
-                  </div>
-                )}
-                {snapshotData.gas != null && (
-                  <div style={{ padding: '8px 10px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-subtle)' }}>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>MQ-2 Gas</div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: snapshotData.gas > 300 ? '#FF2D55' : '#38BDF8' }}>
-                      {Math.round(snapshotData.gas)} ppm
-                    </div>
-                  </div>
-                )}
-                {result.data_quality?.score != null && (
-                  <div style={{ padding: '8px 10px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-subtle)' }}>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Data Quality</div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#BF5AF2' }}>{result.data_quality.score}/100</div>
-                  </div>
-                )}
+            {/* Key Drivers as Chips */}
+            {Array.isArray(result.key_drivers) && result.key_drivers.length > 0 && (
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-tertiary)', marginBottom: 8, textTransform: 'uppercase' }}>
+                  Key Risk Drivers
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {result.key_drivers.map((d, i) => {
+                    const contrib = d.contribution || 'medium'
+                    const contribColor = contrib === 'high' ? '#FF2D55' : contrib === 'medium' ? '#FFD60A' : '#00E8A0'
+                    return (
+                      <div
+                        key={i}
+                        style={{
+                          padding: '8px 12px',
+                          borderRadius: 10,
+                          background: 'rgba(255,255,255,0.03)',
+                          border: `1px solid ${contribColor}44`,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 2,
+                          minWidth: 120,
+                        }}
+                      >
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                          {d.metric}
+                        </div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: contribColor }}>
+                          {Number(d.value).toFixed(d.metric.includes('temp') ? 1 : 1)}
+                        </div>
+                        <div style={{ fontSize: 9.5, color: 'var(--text-tertiary)' }}>
+                          Threshold: {Number(d.threshold).toFixed(1)} · {contrib}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             )}
           </div>
 
-          {/* ======================================================================= */}
-          {/* CARD 2: 🔍 DETAILED INSIGHTS CARD                                     */}
-          {/* ======================================================================= */}
+          {/* CARD 2: RECOMMENDATIONS & FINDINGS */}
           <div
             style={{
               background: 'var(--bg-surface-raised)',
@@ -371,213 +390,71 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 10 }}>
-              <span style={{ fontSize: 18 }}>📈</span>
+              <span style={{ fontSize: 18 }}>📋</span>
               <div>
                 <h4 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: 'var(--text-primary)' }}>
-                  Detailed Insights &amp; Recommendations
+                  Actionable Recommendations
                 </h4>
                 <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                  Condition-based observations, anomaly triage &amp; actionable advice
+                  Condition-based observations & numbered checklist tied to measured values
                 </span>
               </div>
             </div>
 
-            {/* Collapsible 1: Key Findings */}
-            {Array.isArray(result.key_findings) && result.key_findings.length > 0 && (
-              <div style={{ marginBottom: 12, borderRadius: 12, border: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
-                <button
-                  onClick={() => toggleSection('findings')}
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    background: 'rgba(56, 189, 248, 0.08)',
-                    border: 'none',
-                    color: '#38BDF8',
-                    fontWeight: 700,
-                    fontSize: 13,
-                    cursor: 'pointer',
-                  }}
-                >
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span>✅</span> Key Operational Findings ({result.key_findings.length})
-                  </span>
-                  <span>{openSections.findings ? '▲' : '▼'}</span>
-                </button>
-
-                {openSections.findings && (
-                  <div style={{ padding: 14, background: 'var(--input-bg)', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {result.key_findings.map((f, i) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.55 }}>
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#38BDF8', marginTop: 6, flexShrink: 0 }} />
-                        <span>{f}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Collapsible 2: Anomalies Detected */}
-            {Array.isArray(result.anomalies) && (
-              <div style={{ marginBottom: 12, borderRadius: 12, border: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
-                <button
-                  onClick={() => toggleSection('anomalies')}
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    background: result.anomalies.length > 0 ? 'rgba(255, 107, 53, 0.1)' : 'rgba(0, 232, 160, 0.06)',
-                    border: 'none',
-                    color: result.anomalies.length > 0 ? '#FF6B35' : '#00E8A0',
-                    fontWeight: 700,
-                    fontSize: 13,
-                    cursor: 'pointer',
-                  }}
-                >
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span>⚠️</span> Anomalies &amp; Hazard Flags ({result.anomalies.length})
-                  </span>
-                  <span>{openSections.anomalies ? '▲' : '▼'}</span>
-                </button>
-
-                {openSections.anomalies && (
-                  <div style={{ padding: 14, background: 'var(--input-bg)' }}>
-                    {result.anomalies.length === 0 ? (
-                      <div style={{ fontSize: 12.5, color: '#00E8A0', display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span>✅</span> No anomalies or critical safety limit violations detected.
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        {result.anomalies.map((a, i) => (
-                          <div
-                            key={i}
-                            style={{
-                              padding: '10px 12px',
-                              borderRadius: 10,
-                              background: 'rgba(255,255,255,0.03)',
-                              border: `1px solid ${SEVERITY_COLOR[(a.severity || 'info').toUpperCase()] || '#94A3B8'}44`,
-                              display: 'flex',
-                              gap: 10,
-                              alignItems: 'flex-start',
-                            }}
-                          >
-                            <span
-                              style={{
-                                fontSize: 9.5,
-                                fontWeight: 800,
-                                padding: '2px 8px',
-                                borderRadius: 100,
-                                border: `1px solid ${SEVERITY_COLOR[(a.severity || 'info').toUpperCase()] || '#94A3B8'}55`,
-                                color: SEVERITY_COLOR[(a.severity || 'info').toUpperCase()] || '#94A3B8',
-                                flexShrink: 0,
-                                marginTop: 1,
-                              }}
-                            >
-                              {(a.severity || 'info').toUpperCase()}
-                            </span>
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-primary)' }}>
-                                {a.parameter} {a.value != null && <span style={{ color: 'var(--text-muted)' }}>= {a.value}</span>}
-                              </div>
-                              <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginTop: 2 }}>{a.explanation}</div>
-                            </div>
+            {/* Recommendations as Numbered Checklist */}
+            {Array.isArray(result.recommendations) && result.recommendations.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {result.recommendations.map((rec, i) => {
+                  const pr = rec.priority || 'low'
+                  const style = PRIORITY_STYLE[pr] || PRIORITY_STYLE.low
+                  return (
+                    <div
+                      key={i}
+                      style={{
+                        padding: '12px 14px',
+                        borderRadius: 10,
+                        background: 'rgba(255,255,255,0.02)',
+                        border: `1px solid ${style.border}`,
+                        display: 'flex',
+                        gap: 12,
+                        alignItems: 'flex-start',
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 800,
+                          color: style.color,
+                          background: style.bg,
+                          border: `1px solid ${style.border}`,
+                          borderRadius: 100,
+                          width: 28,
+                          height: 28,
+                          display: 'grid',
+                          placeItems: 'center',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {i + 1}
+                      </span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                          {rec.action}
+                        </div>
+                        {rec.reason && (
+                          <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginTop: 3 }}>
+                            <strong style={{ color: 'var(--text-primary)' }}>Reason:</strong> {rec.reason}
                           </div>
-                        ))}
+                        )}
                       </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Collapsible 3: Actionable Recommendations */}
-            {Array.isArray(result.recommendations) && (
-              <div style={{ marginBottom: 12, borderRadius: 12, border: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
-                <button
-                  onClick={() => toggleSection('recommendations')}
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    background: 'rgba(0, 232, 160, 0.08)',
-                    border: 'none',
-                    color: '#00E8A0',
-                    fontWeight: 700,
-                    fontSize: 13,
-                    cursor: 'pointer',
-                  }}
-                >
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span>🛡️</span> Actionable Recommendations ({result.recommendations.length})
-                  </span>
-                  <span>{openSections.recommendations ? '▲' : '▼'}</span>
-                </button>
-
-                {openSections.recommendations && (
-                  <div style={{ padding: 14, background: 'var(--input-bg)' }}>
-                    {result.recommendations.length === 0 ? (
-                      <div style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>
-                        All parameters within normal thresholds. Continue routine cycle maintenance.
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        {result.recommendations.map((rec, i) => (
-                          <div
-                            key={i}
-                            style={{
-                              padding: '10px 12px',
-                              borderRadius: 10,
-                              background: 'rgba(255,255,255,0.02)',
-                              border: '1px solid var(--border-subtle)',
-                              display: 'flex',
-                              gap: 10,
-                              alignItems: 'flex-start',
-                            }}
-                          >
-                            <span
-                              style={{
-                                fontSize: 9.5,
-                                fontWeight: 800,
-                                textTransform: 'uppercase',
-                                padding: '2px 8px',
-                                borderRadius: 100,
-                                background: rec.priority === 'high' ? 'rgba(255,45,85,0.15)' : rec.priority === 'medium' ? 'rgba(255,214,10,0.15)' : 'rgba(0,232,160,0.15)',
-                                color: rec.priority === 'high' ? '#FF2D55' : rec.priority === 'medium' ? '#FFD60A' : '#00E8A0',
-                                border: `1px solid ${rec.priority === 'high' ? '#FF2D5544' : rec.priority === 'medium' ? '#FFD60A44' : '#00E8A044'}`,
-                                flexShrink: 0,
-                                marginTop: 1,
-                              }}
-                            >
-                              {rec.priority || 'low'}
-                            </span>
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-primary)' }}>{rec.action}</div>
-                              {rec.reason && (
-                                <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginTop: 2 }}>
-                                  <strong>Reason:</strong> {rec.reason}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>
 
-          {/* ======================================================================= */}
-          {/* CARD 3: 📈 MULTI-SENSOR FUSION & RISK FACTORS                          */}
-          {/* ======================================================================= */}
+          {/* CARD 3: FAILURE PROBABILITY & DEGRADATION OUTLOOK */}
           <div
             style={{
               background: 'var(--bg-surface-raised)',
@@ -588,79 +465,62 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 10 }}>
-              <span style={{ fontSize: 18 }}>⚡</span>
+              <span style={{ fontSize: 18 }}>📊</span>
               <div>
                 <h4 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: 'var(--text-primary)' }}>
-                  Multi-Sensor Fusion &amp; Degradation Outlook
+                  Failure Probability & Degradation Outlook
                 </h4>
                 <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                  Driver weighting, thermal stress factors, and non-fabricated RUL window
+                  Non-fabricated projections based on observed degradation trends
                 </span>
               </div>
             </div>
 
-            {/* Sensor Drivers Grid */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {/* Primary Driver */}
-              {result.sensor_fusion_weights?.primary_driver && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-subtle)' }}>
-                  <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Primary Risk Driver</span>
-                  <span style={{ fontSize: 12.5, fontWeight: 800, color: '#FF6B35', textTransform: 'uppercase' }}>
-                    {result.sensor_fusion_weights.primary_driver}
-                  </span>
-                </div>
-              )}
-
-              {/* Thermal Stress Meter */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-                  <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span>🌡️</span> Thermal Stress Index (&lt;35°C Target)
-                  </span>
-                  <span style={{ color: snapshotData?.temperature == null ? 'var(--text-muted)' : snapshotData.temperature > 40 ? '#FF2D55' : '#00E8A0', fontWeight: 700 }}>
-                    {snapshotData?.temperature != null ? `${snapshotData.temperature.toFixed(1)} °C` : '--'}
-                  </span>
-                </div>
-                <div style={{ height: 8, borderRadius: 100, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+            {/* Three stat blocks for failure probability */}
+            {result.failure_probability && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16 }}>
+                {[
+                  { label: '30 Days', key: '30_days', color: '#00E8A0' },
+                  { label: '90 Days', key: '90_days', color: '#FFB800' },
+                  { label: '1 Year', key: '1_year', color: '#FF6B35' },
+                ].map(({ label, key, color }) => (
                   <div
+                    key={key}
                     style={{
-                      width: snapshotData?.temperature != null ? `${Math.min(100, Math.max(5, (snapshotData.temperature / 50.0) * 100))}%` : '0%',
-                      height: '100%',
-                      background: snapshotData?.temperature != null && snapshotData.temperature > 40 ? '#FF2D55' : '#FFB800',
-                      borderRadius: 100,
+                      padding: '14px 12px',
+                      borderRadius: 12,
+                      background: 'rgba(255,255,255,0.03)',
+                      border: `1px solid ${color}44`,
+                      textAlign: 'center',
                     }}
-                  />
-                </div>
+                  >
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      {label}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 28,
+                        fontWeight: 800,
+                        color,
+                        fontFamily: 'var(--font-display)',
+                        lineHeight: 1,
+                        marginTop: 4,
+                      }}
+                    >
+                      {Math.round(Number(result.failure_probability[key]) || 0)}%
+                    </div>
+                    <div style={{ fontSize: 9.5, color: 'var(--text-tertiary)', marginTop: 2 }}>
+                      Failure Probability
+                    </div>
+                  </div>
+                ))}
               </div>
+            )}
 
-              {/* Gas Sensor AQI */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-                  <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span>💨</span> MQ-2 Gas Level (&lt;300 ppm Normal)
-                  </span>
-                  <span style={{ color: snapshotData?.gas == null ? 'var(--text-muted)' : snapshotData.gas > 300 ? '#FF2D55' : '#38BDF8', fontWeight: 700 }}>
-                    {snapshotData?.gas != null ? `${Math.round(snapshotData.gas)} ppm` : '--'}
-                  </span>
-                </div>
-                <div style={{ height: 8, borderRadius: 100, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
-                  <div
-                    style={{
-                      width: snapshotData?.gas != null ? `${Math.min(100, Math.max(5, (snapshotData.gas / 500.0) * 100))}%` : '0%',
-                      height: '100%',
-                      background: snapshotData?.gas != null && snapshotData.gas > 300 ? '#FF2D55' : '#38BDF8',
-                      borderRadius: 100,
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Predictions & Degradation Forecast Info Box */}
+            {/* Mini bar chart for degradation trend */}
             {result.predictions && (
               <div
                 style={{
-                  marginTop: 16,
                   padding: '12px 14px',
                   borderRadius: 12,
                   background: 'rgba(56, 189, 248, 0.06)',
@@ -669,21 +529,127 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
                 }}
               >
                 <div style={{ fontWeight: 700, color: '#38BDF8', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span>📅</span> Degradation Projection &amp; Confidence
+                  <span>📈</span> Degradation Projection
                 </div>
-                {result.predictions.insufficient_data === true ? (
-                  <div style={{ color: 'var(--text-secondary)' }}>
-                    Sample window requires additional charge/discharge cycles to extrapolate concrete RUL curve without fabrication.
-                  </div>
-                ) : (
-                  <div style={{ color: 'var(--text-secondary)' }}>
-                    Trend: <strong>{result.predictions.degradation_trend || 'Stable'}</strong> · Confidence:{' '}
-                    <strong>{result.predictions.confidence || 'Nominal'}</strong>
+                <div style={{ color: 'var(--text-secondary)' }}>
+                  Trend: <strong>{result.predictions.degradation_trend || 'Stable'}</strong> ·
+                  Confidence: <strong>{result.predictions.confidence || 'Nominal'}</strong>
+                  {result.predictions.period && <span> · Window: {result.predictions.period}</span>}
+                </div>
+                {result.predictions.insufficient_data && (
+                  <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-tertiary)' }}>
+                    ⚠️ Insufficient historical data for concrete projection. Accumulate more charge/discharge cycles.
                   </div>
                 )}
               </div>
             )}
           </div>
+
+          {/* CARD 4: SENSOR FUSION WEIGHTS (if available) */}
+          {result.sensor_fusion_weights && (
+            <div
+              style={{
+                background: 'var(--bg-surface-raised)',
+                border: '1px solid var(--border-strong)',
+                borderRadius: 16,
+                padding: 18,
+                boxShadow: '0 8px 30px rgba(0,0,0,0.35)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 10 }}>
+                <span style={{ fontSize: 18 }}>⚡</span>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: 'var(--text-primary)' }}>
+                    Multi-Sensor Fusion Weights
+                  </h4>
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                    Physical input weighting behind the risk assessment
+                  </span>
+                </div>
+              </div>
+
+              {result.sensor_fusion_weights.primary_driver && (
+                <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 10, background: 'rgba(255,107,53,0.1)', border: '1px solid rgba(255,107,53,0.3)' }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Primary Risk Driver</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: '#FF6B35', textTransform: 'uppercase' }}>
+                    {result.sensor_fusion_weights.primary_driver}
+                  </div>
+                </div>
+              )}
+
+              {Array.isArray(result.sensor_fusion_weights.drivers) && result.sensor_fusion_weights.drivers.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {result.sensor_fusion_weights.drivers.map((d, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        padding: '10px 12px',
+                        borderRadius: 10,
+                        background: 'rgba(255,255,255,0.03)',
+                        border: '1px solid var(--border-subtle)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ fontSize: 16 }}>
+                          {d.input === 'temperature' ? '🌡️' : d.input === 'voltage' ? '⚡' : d.input === 'gas' ? '💨' : '🔌'}
+                        </span>
+                        <div>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', textTransform: 'capitalize' }}>
+                            {d.input}
+                          </div>
+                          <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>{d.reason}</div>
+                        </div>
+                      </div>
+                      <span
+                        style={{
+                          fontSize: 9.5,
+                          fontWeight: 800,
+                          textTransform: 'uppercase',
+                          padding: '2px 8px',
+                          borderRadius: 100,
+                          background:
+                            d.influence === 'HIGH' ? 'rgba(255,45,85,0.15)' :
+                            d.influence === 'MEDIUM' ? 'rgba(255,214,10,0.15)' : 'rgba(0,232,160,0.15)',
+                          color:
+                            d.influence === 'HIGH' ? '#FF2D55' :
+                            d.influence === 'MEDIUM' ? '#FFD60A' : '#00E8A0',
+                          border: `1px solid ${
+                            d.influence === 'HIGH' ? '#FF2D5544' :
+                            d.influence === 'MEDIUM' ? '#FFD60A44' : '#00E8A044'
+                          }`,
+                        }}
+                      >
+                        {d.influence}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Safety Notes */}
+          {result.safety_notes && (
+            <div
+              style={{
+                padding: '12px 14px',
+                borderRadius: 12,
+                background: 'rgba(255,45,85,0.08)',
+                border: '1px solid rgba(255,45,85,0.2)',
+                fontSize: 12,
+                lineHeight: 1.6,
+                color: 'var(--text-primary)',
+              }}
+            >
+              <strong style={{ color: '#FF2D55', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                <span>🛡️</span> Safety Notes:
+              </strong>
+              {result.safety_notes}
+            </div>
+          )}
         </div>
       ) : (analysis || result) && rawView ? (
         <pre
@@ -765,3 +731,14 @@ function formatTime(iso) {
     return 'Just now'
   }
 }
+
+function formatProvider(provider) {
+  if (!provider) return 'Unknown'
+  if (provider.includes('gemini-1.5-pro')) return 'Gemini 1.5 Pro'
+  if (provider.includes('gemini')) return 'Gemini 1.5 Flash'
+  if (provider.includes('openrouter') || provider.includes('liquid')) return 'OpenRouter (LFM-40B)'
+  if (provider === 'deterministic') return 'Deterministic Engine'
+  return provider
+}
+
+

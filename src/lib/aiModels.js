@@ -5,63 +5,73 @@
 export const TASK_MODEL_MAPPING = {
   chat: {
     primary: 'gemini-1.5-flash',
-    openRouter: 'meta-llama/llama-3.3-70b-instruct:free',
+    secondary: 'gemini-1.5-pro',
+    openRouter: 'liquid/lfm-40b:free',
     isVision: false,
-    timeoutMs: 3000,
+    timeoutMs: 12000,
   },
   'explain-alert': {
     primary: 'gemini-1.5-flash',
-    openRouter: 'meta-llama/llama-3.3-70b-instruct:free',
+    secondary: 'gemini-1.5-pro',
+    openRouter: 'liquid/lfm-40b:free',
     isVision: false,
-    timeoutMs: 3000,
+    timeoutMs: 12000,
   },
   insights: {
     primary: 'gemini-1.5-flash',
-    openRouter: 'meta-llama/llama-3.3-70b-instruct:free',
+    secondary: 'gemini-1.5-pro',
+    openRouter: 'liquid/lfm-40b:free',
     isVision: false,
-    timeoutMs: 3000,
+    timeoutMs: 12000,
   },
   'root-cause': {
     primary: 'gemini-1.5-flash',
-    openRouter: 'meta-llama/llama-3.3-70b-instruct:free',
+    secondary: 'gemini-1.5-pro',
+    openRouter: 'liquid/lfm-40b:free',
     isVision: false,
-    timeoutMs: 8000,
+    timeoutMs: 15000,
   },
   report: {
     primary: 'gemini-1.5-flash',
-    openRouter: 'meta-llama/llama-3.3-70b-instruct:free',
+    secondary: 'gemini-1.5-pro',
+    openRouter: 'liquid/lfm-40b:free',
     isVision: false,
-    timeoutMs: 8000,
+    timeoutMs: 15000,
   },
   'label-scan': {
     primary: 'gemini-1.5-flash',
-    openRouter: null, // OpenRouter free models do not reliably support vision payloads; routes to Gemini exclusively
+    secondary: 'gemini-1.5-pro',
+    openRouter: null,
     isVision: true,
-    timeoutMs: 6000,
+    timeoutMs: 15000,
   },
   'profile-verify': {
     primary: 'gemini-1.5-flash',
+    secondary: 'gemini-1.5-pro',
     openRouter: null,
     isVision: true,
-    timeoutMs: 6000,
+    timeoutMs: 15000,
   },
   'threshold-suggest': {
     primary: 'gemini-1.5-flash',
-    openRouter: 'meta-llama/llama-3.3-70b-instruct:free',
+    secondary: 'gemini-1.5-pro',
+    openRouter: 'liquid/lfm-40b:free',
     isVision: false,
-    timeoutMs: 5000,
+    timeoutMs: 12000,
   },
   'onboarding-wizard': {
     primary: 'gemini-1.5-flash',
-    openRouter: 'meta-llama/llama-3.3-70b-instruct:free',
+    secondary: 'gemini-1.5-pro',
+    openRouter: 'liquid/lfm-40b:free',
     isVision: false,
-    timeoutMs: 5000,
+    timeoutMs: 12000,
   },
   'fleet-summary': {
     primary: 'gemini-1.5-flash',
-    openRouter: 'meta-llama/llama-3.3-70b-instruct:free',
+    secondary: 'gemini-1.5-pro',
+    openRouter: 'liquid/lfm-40b:free',
     isVision: false,
-    timeoutMs: 8000,
+    timeoutMs: 15000,
   },
 }
 
@@ -69,6 +79,7 @@ export const TASK_MODEL_MAPPING = {
 export const FREE_MODEL_ALLOWLIST = new Set([
   'gemini-1.5-flash',
   'gemini-1.5-pro',
+  'liquid/lfm-40b:free',
   'meta-llama/llama-3.3-70b-instruct:free',
   'meta-llama/llama-3.1-8b-instruct:free',
   'google/gemini-2.0-flash-exp:free',
@@ -79,7 +90,7 @@ export const FREE_MODEL_ALLOWLIST = new Set([
 // Published provider limits for free tiers
 export const PROVIDER_QUOTAS = {
   GEMINI_FREE_RPM: 15,
-  GEMINI_FREE_RPD: 1500,
+  GEMINI_FREE_RPD: 1400,
   OPENROUTER_FREE_RPM: 20,
   OPENROUTER_FREE_RPD: 200,
 }
@@ -107,7 +118,7 @@ export async function verifyOpenRouterModelIsFree(modelId) {
         'X-Title': 'Battery Vital Safety Monitor',
       },
     })
-    if (!res.ok) return true // Soft fallback to allowlist if pricing endpoint fails
+    if (!res.ok) return true
     const json = await res.json()
     const found = (json.data || []).find((m) => m.id === modelId)
     if (found && found.pricing) {
@@ -132,4 +143,51 @@ export function logModelStartupStatus() {
       openRouterConfigured ? 'Active' : 'Unconfigured'
     }, FreeTierAllowlistCount=${FREE_MODEL_ALLOWLIST.size}`
   )
+}
+
+// Structured JSON schema for AI diagnostic responses
+export const DIAGNOSTIC_SCHEMA = {
+  type: 'object',
+  required: ['overall_status', 'risk_score', 'confidence', 'summary', 'key_drivers', 'recommendations', 'failure_probability', 'provider_used'],
+  properties: {
+    overall_status: { type: 'string', enum: ['SAFE', 'CAUTION', 'WARNING', 'CRITICAL', 'EMERGENCY'] },
+    risk_score: { type: 'number', minimum: 0, maximum: 100 },
+    confidence: { type: 'number', minimum: 0, maximum: 1 },
+    summary: { type: 'string', minLength: 10, maxLength: 500 },
+    key_drivers: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['metric', 'value', 'threshold', 'contribution'],
+        properties: {
+          metric: { type: 'string' },
+          value: { type: 'number' },
+          threshold: { type: 'number' },
+          contribution: { type: 'string', enum: ['high', 'medium', 'low'] },
+        },
+      },
+    },
+    recommendations: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['priority', 'action', 'reason'],
+        properties: {
+          priority: { type: 'string', enum: ['high', 'medium', 'low'] },
+          action: { type: 'string', minLength: 10 },
+          reason: { type: 'string', minLength: 10 },
+        },
+      },
+    },
+    failure_probability: {
+      type: 'object',
+      required: ['30_days', '90_days', '1_year'],
+      properties: {
+        '30_days': { type: 'number', minimum: 0, maximum: 100 },
+        '90_days': { type: 'number', minimum: 0, maximum: 100 },
+        '1_year': { type: 'number', minimum: 0, maximum: 100 },
+      },
+    },
+    provider_used: { type: 'string', enum: ['gemini-1.5-flash', 'gemini-1.5-pro', 'openrouter/liquid-lfm-40b', 'deterministic'] },
+  },
 }
