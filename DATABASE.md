@@ -118,22 +118,24 @@ Battery Vital implements a **hybrid dual-database strategy** balancing sub-secon
 {
   "rules": {
     "live_data": {
-      "$deviceId": {
-        ".read": "auth != null",
-        ".write": "auth != null && (auth.token.role === 'admin' || auth.token.role === 'node')"
+      ".read": true,
+      "$batteryId": {
+        ".write": "auth != null"
       }
     },
     "commands": {
-      "$deviceId": {
-        ".read": "auth != null",
-        ".write": "auth != null && (auth.token.role === 'admin' || auth.token.role === 'operator')"
+      ".read": true,
+      "$batteryId": {
+        ".write": "auth != null"
       }
     },
     "alerts": {
-      "$deviceId": {
-        ".read": "auth != null",
-        ".write": "auth != null"
-      }
+      ".read": true,
+      ".write": "auth != null"
+    },
+    "users": {
+      ".read": "auth != null",
+      ".write": "auth != null"
     }
   }
 }

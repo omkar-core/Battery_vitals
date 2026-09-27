@@ -1,0 +1,24 @@
+{
+  "rules": {
+    "live_data": {
+      ".read": true,
+      "$batteryId": {
+        ".write": "auth != null"
+      }
+    },
+    "commands": {
+      ".read": true,
+      "$batteryId": {
+        ".write": "auth != null"
+      }
+    },
+    "alerts": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+    "users": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    }
+  }
+}
