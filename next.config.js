@@ -3,9 +3,6 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
 
-  // Standalone output reduces deployment size
-  output: 'standalone',
-
   // Compression for faster loads
   compress: true,
 
@@ -102,7 +99,7 @@ const nextConfig = {
       { module: /node_modules/ },
     ]
 
-    if (!dev) {
+    if (!dev && !isServer) {
       config.optimization = {
         ...config.optimization,
         splitChunks: {
