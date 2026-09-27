@@ -646,7 +646,7 @@ export async function getAIResponse(prompt, options = {}) {
     }
 
     // 11. Log to ai_diagnostics in MongoDB (best-effort)
-    if (result.provider !== 'deterministic' || options.logDiagnostics !== false) {
+    if (result.provider !== 'deterministic' && options.logDiagnostics !== false) {
       try {
         const { getDB } = await import('./mongodb')
         const db = await getDB()
