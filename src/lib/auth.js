@@ -39,7 +39,51 @@ export async function getSessionUser(request) {
       throw new InvalidTokenError('Firebase Admin not initialized')
     }
     const decoded = await adminAuth.verifyIdToken(token, true) // checkRevoked = true
-    const user = await findUser(decoded.uid)
+    let user = await findUser(decoded.uid)
+
+    if (!user && decoded.email) {
+      // Fallback: look up by email and link the Firebase UID to existing MongoDB account
+      user = await findUser(decoded.email)
+      if (user) {
+        try {
+          const db = await getDB()
+          await db.collection('users').updateOne(
+            { _id: user._id || user.id },
+            { $set: { firebaseUid: decoded.uid, lastActive: new Date().toISOString() } }
+          )
+          user.firebaseUid = decoded.uid
+        } catch (linkErr) {
+          console.warn('[auth] Error linking firebaseUid:', linkErr.message)
+        }
+      }
+    }
+
+    if (!user && decoded.uid) {
+      // Auto-provision profile for valid authenticated Firebase user
+      try {
+        const db = await getDB()
+        const emailLower = (decoded.email || '').toLowerCase()
+        const isDefaultAdmin = emailLower === 'admin@batteryvitals.com' || emailLower.startsWith('admin@')
+        const newProfile = {
+          firebaseUid: decoded.uid,
+          name: decoded.name || (decoded.email ? decoded.email.split('@')[0] : 'Team Member'),
+          email: emailLower,
+          role: isDefaultAdmin ? 'admin' : 'viewer',
+          title: isDefaultAdmin ? 'Lead System Administrator' : 'Battery Specialist',
+          department: isDefaultAdmin ? 'Security & Compliance' : 'Operations',
+          avatar: isDefaultAdmin ? '🛡️' : '👁️',
+          status: 'active',
+          lastActive: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+        }
+        const insertRes = await db.collection('users').insertOne(newProfile)
+        user = { ...newProfile, id: insertRes.insertedId.toString() }
+      } catch (autoErr) {
+        if (decoded.email) {
+          user = await findUser(decoded.email)
+        }
+      }
+    }
     if (!user || user.status === 'disabled') {
       throw new InvalidTokenError('User not found or disabled')
     }

@@ -7,6 +7,7 @@ import { authHeaders as headerAuth } from '../lib/clientToken'
 export function useAI() {
   const [analysis, setAnalysis] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [analysisError, setAnalysisError] = useState(null)
   const [diagnostic, setDiagnostic] = useState(null)
   const [diagnosticLoading, setDiagnosticLoading] = useState(false)
   const [diagnosticError, setDiagnosticError] = useState(null)
@@ -14,19 +15,34 @@ export function useAI() {
   // Legacy single-reading analysis (dashboard + custom input).
   const runAnalysis = useCallback(async ({ batteryId = 'BAT001', analysisType = 'current', payload = null } = {}) => {
     setLoading(true)
+    setAnalysisError(null)
     try {
       const res = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...headerAuth() },
         body: JSON.stringify(payload || { batteryId, analysisType }),
       })
-      const result = await res.json()
-      if (!res.ok) throw new Error(result.error || result.message || 'Analysis failed')
-      if (result.analysis) setAnalysis(result.analysis)
+      const result = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        const errorMsg =
+          result?.error?.message ||
+          (typeof result?.error === 'string' ? result.error : null) ||
+          result?.message ||
+          (res.status === 401
+            ? 'Authentication required. Please sign in via the top-right button to run AI Safety Diagnostics.'
+            : 'AI analysis failed')
+        throw new Error(errorMsg)
+      }
+      if (result.analysis) {
+        setAnalysis(result.analysis)
+        setAnalysisError(null)
+      }
       return result
     } catch (e) {
-      console.error('AI analysis failed:', e)
-      return null
+      const msg = e.message || 'AI analysis failed'
+      console.warn('AI analysis notice:', msg)
+      setAnalysisError(msg)
+      return { error: msg }
     } finally {
       setLoading(false)
     }
@@ -87,6 +103,7 @@ export function useAI() {
   return {
     analysis,
     loading,
+    analysisError,
     runAnalysis,
     diagnostic,
     diagnosticLoading,

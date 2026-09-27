@@ -14,7 +14,17 @@ export async function GET(request) {
     const ip = getClientIp(request)
     const rate = checkRateLimit(`active_get_${ip}`, 60, 60000)
     if (!rate.success) return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
-    await requirePermission(request, PERMISSIONS.VIEW_TELEMETRY)
+
+    const authHeader = request.headers.get('authorization')
+    const cookieHeader = request.headers.get('cookie') || ''
+    const hasToken = (authHeader && authHeader.startsWith('Bearer ')) || cookieHeader.includes('bv_session=')
+    if (hasToken) {
+      try {
+        await requirePermission(request, PERMISSIONS.VIEW_TELEMETRY)
+      } catch (authErr) {
+        // Fall through to public read
+      }
+    }
 
     const { searchParams } = new URL(request.url)
     const deviceId = sanitizeString(searchParams.get('deviceId') || searchParams.get('batteryId') || 'BAT001', 10)

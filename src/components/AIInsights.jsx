@@ -26,7 +26,7 @@ const PRIORITY_STYLE = {
   low: { bg: 'rgba(0,232,160,0.15)', color: '#00E8A0', border: 'rgba(0,232,160,0.3)' },
 }
 
-export default function AIInsights({ analysis, result, loading = false, onAnalyze }) {
+export default function AIInsights({ analysis, result, loading = false, onAnalyze, error = null }) {
   const [copied, setCopied] = useState(false)
   const [rawView, setRawView] = useState(false)
 
@@ -164,6 +164,26 @@ export default function AIInsights({ analysis, result, loading = false, onAnalyz
           )}
         </button>
       </div>
+
+      {error && !loading && (
+        <div
+          style={{
+            marginTop: 12,
+            padding: '10px 14px',
+            background: 'rgba(255, 45, 85, 0.12)',
+            border: '1px solid rgba(255, 45, 85, 0.35)',
+            borderRadius: 10,
+            color: '#FF6B8B',
+            fontSize: 12.5,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}
+        >
+          <span>⚠️</span>
+          <span>{error}</span>
+        </div>
+      )}
 
       {loading ? (
         <div className={styles.aiLoading}>

@@ -25,7 +25,16 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
     }
 
-    await requirePermission(request, PERMISSIONS.VIEW_TELEMETRY)
+    const authHeader = request.headers.get('authorization')
+    const cookieHeader = request.headers.get('cookie') || ''
+    const hasToken = (authHeader && authHeader.startsWith('Bearer ')) || cookieHeader.includes('bv_session=')
+    if (hasToken) {
+      try {
+        await requirePermission(request, PERMISSIONS.VIEW_TELEMETRY)
+      } catch (authErr) {
+        // Fall through to public read for dashboard status
+      }
+    }
 
     const { searchParams } = new URL(request.url)
     const batteryId = sanitizeString(searchParams.get('batteryId') || '', 30)

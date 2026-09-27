@@ -48,8 +48,18 @@ export async function POST(request) {
 
     const db = await getDB()
 
-    // Idempotent upsert: if profile exists for this Firebase UID, return it
-    const existingProfile = await db.collection('users').findOne({ firebaseUid: firebaseUser.uid })
+    // Idempotent upsert: if profile exists for this Firebase UID or email, return it
+    let existingProfile = await db.collection('users').findOne({ firebaseUid: firebaseUser.uid })
+    if (!existingProfile && email) {
+      existingProfile = await db.collection('users').findOne({ email })
+      if (existingProfile) {
+        await db.collection('users').updateOne(
+          { _id: existingProfile._id },
+          { $set: { firebaseUid: firebaseUser.uid, lastActive: new Date().toISOString() } }
+        )
+        existingProfile.firebaseUid = firebaseUser.uid
+      }
+    }
     if (existingProfile) {
       const { passwordHash, ...safeProfile } = existingProfile
       return NextResponse.json({

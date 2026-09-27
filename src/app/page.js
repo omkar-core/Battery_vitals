@@ -18,6 +18,7 @@ import SkeletonLoader, { SkeletonMetric, SkeletonChart, SkeletonControl, Skeleto
 import { useRealTimeData } from '../hooks/useRealTimeData'
 import { useAI } from '../hooks/useAI'
 import { useActiveProfile } from '../hooks/useActiveProfile'
+import { authHeaders } from '../lib/clientToken'
 import {
   bhiStatus,
   safetyColor,
@@ -36,7 +37,7 @@ const CIRC = 2 * Math.PI * 82
 
 export default function Dashboard() {
   const { data, history, connected, mode, error, sendControl } = useRealTimeData()
-  const { analysis, loading, runAnalysis } = useAI()
+  const { analysis, loading, analysisError, runAnalysis } = useAI()
   const { voltageBand } = useActiveProfile(data?.batteryId || data?.battery?.batteryId)
   const [commands, setCommands] = useState({ auto_mode: true })
   const [alerts, setAlerts] = useState([])
@@ -45,7 +46,7 @@ export default function Dashboard() {
   const [lastChimeTs, setLastChimeTs] = useState(0)
 
   useEffect(() => {
-    fetch('/api/control')
+    fetch('/api/control', { headers: authHeaders() })
       .then((r) => r.json())
       .then(setCommands)
       .catch(() => {})
@@ -54,7 +55,7 @@ export default function Dashboard() {
   useEffect(() => {
     let cancelled = false
     setAlertsLoading(true)
-    fetch('/api/alerts?limit=8')
+    fetch('/api/alerts?limit=8', { headers: authHeaders() })
       .then((r) => r.json())
       .then((list) => {
         if (!cancelled && Array.isArray(list)) {
@@ -81,15 +82,11 @@ export default function Dashboard() {
 
   const handleControl = (name, value, label) => {
     return sendControl(name, value).then(() => {
-      fetch('/api/control')
+      fetch('/api/control', { headers: authHeaders() })
         .then((r) => r.json())
         .then(setCommands)
         .catch(() => {})
     })
-  }
-
-  const handleAnalyze = (form) => {
-    runAnalysis({ payload: form })
   }
 
   // --- normalized live reading ---
@@ -97,6 +94,25 @@ export default function Dashboard() {
     const [row] = normalizeTelemetry(data ? [data] : [])
     return row || {}
   }, [data])
+
+  const handleAnalyze = (form) => {
+    const payload = form && Object.keys(form).length > 0 ? form : {
+      batteryId: data?.batteryId || data?.battery?.batteryId || 'BAT001',
+      voltage: live.voltage,
+      current: live.current,
+      temperature: live.temperature,
+      humidity: live.humidity,
+      gasMq2: live.gasMq2,
+      gasMq135: live.gasMq135,
+      soc: live.soc,
+      soh: live.soh,
+      bhi: live.bhi,
+      safety: live.safety || 'SAFE',
+      power: live.power,
+      resistance: live.resistance,
+    }
+    runAnalysis({ payload })
+  }
 
   const sparkRows = useMemo(() => normalizeTelemetry(history).slice(-24), [history])
   const sparkData = useMemo(() => sparkRows, [sparkRows])
@@ -698,7 +714,7 @@ export default function Dashboard() {
 
       {/* Bottom Bento: Gemini AI Insights + Live Alert Center Feed */}
       <div className={styles.grid2}>
-        <AIInsights analysis={analysis} loading={loading} onAnalyze={handleAnalyze} />
+        <AIInsights analysis={analysis} loading={loading} onAnalyze={handleAnalyze} error={analysisError} />
         <div className={styles.alertsRow}>
           <AlertsList alerts={alerts} loading={alertsLoading} />
         </div>
