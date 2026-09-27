@@ -1,10 +1,31 @@
-// Battery Vital — ESP32 Firmware v14.1.1 — Full feature set, ESP32_RULES.md compliant.
-// Fixed & Hardened:
-// 1. Dual ESP32 Core 2.x and 3.x Watchdog initialization (TWDT)
-// 2. DHT11 bus state pre-check and rate-limit guard (prevents Interrupt Watchdog IWDT crash)
-// 3. Removed invalid trailing '/s' from FIREBASE_DB_URL
-// 4. Non-blocking asynchronous Firebase connection at boot
-// Wiring: SDA=21 SCL=22 (INA219 @0x40) DHT11=4 (requires 4.7k-10k pull-up to 3.3V) MQ2=34 MQ135=35 Buzzer=25 LED_Y=26 LED_R=27 LED_G=14
+// ============================================================================
+// Battery Vital — ESP32 Firmware v14.1.2
+// Production Hardened Firmware for Intelligent Battery Safety & Cloud Monitoring
+// Compliant with ESP32_RULES.md v2.0.0 & Next.js Web Dashboard
+//
+// Features & Fixes:
+// 1. Safe dual ESP32 Core 2.x and 3.x Watchdog Timer with twdtEnrolled guard
+//    (Eliminates "task_wdt: esp_task_wdt_reset: task not found" panic)
+// 2. Hardened DHT11 bus state pre-check and >=2.5s rate-limit
+//    (Prevents CPU1 Interrupt Watchdog IWDT timeouts during bit-banging)
+// 3. Exact Firebase RTDB URL without trailing slashes or corrupt suffixes
+// 4. Single 100ms startup beep + Solid Green LED on healthy boot
+// 5. Cadence-based non-blocking buzzer alerts (NO continuous screeching)
+// 6. Direct real-time telemetry streaming to /live_data/BAT001 (Zero-login dashboard)
+// 7. Full bidirectional actuator synchronization with /commands/BAT001
+// 8. Informative Serial Monitor telemetry logs for instant edge troubleshooting
+//
+// Hardware Pinout:
+// - SDA: GPIO 21 (INA219 I2C)
+// - SCL: GPIO 22 (INA219 I2C)
+// - DHT: GPIO 4  (DHT11 / DHT22, requires 4.7k-10k pull-up to 3.3V)
+// - MQ2: GPIO 34 (ADC1_CH6, analog input only)
+// - MQ135: GPIO 35 (ADC1_CH7, analog input only)
+// - Buzzer: GPIO 25 (Active Piezo Buzzer)
+// - Yellow LED: GPIO 26 (Warning Indicator)
+// - Red LED: GPIO 27 (Critical Alarm Indicator)
+// - Green LED: GPIO 14 (Normal / System ON Indicator)
+// ============================================================================
 
 #include <WiFi.h>
 #include <HTTPClient.h>
@@ -17,12 +38,12 @@
 #include <esp_task_wdt.h>
 #include <esp_idf_version.h>
 
-// ── CONFIG ──
+// ── 1. CONFIGURATION (VERIFY BEFORE FLASHING) ──
 #define WIFI_SSID            "Om"
 #define WIFI_PASSWORD        "123456789"
 
 #define FIREBASE_API_KEY     "AIzaSyDHbJaTX83jCa1w7jhEb29ZmPBkTEXanxY"
-// Note: Removed trailing '/s' which caused RTDB path corruption
+// IMPORTANT: Exact URL without trailing slash or path suffix
 #define FIREBASE_DB_URL      "https://batteryvital-default-rtdb.asia-southeast1.firebasedatabase.app"
 #define FIREBASE_USER_EMAIL  "esp32@batteryvital.local"
 #define FIREBASE_USER_PASS   "Esp32SecurePass2026omkar@12345"
@@ -33,9 +54,9 @@
 
 #define BATTERY_ID           "BAT001"
 #define DEVICE_ID             "BV001"
-#define FIRMWARE_VERSION      "14.1.1"
+#define FIRMWARE_VERSION      "14.1.2"
 
-// ── PIN MAP ──
+// ── 2. PIN DEFINITIONS ──
 #define I2C_SDA        21
 #define I2C_SCL        22
 #define INA219_ADDR    0x40
@@ -48,7 +69,7 @@
 #define LED_RED        27
 #define LED_GREEN      14
 
-// ── TIMING ──
+// ── 3. TIMING CONSTANTS (NON-BLOCKING) ──
 const unsigned long SENSOR_INTERVAL_MS      = 1500;
 const unsigned long DHT_MIN_INTERVAL_MS     = 2500; // DHT11 strictly requires >= 2.0s
 const unsigned long TELEMETRY_INTERVAL_MS   = 2000;
@@ -59,14 +80,14 @@ const unsigned long GAS_WARMUP_MS           = 120000;
 const unsigned long MQ_CONFIDENCE_WINDOW_MS = 180000;
 const uint8_t        WDT_TIMEOUT_S          = 15;
 
-// ── BATTERY CONSTANTS ──
+// ── 4. BATTERY PHYSICS CONSTANTS ──
 const float PACK_CAPACITY_AH = 7.0f;
 const float R_NOMINAL_MOHM   = 20.0f;
 const float R_EOL_MOHM       = 150.0f;
 const float SOC_V_LOW        = 10.5f;
 const float SOC_V_HIGH       = 14.4f;
 
-// ── SEVERITY ──
+// ── 5. SEVERITY HIERARCHY ──
 enum Severity { SEV_SAFE = 0, SEV_CAUTION = 1, SEV_WARNING = 2, SEV_CRITICAL = 3, SEV_EMERGENCY = 4 };
 
 const char* severityToString(int s) {
@@ -79,7 +100,7 @@ const char* severityToString(int s) {
   }
 }
 
-// Mandated deterministic snippet, ESP32_RULES.md §5.1, used verbatim.
+// Deterministic safety evaluation matching src/lib/batterySafety.js
 int evaluateDeterministicSafety(float v, float t, int mq2, float bhi, bool inaOk, bool dhtOk) {
   if (!inaOk && !dhtOk) return SEV_CRITICAL;
   if (v < 9.5f || t > 55.0f || bhi >= 90.0f) return SEV_EMERGENCY;
@@ -91,8 +112,9 @@ int evaluateDeterministicSafety(float v, float t, int mq2, float bhi, bool inaOk
 
 enum BuzzerMode { BZ_OFF, BZ_WARNING, BZ_CRITICAL, BZ_EMERGENCY };
 
+// ── 6. STATE & TELEMETRY STRUCTS ──
 struct SensorData {
-  float voltage = 12.0f, current_mA = 0.0f, power_mW = 0.0f;
+  float voltage = 12.0f, current_mA = 0.0f, power_mW = 0.0f, shuntVoltage_mV = 0.0f;
   float temperature = 25.0f, humidity = 50.0f;
   int   mq2Raw = 0, mq135Raw = 0;
   float mq2_pct = 0.0f;
@@ -113,6 +135,7 @@ struct SelfTest {
   bool gpio_ok = false, buzzer_ok = false, wifi_ok = false, config_ok = false, passed = false;
 };
 
+// ── 7. GLOBAL INSTANCES ──
 Adafruit_INA219 ina219(INA219_ADDR);
 DHT dht(DHT_PIN, DHT_TYPE);
 Preferences prefs;
@@ -121,19 +144,17 @@ FirebaseAuth fbAuth;
 FirebaseConfig fbConfig;
 SensorData sensorData;
 SelfTest selfTest;
-bool firebaseReady = false;
 
 int    currentSeverity = SEV_SAFE;
 String currentStateLabel = "SAFE";
 bool   latchedRecovery = false;
 
 BuzzerMode activeBuzzerMode = BZ_OFF;
-bool buzzerPinState = false;
-unsigned long lastBuzzerToggle = 0;
 bool buzzerMuted = false;
 unsigned long buzzerMuteUntil = 0;
 
-unsigned long lastSensorMillis = 0, lastDhtMillis = 0, lastTelemetryMillis = 0, lastCommandMillis = 0, lastNvsMillis = 0, lastWifiAttempt = 0;
+unsigned long lastSensorMillis = 0, lastDhtMillis = 0, lastTelemetryMillis = 0;
+unsigned long lastCommandMillis = 0, lastNvsMillis = 0, lastWifiAttempt = 0;
 
 float coulombAh = PACK_CAPACITY_AH / 2.0f;
 float totalThroughputAh = 0.0f;
@@ -154,7 +175,11 @@ int gasIdx = 0, gasCount = 0;
 String ringBuffer[RING_SIZE];
 int ringHead = 0, ringCount = 0;
 
+static bool twdtEnrolled = false;
+
+// ── 8. FUNCTION FORWARD DECLARATIONS ──
 void initWatchdog();
+inline void feedWatchdog();
 void connectWiFi();
 void maintainWiFi();
 void runBootSelfTest();
@@ -177,7 +202,7 @@ void pollCommands();
 void loadPersistentState();
 void savePersistentState();
 
-// Initialize Task Watchdog Timer cleanly for both Core 2.x and Core 3.x
+// ── 9. WATCHDOG HARDENING ──
 void initWatchdog() {
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
   esp_task_wdt_config_t wdtConfig = {
@@ -185,28 +210,44 @@ void initWatchdog() {
     .idle_core_mask = 0,
     .trigger_panic = true
   };
-  if (esp_task_wdt_reconfigure(&wdtConfig) != ESP_OK) {
+  esp_err_t err = esp_task_wdt_reconfigure(&wdtConfig);
+  if (err != ESP_OK) {
     esp_task_wdt_init(&wdtConfig);
   }
 #else
   esp_task_wdt_init(WDT_TIMEOUT_S, true);
 #endif
-  // CRITICAL: Enroll current task into TWDT watch BEFORE calling any esp_task_wdt_reset()
-  esp_task_wdt_add(NULL);
+
+  esp_err_t addErr = esp_task_wdt_add(NULL);
+  if (addErr == ESP_OK || addErr == ESP_ERR_INVALID_STATE) {
+    twdtEnrolled = true;
+  }
 }
 
+inline void feedWatchdog() {
+  if (twdtEnrolled) {
+    esp_task_wdt_reset();
+  }
+}
+
+// ── 10. SETUP ROUTINE ──
 void setup() {
   Serial.begin(115200);
   delay(300);
 
-  // 1. Initialize Watchdog FIRST so any subsequent loop can safely call esp_task_wdt_reset()
+  Serial.println("\n==================================================");
+  Serial.printf(" Battery Vital ESP32 Firmware v%s\n", FIRMWARE_VERSION);
+  Serial.printf(" Node: %s | Device: %s\n", BATTERY_ID, DEVICE_ID);
+  Serial.println("==================================================");
+
+  // Initialize Watchdog FIRST so subsequent functions can safely feed it
   initWatchdog();
 
+  // Pin modes
   pinMode(BUZZER_PIN, OUTPUT); digitalWrite(BUZZER_PIN, LOW);
   pinMode(LED_GREEN, OUTPUT); pinMode(LED_YELLOW, OUTPUT); pinMode(LED_RED, OUTPUT);
   digitalWrite(LED_GREEN, LOW); digitalWrite(LED_YELLOW, LOW); digitalWrite(LED_RED, LOW);
 
-  // DHT pin mode with internal pullup as safeguard
   pinMode(DHT_PIN, INPUT_PULLUP);
 
   analogReadResolution(12);
@@ -224,7 +265,7 @@ void setup() {
   connectWiFi();
   runBootSelfTest();
 
-  // Configure Firebase (non-blocking begin)
+  // Configure Firebase Realtime Database Client
   fbConfig.api_key = FIREBASE_API_KEY;
   fbConfig.database_url = FIREBASE_DB_URL;
   fbAuth.user.email = FIREBASE_USER_EMAIL;
@@ -232,24 +273,26 @@ void setup() {
   Firebase.begin(&fbConfig, &fbAuth);
   Firebase.reconnectWiFi(true);
 
-  // Single crisp beep on system startup (100ms)
+  // Requirement: Single crisp beep on startup (100ms)
   digitalWrite(BUZZER_PIN, HIGH);
   delay(100);
   digitalWrite(BUZZER_PIN, LOW);
 
-  // Immediately light up Green LED as symbol that system is powered ON and healthy
+  // Requirement: Light up Green LED as symbol that system is powered ON & SAFE
   digitalWrite(LED_GREEN, HIGH);
   sensorData.greenLed = true;
 
   lastSensorMillis = lastTelemetryMillis = lastCommandMillis = lastNvsMillis = millis();
   lastDhtMillis = millis() - DHT_MIN_INTERVAL_MS;
-  Serial.println("[BOOT] Complete. System ON - Green LED Lit.");
+  Serial.println("[BOOT] Initialized successfully. Green LED lit (Normal/SAFE).");
 }
 
+// ── 11. MAIN NON-BLOCKING SUPER-LOOP ──
 void loop() {
-  esp_task_wdt_reset();
+  feedWatchdog();
   unsigned long now = millis();
 
+  // 1. Read sensors & evaluate safety
   if (now - lastSensorMillis >= SENSOR_INTERVAL_MS) {
     lastSensorMillis = now;
 
@@ -278,47 +321,56 @@ void loop() {
     sensorData.cycles = totalThroughputAh / (PACK_CAPACITY_AH * 2.0f);
   }
 
-  // Drive actuators smoothly every loop iteration (non-blocking millis cadence)
+  // 2. Drive LEDs and Buzzer continuously (non-blocking millis phase)
   if (sensorData.autoMode) {
     updateActuatorsAuto(currentSeverity);
   }
   updateBuzzerPattern();
 
+  // 3. Telemetry broadcast to Firebase RTDB
   if (now - lastTelemetryMillis >= TELEMETRY_INTERVAL_MS) {
     lastTelemetryMillis = now;
     sendTelemetry();
   }
 
+  // 4. Poll incoming commands from web dashboard
   if (now - lastCommandMillis >= COMMAND_POLL_MS) {
     lastCommandMillis = now;
     pollCommands();
   }
 
+  // 5. Periodic NVS checkpoint save
   if (now - lastNvsMillis >= NVS_SAVE_MS) {
     lastNvsMillis = now;
     savePersistentState();
   }
 
   if (buzzerMuted && now >= buzzerMuteUntil) buzzerMuted = false;
-  if (!firebaseReady) firebaseReady = Firebase.ready();
 
   maintainWiFi();
   yield();
 }
 
+// ── 12. WIFI MANAGEMENT ──
 void connectWiFi() {
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  Serial.printf("[WIFI] Connecting to SSID: '%s'", WIFI_SSID);
+
   unsigned long start = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - start < 10000) {
     delay(300);
-    esp_task_wdt_reset();
+    Serial.print(".");
+    feedWatchdog();
   }
+  Serial.println();
+
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.printf("[WIFI] Connected! IP: %s\n", WiFi.localIP().toString().c_str());
+    Serial.printf("[WIFI] Connected! Local IP: %s (RSSI: %d dBm)\n",
+                  WiFi.localIP().toString().c_str(), WiFi.RSSI());
   } else {
-    Serial.println("[WIFI] Initial connect timed out. Operating in autonomous offline mode.");
+    Serial.println("[WIFI] Initial connection timed out. System operating in autonomous offline mode.");
   }
 }
 
@@ -327,22 +379,23 @@ void maintainWiFi() {
   unsigned long now = millis();
   if (now - lastWifiAttempt < WIFI_RETRY_MS) return;
   lastWifiAttempt = now;
+  Serial.println("[WIFI] Connection lost. Attempting non-blocking reconnect...");
   WiFi.disconnect();
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 }
 
+// ── 13. BOOT SELF TEST ──
 void runBootSelfTest() {
   Wire.beginTransmission(INA219_ADDR);
   selfTest.ina_ack = (Wire.endTransmission() == 0);
 
-  // Safe DHT check: verify bus idle state first to prevent Interrupt WDT
   pinMode(DHT_PIN, INPUT_PULLUP);
   if (digitalRead(DHT_PIN) == HIGH) {
     float t = dht.readTemperature();
     selfTest.dht_ok = !isnan(t);
   } else {
     selfTest.dht_ok = false;
-    Serial.println("[WARN] DHT data line held LOW or missing pull-up. Skipping blocking read.");
+    Serial.println("[WARN] DHT data line held LOW or missing pull-up resistor.");
   }
 
   selfTest.mq2_ok   = analogRead(MQ2_PIN)   > 50;
@@ -360,11 +413,13 @@ void runBootSelfTest() {
   selfTest.passed = selfTest.ina_ack && selfTest.dht_ok && selfTest.mq2_ok &&
                      selfTest.mq135_ok && selfTest.gpio_ok && selfTest.buzzer_ok && selfTest.config_ok;
 
-  Serial.printf("[SELFTEST] ina=%d dht=%d mq2=%d mq135=%d gpio=%d buzz=%d wifi=%d passed=%d\n",
+  Serial.printf("[SELFTEST] INA=%d DHT=%d MQ2=%d MQ135=%d GPIO=%d Buzzer=%d WiFi=%d -> Overall=%s\n",
                 selfTest.ina_ack, selfTest.dht_ok, selfTest.mq2_ok, selfTest.mq135_ok,
-                selfTest.gpio_ok, selfTest.buzzer_ok, selfTest.wifi_ok, selfTest.passed);
+                selfTest.gpio_ok, selfTest.buzzer_ok, selfTest.wifi_ok,
+                selfTest.passed ? "PASSED" : "DEGRADED");
 }
 
+// ── 14. SENSOR ACQUISITION ──
 void readINA219Sensor() {
   if (!sensorData.inaOk) {
     if (ina219.begin()) { ina219.setCalibration_32V_2A(); sensorData.inaOk = true; }
@@ -372,6 +427,7 @@ void readINA219Sensor() {
   }
 
   float busV = ina219.getBusVoltage_V();
+  float shuntV = ina219.getShuntVoltage_mV();
   float rawCurrent_mA = ina219.getCurrent_mA() - zeroCurrentOffsetMA;
 
   if (isnan(busV) || busV < 0.0f || busV > 32.0f) {
@@ -389,21 +445,20 @@ void readINA219Sensor() {
   prevVoltage = busV; prevVoltageMillis = now;
 
   sensorData.voltage = busV;
+  sensorData.shuntVoltage_mV = shuntV;
   sensorData.current_mA = rawCurrent_mA;
   sensorData.power_mW = busV * (rawCurrent_mA / 1000.0f) * 1000.0f;
   sensorData.inaOk = true;
   sensorData.inaConfidence = (busV > 26.0f) ? 0.0f : 1.0f;
 }
 
-// Hardened DHT reading: strict rate-limit and bus line pre-check to prevent IWDT lockup
 void readDHTSensor() {
   unsigned long now = millis();
   if (now - lastDhtMillis < DHT_MIN_INTERVAL_MS) {
-    return; // Enforce minimum 2.5s between DHT11 readings
+    return;
   }
   lastDhtMillis = now;
 
-  // Pre-check: if line is pulled LOW by ground fault or missing pull-up, avoid bit-banging
   pinMode(DHT_PIN, INPUT_PULLUP);
   if (digitalRead(DHT_PIN) == LOW) {
     sensorData.dhtOk = false;
@@ -421,7 +476,7 @@ void readDHTSensor() {
   }
 
   float h = dht.readHumidity();
-  if (isnan(h)) h = 50.0f; // Graceful fallback
+  if (isnan(h)) h = 50.0f;
 
   if (prevTempMillis > 0) {
     float dtSec = (now - prevTempMillis) / 1000.0f;
@@ -457,6 +512,7 @@ void readGasSensors() {
   sensorData.mqConfidence = 0.2f + 0.8f * ratio;
 }
 
+// ── 15. ALGORITHMS: SOC, SOH & BHI ──
 float voltageToSOCApprox(float v) {
   return constrain((v - SOC_V_LOW) / (SOC_V_HIGH - SOC_V_LOW) * 100.0f, 0.0f, 100.0f);
 }
@@ -530,6 +586,7 @@ int evaluateFullSafety(SensorData &sd) {
   return sev;
 }
 
+// ── 16. ACTUATOR & CADENCE CONTROLLERS ──
 void updateActuatorsAuto(int sev) {
   unsigned long now = millis();
   bool g = false, y = false, r = false;
@@ -537,7 +594,7 @@ void updateActuatorsAuto(int sev) {
 
   switch (sev) {
     case SEV_SAFE:
-      // Green LED SOLID ON: symbol of system ON and healthy nominal condition
+      // Green LED SOLID ON: symbol of system ON and healthy
       g = true;
       y = false;
       r = false;
@@ -553,7 +610,7 @@ void updateActuatorsAuto(int sev) {
       break;
 
     case SEV_WARNING:
-      // Yellow LED BLINK (500ms ON / 500ms OFF), gentle intermittent warning beep
+      // Yellow LED BLINK (500ms ON / 500ms OFF), gentle reminder alert
       g = false;
       y = ((now % 1000) < 500);
       r = false;
@@ -561,7 +618,7 @@ void updateActuatorsAuto(int sev) {
       break;
 
     case SEV_CRITICAL:
-      // Red LED BLINK FAST (250ms ON / 250ms OFF), pulsed alert beep (NOT continuous)
+      // Red LED BLINK FAST (250ms ON / 250ms OFF), distinct pulsed tone
       g = false;
       y = false;
       r = ((now % 500) < 250);
@@ -569,7 +626,7 @@ void updateActuatorsAuto(int sev) {
       break;
 
     case SEV_EMERGENCY:
-      // Red & Yellow RAPID FLASH (100ms ON / 100ms OFF), double-pulse alert (NOT continuous)
+      // Red & Yellow RAPID FLASH (100ms ON / 100ms OFF), fast double-pulse tone
       g = false;
       y = ((now % 200) < 100);
       r = ((now % 200) < 100);
@@ -627,7 +684,6 @@ void updateBuzzerPattern() {
   sensorData.buzzerOn = bzPin;
 }
 
-// Samples 50 readings over 500ms, per §7.7.
 void calibrateZeroCurrent() {
   float sum = 0;
   for (int i = 0; i < 50; i++) { sum += ina219.getCurrent_mA(); delay(10); }
@@ -638,6 +694,7 @@ void calibrateZeroCurrent() {
   Serial.printf("[CAL] Zero-current offset = %.2f mA\n", zeroCurrentOffsetMA);
 }
 
+// ── 17. TELEMETRY SERIALIZATION & TRANSMISSION ──
 String buildTelemetryJSON(FirebaseJson &json) {
   json.clear();
   json.set("batteryId", BATTERY_ID);
@@ -647,12 +704,16 @@ String buildTelemetryJSON(FirebaseJson &json) {
   json.set("voltage", sensorData.voltage);
   json.set("current", sensorData.current_mA);
   json.set("power", sensorData.power_mW);
+  json.set("shuntVoltage", sensorData.shuntVoltage_mV / 1000.0f);
+  json.set("loadVoltage", sensorData.voltage + (sensorData.shuntVoltage_mV / 1000.0f));
   json.set("temperature", sensorData.temperature);
   json.set("humidity", sensorData.humidity);
   json.set("mq2", sensorData.mq2Raw);
   json.set("mq2_pct", sensorData.mq2_pct);
   json.set("mq135", sensorData.mq135Raw);
   json.set("mq135_ppm", sensorData.mq135_ppm);
+  int aqi = map(constrain(sensorData.mq135Raw, 0, 4095), 0, 4095, 10, 500);
+  json.set("aqi", aqi);
   json.set("soc", sensorData.soc);
   json.set("soh", sensorData.soh);
   json.set("soh_valid", sensorData.sohValid);
@@ -686,7 +747,8 @@ String buildTelemetryJSON(FirebaseJson &json) {
 }
 
 bool sendToFirebaseRTDB(FirebaseJson &json) {
-  if (!firebaseReady || WiFi.status() != WL_CONNECTED) return false;
+  if (WiFi.status() != WL_CONNECTED) return false;
+  if (!Firebase.ready()) return false;
   String path = String("/live_data/") + BATTERY_ID;
   return Firebase.RTDB.setJSON(&fbdo, path.c_str(), &json);
 }
@@ -704,14 +766,14 @@ bool sendToGateway(const String &jsonStr) {
 }
 
 void flushRingBuffer() {
-  if (ringCount == 0 || !firebaseReady) return;
+  if (ringCount == 0 || !Firebase.ready()) return;
   String burstPath = String("/live_data/") + BATTERY_ID + "/history_burst";
   for (int i = 0; i < ringCount; i++) {
     int idx = (ringHead - ringCount + i + RING_SIZE) % RING_SIZE;
     FirebaseJson replay;
     replay.setJsonData(ringBuffer[idx]);
     Firebase.RTDB.push(&fbdo, burstPath.c_str(), &replay);
-    esp_task_wdt_reset();
+    feedWatchdog();
   }
   ringCount = 0; ringHead = 0;
 }
@@ -729,12 +791,28 @@ void sendTelemetry() {
   bool ok1 = sendToFirebaseRTDB(json);
   bool ok2 = sendToGateway(jsonStr);
 
-  if (!ok1 && !ok2) ringPush(jsonStr);
-  else if (ok1 && ringCount > 0) flushRingBuffer();
+  if (ok1) {
+    Serial.printf("[TELEMETRY] Sent to /live_data/%s | V=%.2fV I=%.1fmA T=%.1fC SOC=%.0f%% State=%s\n",
+                  BATTERY_ID, sensorData.voltage, sensorData.current_mA, sensorData.temperature,
+                  sensorData.soc, currentStateLabel.c_str());
+  } else {
+    Serial.printf("[TELEMETRY] Push failed: %s (WiFi=%s, FirebaseReady=%d)\n",
+                  fbdo.errorReason().c_str(),
+                  WiFi.status() == WL_CONNECTED ? "OK" : "NO_WIFI",
+                  Firebase.ready());
+  }
+
+  if (!ok1 && !ok2) {
+    ringPush(jsonStr);
+  } else if (ok1 && ringCount > 0) {
+    flushRingBuffer();
+  }
 }
 
+// ── 18. COMMAND INGEST & ACTUATOR SYNCHRONIZATION ──
 void pollCommands() {
-  if (!firebaseReady || WiFi.status() != WL_CONNECTED) return;
+  if (WiFi.status() != WL_CONNECTED) return;
+  if (!Firebase.ready()) return;
   String path = String("/commands/") + BATTERY_ID;
   if (!Firebase.RTDB.getJSON(&fbdo, path.c_str())) return;
 
@@ -766,6 +844,7 @@ void pollCommands() {
   Firebase.RTDB.setString(&fbdo, clearPath.c_str(), "none");
 }
 
+// ── 19. PERSISTENT NVS STORAGE ──
 void loadPersistentState() {
   prefs.begin("bv14", true);
   coulombAh          = prefs.getFloat("coulombAh", PACK_CAPACITY_AH / 2.0f);
