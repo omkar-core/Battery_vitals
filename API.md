@@ -453,9 +453,129 @@ Reads the current physical actuator pin states for a given battery device.
 
 ---
 
-## 6. AI Predictive Diagnostics & Analysis
+## 5.4 GET `/api/users/me`
+Retrieves the authenticated user's profile and permissions.
 
-### 6.1 POST `/api/ai/chat`
+- **Access Tier**: `viewer`, `operator`, `admin` (authenticated)
+- **Rate Limit**: 60 requests / 60 seconds
+- **Headers**: `Authorization: Bearer <FIREBASE_ID_TOKEN>`
+- **Response (200 OK)**:
+```json
+{
+  "user": {
+    "id": "usr_abc123",
+    "firebaseUid": "firebase-uid-123",
+    "name": "Alex Rivera",
+    "email": "operator@example.com",
+    "role": "operator",
+    "title": "Field Operations Specialist",
+    "department": "Hardware Telemetry & Maintenance",
+    "avatar": "⚡",
+    "status": "active",
+    "lastActive": "2026-09-27T14:30:00.000Z",
+    "createdAt": "2024-01-15T00:00:00.000Z"
+  },
+  "permissions": [
+    "ACCESS_TELEMETRY",
+    "CONTROL_HARDWARE",
+    "MANAGE_ALERTS",
+    "ACCESS_AI"
+  ],
+  "session": {
+    "authenticated": true,
+    "role": "operator",
+    "loginTime": "2026-09-27T14:30:00.000Z",
+    "expiresIn": "1h"
+  }
+}
+```
+- **Response (401 Unauthorized)**: Missing or invalid Firebase ID token.
+
+---
+
+## 7. Authentication Endpoints
+
+### 7.1 Architecture Overview
+
+Battery Vital uses **Firebase Auth as the sole identity provider**. The authentication flow is:
+
+1. **Client-side (Firebase SDK)**: User signs up/logs in via `createUserWithEmailAndPassword` / `signInWithEmailAndPassword`. Firebase handles password hashing, rate limiting, and issues a short-lived ID token (1h expiry, auto-refreshed).
+2. **Profile creation**: On successful signup, client calls `POST /api/auth/register` with the fresh ID token to create a MongoDB profile keyed by Firebase UID.
+3. **Server verification**: All protected routes verify the Firebase ID token via Firebase Admin SDK (`verifyIdToken(token, checkRevoked=true)`), then use the UID to fetch/create the MongoDB profile.
+
+### 7.2 POST `/api/auth/register`
+Creates or retrieves the MongoDB profile for the authenticated Firebase user. Idempotent — if a profile already exists for the UID, returns it.
+
+- **Access Tier**: Authenticated (requires valid Firebase ID token)
+- **Rate Limit**: 10 requests / 60 seconds
+- **Headers**: `Authorization: Bearer <FIREBASE_ID_TOKEN>`
+- **Request Body**:
+```json
+{
+  "name": "Alex Rivera",
+  "email": "operator@example.com",
+  "role": "viewer",
+  "title": "Field Operations Specialist",
+  "department": "Hardware Telemetry & Maintenance"
+}
+```
+- **Response (201 Created / 200 OK)**:
+```json
+{
+  "success": true,
+  "user": {
+    "id": "usr_abc123",
+    "firebaseUid": "firebase-uid-123",
+    "name": "Alex Rivera",
+    "email": "operator@example.com",
+    "role": "viewer",
+    "title": "Field Operations Specialist",
+    "department": "Hardware Telemetry & Maintenance",
+    "avatar": "👁️",
+    "status": "active",
+    "lastActive": "2026-09-27T14:30:00.000Z",
+    "createdAt": "2026-09-27T14:30:00.000Z"
+  }
+}
+```
+- **Response (400 Bad Request)**: Email mismatch with authenticated Firebase user.
+- **Response (401 Unauthorized)**: Missing or invalid Firebase ID token.
+
+### 7.3 POST `/api/auth/login`
+**DISABLED** — Login is handled client-side via Firebase Auth SDK (`signInWithEmailAndPassword`). The server no longer verifies passwords.
+
+- **Response (410 Gone)**: Instructs client to use Firebase Auth SDK directly.
+
+### 7.4 POST `/api/auth/logout`
+Revokes all Firebase refresh tokens for the current user (invalidates all sessions across devices) and clears the client-side session cookie.
+
+- **Access Tier**: Authenticated (requires valid Firebase ID token)
+- **Rate Limit**: 30 requests / 60 seconds
+- **Headers**: `Authorization: Bearer <FIREBASE_ID_TOKEN>`
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "revoked": true,
+  "message": "Logged out successfully. All sessions revoked."
+}
+```
+- Also clears the `bv_session` cookie.
+
+### 7.5 GET `/api/users/me`
+Retrieves the authenticated user's MongoDB profile (role, name, permissions) keyed by Firebase UID. Creates a default viewer profile if one doesn't exist yet.
+
+- **Access Tier**: Authenticated (requires valid Firebase ID token)
+- **Rate Limit**: 60 requests / 60 seconds
+- **Headers**: `Authorization: Bearer <FIREBASE_ID_TOKEN>`
+- **Response (200 OK)**: See `/api/users/me` documentation above.
+- **Response (401 Unauthorized)**: Missing or invalid Firebase ID token.
+
+---
+
+## 8. AI Predictive Diagnostics & Analysis
+
+### 8.1 POST `/api/ai/chat`
 Interactive conversational AI endpoint for battery safety queries. Maintains multi-session conversation history per battery.
 
 - **Access Tier**: `viewer`, `operator`, `admin` (`ACCESS_AI` permission)
@@ -496,7 +616,7 @@ Content-Type: application/json
 
 ---
 
-### 6.2 GET `/api/ai/chat`
+### 8.2 GET `/api/ai/chat`
 Retrieves the AI context for a battery (deterministic safety state, sensor confidence, current telemetry).
 
 - **Access Tier**: `viewer`, `operator`, `admin` (`ACCESS_AI` permission)
@@ -518,7 +638,7 @@ Retrieves the AI context for a battery (deterministic safety state, sensor confi
 
 ---
 
-### 6.3 GET `/api/ai/conversations`
+### 8.3 GET `/api/ai/conversations`
 Lists all conversation sessions for a battery owned by the authenticated user.
 
 - **Access Tier**: `viewer`, `operator`, `admin` (`ACCESS_AI` permission)
@@ -543,7 +663,7 @@ Lists all conversation sessions for a battery owned by the authenticated user.
 
 ---
 
-### 6.4 POST `/api/ai/conversations`
+### 8.4 POST `/api/ai/conversations`
 Creates a new conversation session for a battery.
 
 - **Access Tier**: `viewer`, `operator`, `admin` (`ACCESS_AI` permission)
@@ -571,7 +691,7 @@ Creates a new conversation session for a battery.
 
 ---
 
-### 6.5 GET `/api/ai/conversations/[id]`
+### 8.5 GET `/api/ai/conversations/[id]`
 Retrieves a specific conversation with its message history.
 
 - **Access Tier**: `viewer`, `operator`, `admin` (`ACCESS_AI` permission)
@@ -597,7 +717,7 @@ Retrieves a specific conversation with its message history.
 
 ---
 
-### 6.6 GET `/api/ai/health-summary`
+### 8.6 GET `/api/ai/health-summary`
 Generates or retrieves a cached structured battery health summary with deterministic fingerprinting.
 
 - **Access Tier**: `viewer`, `operator`, `admin` (`ACCESS_AI` permission)
@@ -631,7 +751,7 @@ Generates or retrieves a cached structured battery health summary with determini
 
 ---
 
-### 6.7 POST `/api/ai/diagnostic`
+### 8.7 POST `/api/ai/diagnostic`
 Executes a full structured diagnostic pipeline: validation → deterministic safety engine → AI provider cascade (Gemini → OpenRouter → deterministic fallback) → schema validation → MongoDB persistence.
 
 - **Access Tier**: `viewer`, `operator`, `admin` (`ACCESS_AI` permission)
@@ -676,7 +796,7 @@ Executes a full structured diagnostic pipeline: validation → deterministic saf
 
 ---
 
-### 6.8 POST `/api/analyze`
+### 8.8 POST `/api/analyze`
 Invokes the Google Gemini 1.5 diagnostics engine over the validated telemetry frame.
 
 - **Access Tier**: `viewer`, `operator`, `admin`
@@ -722,7 +842,7 @@ Invokes the Google Gemini 1.5 diagnostics engine over the validated telemetry fr
 
 ---
 
-### 6.2 POST `/api/ai/profile-verify`
+### 8.9 POST `/api/ai/profile-verify`
 Vision AI cross-referencing endpoint that inspects an uploaded battery specification sheet or physical label image and verifies it against candidate battery profile fields.
 
 - **Access Tier**: `viewer`, `operator`, `admin` (`ACCESS_AI` permission)
@@ -759,7 +879,7 @@ Vision AI cross-referencing endpoint that inspects an uploaded battery specifica
 
 ---
 
-### 6.3 POST `/api/ai/label-scan`
+### 8.10 POST `/api/ai/label-scan`
 OCR and multimodal vision inspection endpoint that extracts technical parameters directly from physical battery packaging and rating plates.
 
 - **Access Tier**: `viewer`, `operator`, `admin` (`ACCESS_AI` permission)
@@ -796,9 +916,9 @@ OCR and multimodal vision inspection endpoint that extracts technical parameters
 
 ---
 
-## 7. Alert Management Endpoints
+## 9. Alert Management Endpoints
 
-### 7.1 GET `/api/alerts`
+### 9.1 GET `/api/alerts`
 Fetches the active and historical alarm feed.
 
 - **Query Parameters**:
@@ -807,7 +927,7 @@ Fetches the active and historical alarm feed.
 
 ---
 
-### 7.2 PUT `/api/alerts/[id]`
+### 9.2 PUT `/api/alerts/[id]`
 Acknowledges or resolves an active alert incident.
 
 - **Access Tier**: `operator`, `admin`
@@ -822,9 +942,9 @@ Acknowledges or resolves an active alert incident.
 
 ---
 
-## 8. Export & Database Synchronization
+## 10. Export & Database Synchronization
 
-### 8.1 GET `/api/export`
+### 10.1 GET `/api/export`
 Streams historical telemetry in CSV or JSON format for regulatory audits.
 
 - **Query Parameters**:
@@ -839,7 +959,7 @@ Content-Disposition: attachment; filename="telemetry-BAT001-2024-06-10.csv"
 
 ---
 
-### 8.2 POST `/api/sync-to-mongo`
+### 10.2 POST `/api/sync-to-mongo`
 Triggers batch synchronization from Firebase RTDB to MongoDB Atlas.
 
 - **Access Tier**: Automated Cron Worker / `admin`

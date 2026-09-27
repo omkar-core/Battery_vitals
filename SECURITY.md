@@ -46,7 +46,25 @@ Battery Vital monitors high-energy electrical storage devices (lithium-ion and L
 
 ## 3. Authentication & Role-Based Access Control (RBAC)
 
-### 3.1 Role Hierarchy & Policy Enforcement
+### 3.1 Architecture: Firebase Auth + MongoDB Profiles
+
+**Firebase Auth (client SDK) is the SOLE identity provider.** It owns:
+- Email/password identity, password hashing/salting (Google-managed, secure by default)
+- Session tokens (Firebase ID tokens, 1h expiry, auto-refreshed by client SDK)
+- Password reset emails, email verification
+- `signInWithEmailAndPassword`, `createUserWithEmailAndPassword`, `signOut`, `onAuthStateChanged`
+
+**MongoDB Atlas** stores only user PROFILES keyed by Firebase UID (`firebaseUid` field, unique index):
+- Role (admin/operator/viewer), display name, department, avatar, last active timestamp
+- NO password fields — Firebase Auth owns all credential logic
+
+**Server API routes** do NOT implement password checks:
+- `/api/auth/register`: Given a verified Firebase ID token (from `createUserWithEmailAndPassword`), creates the MongoDB profile document keyed by `firebaseUid` (idempotent — returns existing profile if present).
+- `/api/auth/login`: DISABLED — login happens client-side via Firebase Auth directly.
+- Middleware + route handlers verify the Firebase ID token using Firebase Admin SDK's `verifyIdToken(token, checkRevoked=true)` on every protected route.
+- `/api/users/me` reads the MongoDB profile for the UID from the verified token.
+
+### 3.2 Role Hierarchy & Policy Enforcement
 Every incoming mutating request (`POST`, `PUT`, `DELETE`) is evaluated against the authenticated user's role:
 
 ```
@@ -57,30 +75,30 @@ Every incoming mutating request (`POST`, `PUT`, `DELETE`) is evaluated against t
   └─────► [VIEWER] ──(Read-Only Access)────────► Telemetry + AI Summaries + Export
 ```
 
-### 3.2 Permission Validation Implementation
+### 3.3 Permission Validation Implementation
 ```javascript
 // Enforcement pattern on all mutating API routes:
-import { hasPermission, PERMISSIONS } from '@/lib/permissions'
-import { getAuthenticatedUser } from '@/lib/auth'
+import { requirePermission, PERMISSIONS } from '@/lib/auth'
 
 export async function POST(request) {
-  const user = await getAuthenticatedUser(request)
-  if (!user || !hasPermission(user.role, PERMISSIONS.CONTROL_HARDWARE)) {
-    return Response.json(
-      { error: 'Forbidden: Insufficient privileges to execute actuator commands' },
-      { status: 403 }
-    )
-  }
+  const user = await requirePermission(request, PERMISSIONS.CONTROL_HARDWARE)
   // Proceed with command processing...
 }
 ```
 
-### 3.3 Edge Device Token Authentication
+### 3.4 Firebase ID Token Verification
+Every protected route handler calls `getVerifiedFirebaseUser(request)` from `src/lib/firebaseAuthVerify.js` which:
+1. Extracts the ID token from `Authorization: Bearer <token>` header or `bv_session` cookie
+2. Calls `adminAuth.verifyIdToken(token, true)` — `checkRevoked=true` ensures revoked tokens are rejected
+3. Returns decoded claims (`uid`, `email`, etc.) or throws `InvalidTokenError`/`TokenExpiredError` (fail-closed)
+4. Route handler uses the `uid` to fetch/create the MongoDB profile
+
+### 3.5 Edge Device Token Authentication
 Direct telemetry ingestion via `POST /api/telemetry` is protected against rogue node packet spoofing:
 - Edge nodes must transmit a shared secret token either in the `X-Device-Token` HTTP request header or within the JSON body payload as `device_token`.
 - When `DEVICE_AUTH_TOKEN` is configured in the backend environment, any telemetry packet with a missing or mismatched token is rejected with HTTP `401 Unauthorized`.
 
-### 3.4 Immutable Configuration & Profile Audit Logging (`auditLog.js`)
+### 3.6 Immutable Configuration & Profile Audit Logging (`auditLog.js`)
 All sensitive configuration events—including battery profile creation/edits, safety threshold updates, and zero-current shunt calibration dispatches—are written to the append-only `audit_log` collection in MongoDB Atlas:
 - Captured metadata includes `action`, `entityType`, `entityId`, `actorId`, `actorEmail`, `clientIp`, `previousState`, `newState`, and ISO timestamp.
 - Audit records are immutable; no API endpoint exposes `PUT` or `DELETE` methods against the audit trail.
