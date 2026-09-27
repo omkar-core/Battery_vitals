@@ -141,10 +141,14 @@ To eliminate cloud cost runaway and protect against unintended paid API billing:
 ## 6. Denial of Service (DoS) & Rate Limiting
 
 ### 6.1 Sliding-Window Rate Limiter
-The serverless application implements an in-memory sliding-window rate limiter in [`src/lib/rateLimit.js`](file:///d:/Webapp/Working_webapps/Battery_vitals/src/lib/rateLimit.js) protecting critical endpoints:
+The serverless application implements an in-memory sliding-window rate limiter in [`src/lib/rateLimit.js`](file:///d:/Webapp/Working_webapps/Battery_vitals/src/lib/rateLimit.js) protecting critical endpoints. Rate limits are scoped per-user/IP **and per-endpoint** to prevent one runaway client from exhausting shared buckets.
 
 | Endpoint Group | Maximum Requests | Window Duration | Penalty Action |
 |---|---|---|---|
+| **AI Chat (`/api/ai/chat`)** | 20 requests | 60 seconds (1 min) | HTTP 429 + Retry-After header |
+| **AI Conversations (`/api/ai/conversations`)** | 30 requests | 60 seconds (1 min) | HTTP 429 + Retry-After header |
+| **AI Health Summary (`/api/ai/health-summary`)** | 10 requests | 60 seconds (1 min) | HTTP 429 + Retry-After header |
+| **AI Diagnostic (`/api/ai/diagnostic`)** | 10 requests | 60 seconds (1 min) | HTTP 429 + Retry-After header |
 | **AI Diagnostics (`/api/analyze`)** | 60 requests | 60 seconds (1 min) | HTTP 429 Too Many Requests |
 | **Vision Verification (`/api/ai/profile-verify`)** | 10 requests | 3,600 seconds (1 hr) | HTTP 429 Too Many Requests |
 | **Vision Label Scan (`/api/ai/label-scan`)** | 10 requests | 60 seconds (1 min) | HTTP 429 Too Many Requests |

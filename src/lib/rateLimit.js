@@ -28,11 +28,14 @@ if (
 /**
  * Check if a request exceeds rate limit for a given key/IP.
  * @param {string} identifier - Unique client identifier (e.g., IP address or route key)
- * @param {number} maxRequests - Maximum allowed requests within the window
- * @param {number} windowMs - Time window in milliseconds (default: 60,000ms = 1 min)
- * @returns {{ success: boolean, remaining: number, resetTime: number }}
+ * @param {Object} options - Rate limit options
+ * @param {number} options.max - Maximum allowed requests within the window
+ * @param {number} options.windowMs - Time window in milliseconds (default: 60,000ms = 1 min)
+ * @returns {{ allowed: boolean, remaining: number, resetTime: number, retryAfter: number }}
  */
-export function checkRateLimit(identifier, maxRequests = 60, windowMs = 60000) {
+export function checkRateLimit(identifier, options = {}) {
+  const maxRequests = options.max ?? 60
+  const windowMs = options.windowMs ?? 60000
   const now = Date.now()
   const record = tracker.get(identifier)
 
@@ -46,25 +49,29 @@ export function checkRateLimit(identifier, maxRequests = 60, windowMs = 60000) {
     }
     tracker.set(identifier, newRecord)
     return {
-      success: true,
+      allowed: true,
       remaining: maxRequests - 1,
       resetTime: newRecord.resetTime,
+      retryAfter: 0,
     }
   }
 
   if (record.count >= maxRequests) {
+    const retryAfter = Math.ceil((record.resetTime - now) / 1000)
     return {
-      success: false,
+      allowed: false,
       remaining: 0,
       resetTime: record.resetTime,
+      retryAfter,
     }
   }
 
   record.count += 1
   return {
-    success: true,
+    allowed: true,
     remaining: maxRequests - record.count,
     resetTime: record.resetTime,
+    retryAfter: 0,
   }
 }
 

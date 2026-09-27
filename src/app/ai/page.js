@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import Header from '../../components/Header'
 import AIContextIndicator from '../../components/AIContextIndicator'
 import ChatWidget from '../../components/ai/ChatWidget'
@@ -15,35 +15,76 @@ export default function AIPage() {
   const [healthSummary, setHealthSummary] = useState(null)
   const [loading, setLoading] = useState(true)
   const [whyMetric, setWhyMetric] = useState(null)
+  const rateLimitBackoffRef = useRef({})
+
+  const handleRateLimit = useCallback(async (endpoint, retryAfter) => {
+    const waitMs = (retryAfter || 5) * 1000
+    rateLimitBackoffRef.current[endpoint] = Date.now() + waitMs
+    await new Promise((resolve) => setTimeout(resolve, waitMs))
+    delete rateLimitBackoffRef.current[endpoint]
+  }, [])
 
   useEffect(() => {
-    async function loadData() {
-      setLoading(true)
+    let cancelled = false
+    async function loadBatteries() {
       try {
         const batRes = await fetch('/api/battery/my-batteries')
         const batData = await batRes.json()
-        if (batData.batteries) {
+        if (!cancelled && batData.batteries) {
           setBatteries(batData.batteries)
-          if (batData.batteries.length > 0) {
-            setSelectedBatteryId(batData.batteries[0].batteryId)
-          }
+        }
+      } catch (err) {
+        console.warn('Failed to load batteries:', err)
+      }
+    }
+    loadBatteries()
+    return () => { cancelled = true }
+  }, [])
+
+  useEffect(() => {
+    if (!selectedBatteryId) return
+    let cancelled = false
+    async function loadAIData() {
+      setLoading(true)
+      try {
+        // Check backoff for chat endpoint
+        if (rateLimitBackoffRef.current.chat && Date.now() < rateLimitBackoffRef.current.chat) {
+          if (!cancelled) setLoading(false)
+          return
         }
 
         const ctxRes = await fetch(`/api/ai/chat?batteryId=${selectedBatteryId}`)
+        if (ctxRes.status === 429) {
+          const retryAfter = ctxRes.headers.get('Retry-After')
+          await handleRateLimit('chat', retryAfter ? parseInt(retryAfter, 10) : null)
+          if (!cancelled) return loadAIData()
+        }
         const ctxData = await ctxRes.json()
-        if (ctxData.aiContext) setAiContext(ctxData.aiContext)
+        if (!cancelled && ctxData.aiContext) setAiContext(ctxData.aiContext)
+
+        // Check backoff for health-summary endpoint
+        if (rateLimitBackoffRef.current['health-summary'] && Date.now() < rateLimitBackoffRef.current['health-summary']) {
+          if (!cancelled) setLoading(false)
+          return
+        }
 
         const hsRes = await fetch(`/api/ai/health-summary?batteryId=${selectedBatteryId}`)
+        if (hsRes.status === 429) {
+          const retryAfter = hsRes.headers.get('Retry-After')
+          await handleRateLimit('health-summary', retryAfter ? parseInt(retryAfter, 10) : null)
+          if (!cancelled) return loadAIData()
+        }
         const hsData = await hsRes.json()
-        if (hsData.summary) setHealthSummary(hsData.summary.summary)
+        if (!cancelled && hsData.summary) setHealthSummary(hsData.summary.summary)
       } catch (err) {
         console.warn('Failed to load AI page data:', err)
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
-    loadData()
-  }, [selectedBatteryId])
+    loadAIData()
+    return () => { cancelled = true }
+  }, [selectedBatteryId, handleRateLimit])
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-canvas)', color: 'var(--text-primary)' }}>

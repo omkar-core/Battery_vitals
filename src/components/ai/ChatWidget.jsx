@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { authHeaders } from '../../lib/clientToken'
 
 const QUICK_CHIPS = [
@@ -25,6 +25,29 @@ export default function ChatWidget({ initialBatteryId = 'BAT001', embedded = fal
   const [loading, setLoading] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const messagesEndRef = useRef(null)
+  const abortControllersRef = useRef({})
+  const isSendingRef = useRef(false)
+  const rateLimitBackoffRef = useRef({})
+
+  // Sync batteryId with prop when it changes
+  useEffect(() => {
+    setBatteryId(initialBatteryId)
+  }, [initialBatteryId])
+
+  // Handle 429 responses with Retry-After backoff
+  const handleRateLimit = useCallback(async (endpoint, retryAfter) => {
+    const waitMs = (retryAfter || 5) * 1000
+    rateLimitBackoffRef.current[endpoint] = Date.now() + waitMs
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: 'assistant',
+        content: `⚡ AI is catching up, retrying in ${retryAfter || 5}s...`,
+      },
+    ])
+    await new Promise((resolve) => setTimeout(resolve, waitMs))
+    delete rateLimitBackoffRef.current[endpoint]
+  }, [])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -35,29 +58,63 @@ export default function ChatWidget({ initialBatteryId = 'BAT001', embedded = fal
   }, [messages, open])
 
   // Load conversations list for current battery
-  const loadConversations = React.useCallback(async () => {
+  const loadConversations = useCallback(async () => {
+    // Check if we're in backoff period for this endpoint
+    const backoffUntil = rateLimitBackoffRef.current.conversations
+    if (backoffUntil && Date.now() < backoffUntil) {
+      return
+    }
+
+    const controller = new AbortController()
+    abortControllersRef.current.conversations = controller
+
     try {
-      const res = await fetch(`/api/ai/conversations?batteryId=${batteryId}`)
+      const res = await fetch(`/api/ai/conversations?batteryId=${batteryId}`, {
+        signal: controller.signal,
+      })
+      
+      if (res.status === 429) {
+        const retryAfter = res.headers.get('Retry-After')
+        await handleRateLimit('conversations', retryAfter ? parseInt(retryAfter, 10) : null)
+        return loadConversations() // Retry after backoff
+      }
+      
       const data = await res.json()
       if (data.conversations) {
         setConversations(data.conversations)
       }
     } catch (e) {
-      console.warn('Failed to load conversations:', e)
+      if (e.name !== 'AbortError') {
+        console.warn('Failed to load conversations:', e)
+      }
     }
-  }, [batteryId])
+  }, [batteryId, handleRateLimit])
 
   useEffect(() => {
     if (open) loadConversations()
   }, [open, loadConversations])
 
+  // Abort in-flight requests on batteryId change or unmount
+  useEffect(() => {
+    const controllers = abortControllersRef.current
+    return () => {
+      Object.values(controllers).forEach((controller) => {
+        if (controller) controller.abort()
+      })
+    }
+  }, [batteryId])
+
   // Start new conversation
   const handleNewConversation = async () => {
+    const controller = new AbortController()
+    abortControllersRef.current.newConv = controller
+
     try {
       const res = await fetch('/api/ai/conversations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ batteryId, title: 'New Discussion' }),
+        signal: controller.signal,
       })
       const data = await res.json()
       if (data.conversation) {
@@ -71,15 +128,22 @@ export default function ChatWidget({ initialBatteryId = 'BAT001', embedded = fal
         setConversations([data.conversation, ...conversations])
       }
     } catch (e) {
-      console.error('Failed to create new conversation:', e)
+      if (e.name !== 'AbortError') {
+        console.error('Failed to create new conversation:', e)
+      }
     }
   }
 
   // Switch to selected conversation
   const handleSelectConversation = async (convId) => {
     setActiveConversationId(convId)
+    const controller = new AbortController()
+    abortControllersRef.current.selectConv = controller
+
     try {
-      const res = await fetch(`/api/ai/conversations/${convId}`)
+      const res = await fetch(`/api/ai/conversations/${convId}`, {
+        signal: controller.signal,
+      })
       const data = await res.json()
       if (data.conversation && data.conversation.messages) {
         setMessages(
@@ -94,18 +158,30 @@ export default function ChatWidget({ initialBatteryId = 'BAT001', embedded = fal
         )
       }
     } catch (e) {
-      console.error('Failed to load conversation messages:', e)
+      if (e.name !== 'AbortError') {
+        console.error('Failed to load conversation messages:', e)
+      }
     }
   }
 
   const handleSend = async (textToSend) => {
     const text = textToSend || input
-    if (!text.trim() || loading) return
+    if (!text.trim() || loading || isSendingRef.current) return
+
+    // Check if we're in backoff period for chat endpoint
+    const backoffUntil = rateLimitBackoffRef.current.chat
+    if (backoffUntil && Date.now() < backoffUntil) {
+      return
+    }
 
     const userMsg = { role: 'user', content: text.trim() }
     setMessages((prev) => [...prev, userMsg])
     if (!textToSend) setInput('')
     setLoading(true)
+    isSendingRef.current = true
+
+    const controller = new AbortController()
+    abortControllersRef.current.chat = controller
 
     try {
       const res = await fetch('/api/ai/chat', {
@@ -119,7 +195,14 @@ export default function ChatWidget({ initialBatteryId = 'BAT001', embedded = fal
           question: text.trim(),
           conversationId: activeConversationId,
         }),
+        signal: controller.signal,
       })
+
+      if (res.status === 429) {
+        const retryAfter = res.headers.get('Retry-After')
+        await handleRateLimit('chat', retryAfter ? parseInt(retryAfter, 10) : null)
+        return handleSend(textToSend) // Retry after backoff
+      }
 
       const data = await res.json()
       if (res.ok && (data.answer || data.response)) {
@@ -141,15 +224,18 @@ export default function ChatWidget({ initialBatteryId = 'BAT001', embedded = fal
         ])
       }
     } catch (e) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: 'assistant',
-          content: 'Network connection issue. Please check your connectivity.',
-        },
-      ])
+      if (e.name !== 'AbortError') {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            content: 'Network connection issue. Please check your connectivity.',
+          },
+        ])
+      }
     } finally {
       setLoading(false)
+      isSendingRef.current = false
       loadConversations()
     }
   }

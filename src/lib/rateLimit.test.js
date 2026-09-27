@@ -5,12 +5,12 @@ describe('rateLimit — sliding window', () => {
   it('allows requests up to the window maximum', () => {
     const id = `rl_allow_${Date.now()}_${Math.random()}`
     for (let i = 0; i < 5; i++) {
-      const res = checkRateLimit(id, 5, 60000)
-      expect(res.success).toBe(true)
+      const res = checkRateLimit(id, { max: 5, windowMs: 60000 })
+      expect(res.allowed).toBe(true)
     }
     // sixth call in the same window must be denied
-    const denied = checkRateLimit(id, 5, 60000)
-    expect(denied.success).toBe(false)
+    const denied = checkRateLimit(id, { max: 5, windowMs: 60000 })
+    expect(denied.allowed).toBe(false)
     expect(denied.remaining).toBe(0)
     expect(denied.resetTime).toBeGreaterThan(Date.now())
   })
@@ -18,17 +18,17 @@ describe('rateLimit — sliding window', () => {
   it('creates independent buckets per identifier', () => {
     const a = `rl_a_${Date.now()}_${Math.random()}`
     const b = `rl_b_${Date.now()}_${Math.random()}`
-    for (let i = 0; i < 3; i++) checkRateLimit(a, 3, 60000)
-    expect(checkRateLimit(a, 3, 60000).success).toBe(false)
-    expect(checkRateLimit(b, 3, 60000).success).toBe(true)
+    for (let i = 0; i < 3; i++) checkRateLimit(a, { max: 3, windowMs: 60000 })
+    expect(checkRateLimit(a, { max: 3, windowMs: 60000 }).allowed).toBe(false)
+    expect(checkRateLimit(b, { max: 3, windowMs: 60000 }).allowed).toBe(true)
   })
 
   it('refreshes the window once it expires', async () => {
     const id = `rl_reset_${Date.now()}_${Math.random()}`
-    checkRateLimit(id, 1, 5) // 5ms window, consumed immediately
+    checkRateLimit(id, { max: 1, windowMs: 5 }) // 5ms window, consumed immediately
     await new Promise((r) => setTimeout(r, 20)) // window has definitely expired
-    const after = checkRateLimit(id, 1, 5)
-    expect(after.success).toBe(true)
+    const after = checkRateLimit(id, { max: 1, windowMs: 5 })
+    expect(after.allowed).toBe(true)
     expect(after.remaining).toBe(0)
   })
 })

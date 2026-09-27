@@ -7,9 +7,10 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url)
     const batteryId = searchParams.get('batteryId') || 'BAT001'
 
-    const guard = await guardAIRequest(request, batteryId)
+    const guard = await guardAIRequest(request, batteryId, 'conversations')
     if (!guard.authorized) {
-      return NextResponse.json({ error: guard.error }, { status: guard.status })
+      const headers = guard.retryAfter ? { 'Retry-After': String(guard.retryAfter) } : {}
+      return NextResponse.json({ error: guard.error }, { status: guard.status, headers })
     }
 
     const conversations = await getConversations(guard.user.id, guard.batteryId)
@@ -29,9 +30,10 @@ export async function POST(request) {
     const body = await request.json().catch(() => ({}))
     const batteryId = body.batteryId || 'BAT001'
 
-    const guard = await guardAIRequest(request, batteryId)
+    const guard = await guardAIRequest(request, batteryId, 'conversations')
     if (!guard.authorized) {
-      return NextResponse.json({ error: guard.error }, { status: guard.status })
+      const headers = guard.retryAfter ? { 'Retry-After': String(guard.retryAfter) } : {}
+      return NextResponse.json({ error: guard.error }, { status: guard.status, headers })
     }
 
     const conversation = await createConversation(guard.user.id, guard.batteryId, body.title)

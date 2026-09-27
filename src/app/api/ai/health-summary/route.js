@@ -14,9 +14,10 @@ export async function GET(request) {
     const batteryId = searchParams.get('batteryId') || 'BAT001'
     const period = searchParams.get('period') || '30d'
 
-    const guard = await guardAIRequest(request, batteryId)
+    const guard = await guardAIRequest(request, batteryId, 'health-summary')
     if (!guard.authorized) {
-      return NextResponse.json({ error: guard.error }, { status: guard.status })
+      const headers = guard.retryAfter ? { 'Retry-After': String(guard.retryAfter) } : {}
+      return NextResponse.json({ error: guard.error }, { status: guard.status, headers })
     }
 
     const aiContext = await buildAIContext({ userId: guard.user.id, batteryId: guard.batteryId })

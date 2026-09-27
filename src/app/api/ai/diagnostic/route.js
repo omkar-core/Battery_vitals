@@ -2,10 +2,8 @@ import { NextResponse } from 'next/server'
 import { getDB } from '../../../../lib/mongodb'
 import { runBatteryDiagnostic } from '../../../../lib/gemini'
 import { loadAiContext, ensureAiIndexes, DIAGNOSTICS_COLLECTION } from '../../../../lib/aiDb'
-import { checkRateLimit, getClientIp } from '../../../../lib/rateLimit'
+import { guardAIRequest } from '../../../../lib/securityGuard'
 import { sanitizeString } from '../../../../lib/security'
-import { requirePermission } from '../../../../lib/auth'
-import { PERMISSIONS } from '../../../../lib/permissions'
 import { handleError } from '../../../../lib/errorHandler'
 
 export const dynamic = 'force-dynamic'
@@ -18,13 +16,11 @@ export async function OPTIONS() {
 // structured validation -> persistence. Cached by telemetry fingerprint.
 export async function POST(request) {
   try {
-    const ip = getClientIp(request)
-    const rateCheck = checkRateLimit(`ai_diagnostic_post_${ip}`, 6, 60000)
-    if (!rateCheck.success) {
-      return NextResponse.json({ error: 'AI diagnostic rate limit exceeded. Please wait a minute.' }, { status: 429 })
+    const guard = await guardAIRequest(request, null, 'diagnostic')
+    if (!guard.authorized) {
+      const headers = guard.retryAfter ? { 'Retry-After': String(guard.retryAfter) } : {}
+      return NextResponse.json({ error: guard.error }, { status: guard.status, headers })
     }
-
-    await requirePermission(request, PERMISSIONS.ACCESS_AI)
 
     const body = await request.json().catch(() => ({}))
     const batteryId = sanitizeString(body.batteryId || 'BAT001', 30)

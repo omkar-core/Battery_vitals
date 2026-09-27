@@ -455,7 +455,228 @@ Reads the current physical actuator pin states for a given battery device.
 
 ## 6. AI Predictive Diagnostics & Analysis
 
-### 6.1 POST `/api/analyze`
+### 6.1 POST `/api/ai/chat`
+Interactive conversational AI endpoint for battery safety queries. Maintains multi-session conversation history per battery.
+
+- **Access Tier**: `viewer`, `operator`, `admin` (`ACCESS_AI` permission)
+- **Rate Limit**: 20 requests / 60 seconds (per user/IP + endpoint)
+- **Headers**: `Authorization: Bearer <FIREBASE_ID_TOKEN>`
+- **Request Body**:
+```json
+{
+  "batteryId": "BAT001",
+  "question": "Why is my battery health decreasing?",
+  "conversationId": "conv_abc123"
+}
+```
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "answer": "Based on current telemetry...",
+  "response": "Based on current telemetry...",
+  "batteryId": "BAT001",
+  "aiContext": {
+    "safetyState": "SAFE",
+    "sensorConfidence": 1.0,
+    "currentSOH": 89
+  }
+}
+```
+- **Response (429 Too Many Requests)**:
+```http
+HTTP/1.1 429 Too Many Requests
+Retry-After: 45
+Content-Type: application/json
+
+{
+  "error": "Too Many Requests: Rate limit exceeded. Please try again shortly."
+}
+```
+
+---
+
+### 6.2 GET `/api/ai/chat`
+Retrieves the AI context for a battery (deterministic safety state, sensor confidence, current telemetry).
+
+- **Access Tier**: `viewer`, `operator`, `admin` (`ACCESS_AI` permission)
+- **Rate Limit**: 20 requests / 60 seconds (per user/IP + endpoint)
+- **Query Parameters**: `batteryId` (optional, default: `BAT001`)
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "batteryId": "BAT001",
+  "aiContext": {
+    "currentTelemetry": { "voltage": 12.6, "temperature": 26.4, "soh": 89, ... },
+    "deterministicSafetyState": { "statusLabel": "SAFE", "activeTrips": [] },
+    "sensorConfidence": { "overallConfidence": 1.0, ... },
+    "historicalTrends": { ... }
+  }
+}
+```
+
+---
+
+### 6.3 GET `/api/ai/conversations`
+Lists all conversation sessions for a battery owned by the authenticated user.
+
+- **Access Tier**: `viewer`, `operator`, `admin` (`ACCESS_AI` permission)
+- **Rate Limit**: 30 requests / 60 seconds (per user/IP + endpoint)
+- **Query Parameters**: `batteryId` (optional, default: `BAT001`)
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "conversations": [
+    {
+      "conversationId": "conv_abc123",
+      "batteryId": "BAT001",
+      "title": "New Discussion",
+      "createdAt": "2026-09-27T14:30:00.000Z",
+      "updatedAt": "2026-09-27T14:35:00.000Z"
+    }
+  ],
+  "count": 1
+}
+```
+
+---
+
+### 6.4 POST `/api/ai/conversations`
+Creates a new conversation session for a battery.
+
+- **Access Tier**: `viewer`, `operator`, `admin` (`ACCESS_AI` permission)
+- **Rate Limit**: 30 requests / 60 seconds (per user/IP + endpoint)
+- **Request Body**:
+```json
+{
+  "batteryId": "BAT001",
+  "title": "New Discussion"
+}
+```
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "conversation": {
+    "conversationId": "conv_abc123",
+    "batteryId": "BAT001",
+    "title": "New Discussion",
+    "createdAt": "2026-09-27T14:30:00.000Z",
+    "updatedAt": "2026-09-27T14:30:00.000Z"
+  }
+}
+```
+
+---
+
+### 6.5 GET `/api/ai/conversations/[id]`
+Retrieves a specific conversation with its message history.
+
+- **Access Tier**: `viewer`, `operator`, `admin` (`ACCESS_AI` permission)
+- **Rate Limit**: 30 requests / 60 seconds (per user/IP + endpoint)
+- **Path Parameters**: `id` (conversationId)
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "conversation": {
+    "conversationId": "conv_abc123",
+    "batteryId": "BAT001",
+    "title": "New Discussion",
+    "messages": [
+      { "role": "user", "content": "Why is my battery health decreasing?" },
+      { "role": "assistant", "content": "Based on current telemetry..." }
+    ],
+    "createdAt": "2026-09-27T14:30:00.000Z",
+    "updatedAt": "2026-09-27T14:35:00.000Z"
+  }
+}
+```
+
+---
+
+### 6.6 GET `/api/ai/health-summary`
+Generates or retrieves a cached structured battery health summary with deterministic fingerprinting.
+
+- **Access Tier**: `viewer`, `operator`, `admin` (`ACCESS_AI` permission)
+- **Rate Limit**: 10 requests / 60 seconds (per user/IP + endpoint)
+- **Query Parameters**:
+  - `batteryId` (optional, default: `BAT001`)
+  - `period` (optional, default: `30d` — `7d`, `30d`, `90d`)
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "cached": false,
+  "summary": {
+    "soh": "89%",
+    "trend": "Stable",
+    "cycles": 142,
+    "thermalEvents": 1,
+    "protectionEvents": 0,
+    "aiInterpretation": "Battery is operating in optimal condition...",
+    "batteryId": "BAT001",
+    "period": "30d",
+    "telemetryFingerprint": "fp_BAT001_89_142_26_SAFE",
+    "model": "gemini-1.5-flash",
+    "safetyState": "SAFE",
+    "generatedAt": "2026-09-27T14:30:00.000Z"
+  }
+}
+```
+- **Response (404 Not Found)**: No live sensor telemetry from ESP32.
+- **Response (429 Too Many Requests)**: Includes `Retry-After` header with seconds until next allowed request.
+
+---
+
+### 6.7 POST `/api/ai/diagnostic`
+Executes a full structured diagnostic pipeline: validation → deterministic safety engine → AI provider cascade (Gemini → OpenRouter → deterministic fallback) → schema validation → MongoDB persistence.
+
+- **Access Tier**: `viewer`, `operator`, `admin` (`ACCESS_AI` permission)
+- **Rate Limit**: 10 requests / 60 seconds (per user/IP + endpoint)
+- **Request Body**:
+```json
+{
+  "batteryId": "BAT001",
+  "forced": false
+}
+```
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "id": "66f1a2b3c4d5e6f7a8b9c0d1",
+  "source": "gemini",
+  "cached": false,
+  "model": "gemini-1.5-flash",
+  "safety": {
+    "overall_status": "SAFE",
+    "active_trips": [],
+    "risk_score": 8
+  },
+  "result": {
+    "overall_status": "SAFE",
+    "risk_score": 8,
+    "confidence": 0.92,
+    "summary": "Battery is operating within safe parameters...",
+    "key_drivers": [
+      { "metric": "temperature", "value": 26.4, "threshold": 45, "contribution": "low" }
+    ],
+    "recommendations": [
+      { "priority": "low", "action": "Continue routine monitoring", "reason": "No immediate action required" }
+    ],
+    "failure_probability": { "30_days": 1, "90_days": 3, "1_year": 8 },
+    "provider_used": "gemini"
+  },
+  "generatedAt": "2026-09-27T14:30:00.000Z"
+}
+```
+
+---
+
+### 6.8 POST `/api/analyze`
 Invokes the Google Gemini 1.5 diagnostics engine over the validated telemetry frame.
 
 - **Access Tier**: `viewer`, `operator`, `admin`
