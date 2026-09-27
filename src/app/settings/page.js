@@ -411,7 +411,7 @@ function SettingsInner() {
       {/* 2. BATTERY PROFILE & HARDWARE SETTINGS */}
       {(activeTab === 'all' || activeTab === 'battery') && (
         <div style={{ marginBottom: 20 }}>
-          <BatteryProfileManager batteryId={data?.batteryId || 'BAT001'} />
+          <BatteryProfileManager batteryId={data?.batteryId} />
         </div>
       )}
 
@@ -686,7 +686,7 @@ function SettingsInner() {
             </div>
             <div className={styles.connItem}>
               <span>Battery Pack Asset ID</span>
-              <span className={styles.mono}>{data?.batteryId || 'BAT001'}</span>
+              <span className={styles.mono}>{data?.batteryId || '--'}</span>
             </div>
             <div className={styles.connItem}>
               <span>Active Chemistry Profile</span>

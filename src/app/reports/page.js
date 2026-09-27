@@ -2,18 +2,40 @@
 
 import React, { useState, useEffect } from 'react'
 import Header from '../../components/Header'
+import { authHeaders } from '../../lib/clientToken'
 
 export default function ReportsPage() {
   const [reports, setReports] = useState([])
   const [selectedReport, setSelectedReport] = useState(null)
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
+  const [batteries, setBatteries] = useState([])
+  const [selectedBatteryId, setSelectedBatteryId] = useState('')
 
+  // Load user's batteries on mount
   useEffect(() => {
+    async function loadBatteries() {
+      try {
+        const batRes = await fetch('/api/battery/my-batteries', { headers: authHeaders() })
+        const batData = await batRes.json()
+        if (batData.batteries && batData.batteries.length > 0) {
+          setBatteries(batData.batteries)
+          setSelectedBatteryId(batData.batteries[0].batteryId)
+        }
+      } catch (err) {
+        console.warn('Failed to load batteries:', err)
+      }
+    }
+    loadBatteries()
+  }, [])
+
+  // Load reports when battery changes
+  useEffect(() => {
+    if (!selectedBatteryId) return
     async function loadReports() {
       setLoading(true)
       try {
-        const res = await fetch('/api/ai/report?batteryId=BAT001')
+        const res = await fetch(`/api/ai/report?batteryId=${encodeURIComponent(selectedBatteryId)}`, { headers: authHeaders() })
         const data = await res.json()
         if (data.reports) setReports(data.reports)
       } catch (err) {
@@ -23,15 +45,16 @@ export default function ReportsPage() {
       }
     }
     loadReports()
-  }, [])
+  }, [selectedBatteryId])
 
   const handleGenerateReport = async (period = 'weekly') => {
+    if (!selectedBatteryId) return
     setGenerating(true)
     try {
       const res = await fetch('/api/ai/report', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ batteryId: 'BAT001', period }),
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ batteryId: selectedBatteryId, period }),
       })
       const data = await res.json()
       if (data.report) {
@@ -56,14 +79,38 @@ export default function ReportsPage() {
               <span>📑</span> My Reports History
             </h1>
             <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)', fontSize: '14px' }}>
-              Saved AI health, capacity retention &amp; safety reports.
+              Saved AI health, capacity retention & safety reports.
             </p>
           </div>
 
-          <div style={{ display: 'flex', gap: '12px' }}>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+            {batteries.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <label style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Battery:</label>
+                <select
+                  value={selectedBatteryId}
+                  onChange={(e) => setSelectedBatteryId(e.target.value)}
+                  style={{
+                    backgroundColor: 'var(--input-bg)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '8px',
+                    padding: '8px 12px',
+                    fontSize: '14px',
+                  }}
+                >
+                  {batteries.map((b) => (
+                    <option key={b.batteryId} value={b.batteryId}>
+                      {b.name} ({b.batteryId})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <button
               onClick={() => handleGenerateReport('weekly')}
-              disabled={generating}
+              disabled={generating || !selectedBatteryId}
               style={{
                 backgroundColor: '#00E8A0',
                 color: '#090d16',
@@ -71,14 +118,15 @@ export default function ReportsPage() {
                 borderRadius: '8px',
                 padding: '10px 16px',
                 fontWeight: 600,
-                cursor: 'pointer',
+                cursor: selectedBatteryId ? 'pointer' : 'not-allowed',
+                opacity: selectedBatteryId ? 1 : 0.6,
               }}
             >
               {generating ? 'Generating...' : '+ Generate Weekly Report'}
             </button>
             <button
               onClick={() => handleGenerateReport('monthly')}
-              disabled={generating}
+              disabled={generating || !selectedBatteryId}
               style={{
                 backgroundColor: '#38BDF8',
                 color: '#090d16',
@@ -86,7 +134,8 @@ export default function ReportsPage() {
                 borderRadius: '8px',
                 padding: '10px 16px',
                 fontWeight: 600,
-                cursor: 'pointer',
+                cursor: selectedBatteryId ? 'pointer' : 'not-allowed',
+                opacity: selectedBatteryId ? 1 : 0.6,
               }}
             >
               + Generate Monthly Report
@@ -103,7 +152,9 @@ export default function ReportsPage() {
             {loading ? (
               <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-tertiary)' }}>Loading reports...</div>
             ) : reports.length === 0 ? (
-              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>No saved reports found. Click generate above!</div>
+              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                No saved reports found for this battery. Click generate above!
+              </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {reports.map((r) => (
@@ -149,7 +200,7 @@ export default function ReportsPage() {
 
                   {selectedReport.content?.healthAssessment && (
                     <div style={{ backgroundColor: 'var(--bg-surface-raised)', border: '1px solid var(--border)', padding: '16px', borderRadius: '10px' }}>
-                      <h4 style={{ margin: '0 0 6px 0', color: '#38BDF8', fontSize: '14px' }}>Health &amp; Capacity Retention</h4>
+                      <h4 style={{ margin: '0 0 6px 0', color: '#38BDF8', fontSize: '14px' }}>Health & Capacity Retention</h4>
                       <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
                         {selectedReport.content.healthAssessment}
                       </p>

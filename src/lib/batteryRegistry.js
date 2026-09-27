@@ -1,29 +1,13 @@
 import 'server-only'
 import { getDB } from './mongodb'
 
-export const DEMO_BATTERY_ID = 'BAT001'
-export const GUEST_USER_ID = 'usr_guest'
-
-export const DEFAULT_DEMO_BATTERY = {
-  batteryId: DEMO_BATTERY_ID,
-  ownerId: GUEST_USER_ID,
-  profileId: 'LIFEPO4_12V_100AH',
-  deviceId: 'BAT001',
-  name: 'ESP32 Monitored Pack (BAT001)',
-  chemistry: 'LiFePO4',
-  nominalVoltage: 12.8,
-  capacityAh: 100,
-  createdAt: '2026-01-01T00:00:00.000Z',
-  updatedAt: new Date().toISOString(),
-}
-
 /**
  * Get all batteries owned by a given user.
- * If user is guest or has no batteries, returns the demo battery.
+ * Returns empty array if user has no batteries (no demo fallback).
  */
 export async function getUserBatteries(userId) {
-  if (!userId || userId === GUEST_USER_ID) {
-    return [DEFAULT_DEMO_BATTERY]
+  if (!userId) {
+    return []
   }
 
   try {
@@ -34,73 +18,60 @@ export async function getUserBatteries(userId) {
       .sort({ createdAt: -1 })
       .toArray()
 
-    if (batteries.length === 0) {
-      // Seed default battery for newly registered user if needed
-      return [
-        {
-          ...DEFAULT_DEMO_BATTERY,
-          batteryId: `BV-USER-${userId.slice(0, 6).toUpperCase()}`,
-          ownerId: userId,
-          name: 'Primary Battery Pack',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      ]
-    }
-
     return batteries.map((b) => {
       const { _id, ...rest } = b
       return rest
     })
   } catch (error) {
-    console.warn('[batteryRegistry] Error fetching user batteries, returning demo fallback:', error.message)
-    return [DEFAULT_DEMO_BATTERY]
+    console.error('[batteryRegistry] Error fetching user batteries:', error.message)
+    return []
   }
 }
 
 /**
  * Get details for a specific battery by ID.
+ * Returns null if not found (no demo fallback).
  */
 export async function getBatteryById(batteryId) {
-  if (!batteryId || batteryId === DEMO_BATTERY_ID) {
-    return DEFAULT_DEMO_BATTERY
+  if (!batteryId) {
+    return null
   }
 
   try {
     const db = await getDB()
     const battery = await db.collection('batteries').findOne({ batteryId })
     if (!battery) {
-      if (batteryId.startsWith('BAT')) return DEFAULT_DEMO_BATTERY
       return null
     }
     const { _id, ...rest } = battery
     return rest
   } catch (error) {
-    console.warn('[batteryRegistry] Error fetching battery by ID:', error.message)
-    return DEFAULT_DEMO_BATTERY
+    console.error('[batteryRegistry] Error fetching battery by ID:', error.message)
+    return null
   }
 }
 
 /**
  * Check whether a user owns a specific battery ID.
- * Returns true if ownerId matches or if in public demo mode with BAT001.
+ * Returns false if battery not found or user doesn't own it.
  */
 export async function validateBatteryOwnership(userId, batteryId) {
-  if (!batteryId || batteryId === DEMO_BATTERY_ID || userId === GUEST_USER_ID) {
-    return true
+  if (!userId || !batteryId) {
+    return false
   }
 
   const battery = await getBatteryById(batteryId)
   if (!battery) return false
-  return battery.ownerId === userId || battery.ownerId === GUEST_USER_ID
+  return battery.ownerId === userId
 }
 
 /**
  * Register or update a battery owned by a user.
+ * Requires authenticated user (no guest fallback).
  */
 export async function upsertUserBattery(userId, batteryData) {
-  if (!userId || userId === GUEST_USER_ID) {
-    throw new Error('Guest users cannot register custom batteries')
+  if (!userId) {
+    throw new Error('Authenticated user required to register batteries')
   }
 
   const batteryId = batteryData.batteryId || `BV-${Date.now().toString(36).toUpperCase()}`

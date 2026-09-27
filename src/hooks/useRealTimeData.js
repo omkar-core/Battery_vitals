@@ -16,9 +16,9 @@ function createTimeoutSignal(ms) {
 function resolveBatteryId(provided) {
   if (provided) return provided
   try {
-    return localStorage.getItem('bv_active_device') || 'BAT001'
+    return localStorage.getItem('bv_active_device')
   } catch (e) {
-    return 'BAT001'
+    return null
   }
 }
 
@@ -27,12 +27,20 @@ function resolveBatteryId(provided) {
 const ACTIVE_KEY = 'bv_active_device'
 
 export function useRealTimeData(batteryId) {
-  const [activeId, setActiveId] = useState(() => resolveBatteryId(batteryId))
+  const resolvedId = resolveBatteryId(batteryId)
+  const [activeId, setActiveId] = useState(() => resolvedId)
+  const [noDevice, setNoDevice] = useState(!resolvedId)
+
   useEffect(() => {
-    setActiveId(resolveBatteryId(batteryId))
+    const newId = resolveBatteryId(batteryId)
+    setActiveId(newId)
+    setNoDevice(!newId)
   }, [batteryId])
 
-  const { connected: firebaseConnected, data: firebaseData, sendCommand: sendFirebaseCmd } = useFirebase(activeId)
+  // Always call useFirebase - pass a placeholder when no device to satisfy React Hooks rules
+  const firebaseArg = activeId || 'placeholder-no-device'
+  const { connected: firebaseConnected, data: firebaseData, sendCommand: sendFirebaseCmd } = useFirebase(firebaseArg)
+  
   const [data, setData] = useState(null)
   const [history, setHistory] = useState([])
   const [connected, setConnected] = useState(false)
@@ -42,12 +50,14 @@ export function useRealTimeData(batteryId) {
   // Latest telemetry capture time as an epoch-ms value (or null before first packet),
   // so pages can feed the header connection badge a real timestamp.
   const lastSeen = useMemo(() => {
+    if (noDevice) return null
     const ts = data?.timestamp ?? data?.receivedAt ?? data?.ts
     return ts != null ? Number(ts) : null
-  }, [data])
+  }, [data, noDevice])
 
   // Firebase real-time stream path
   useEffect(() => {
+    if (noDevice) return
     if (firebaseConnected && firebaseData) {
       setMode('firebase')
       setConnected(true)
@@ -55,19 +65,20 @@ export function useRealTimeData(batteryId) {
       setHistory((h) => [...h, { time: Date.now(), ...firebaseData }].slice(-50))
       setData((prev) => ({ ...prev, ...firebaseData }))
     }
-  }, [firebaseConnected, firebaseData])
+  }, [firebaseConnected, firebaseData, noDevice])
 
   // Drop stale readings when the operator switches fleet units.
   useEffect(() => {
+    if (noDevice) return
     setData(null)
     setHistory([])
     setMode('poll')
     setConnected(false)
-  }, [activeId])
+  }, [activeId, noDevice])
 
   // HTTP polling fallback (only while Firebase RTDB stream has no data)
   useEffect(() => {
-    if (firebaseConnected) return undefined
+    if (noDevice || firebaseConnected) return undefined
 
     let active = true
     let timer = null
@@ -107,9 +118,12 @@ export function useRealTimeData(batteryId) {
       if (timer) clearInterval(timer)
       if (timed) timed.clear()
     }
-  }, [activeId, firebaseConnected])
+  }, [activeId, firebaseConnected, noDevice])
 
   const sendControl = async (command, value) => {
+    if (noDevice) {
+      return { accepted: false, error: 'No battery device selected' }
+    }
     const requestId = Math.random().toString(16).slice(2, 10)
     const payload = {
       command,
@@ -137,7 +151,15 @@ export function useRealTimeData(batteryId) {
     }
   }
 
-  return { data, history, connected, mode, error, lastSeen, sendControl }
+  return {
+    data: noDevice ? null : data,
+    history: noDevice ? [] : history,
+    connected: noDevice ? false : connected,
+    mode: noDevice ? 'idle' : mode,
+    error: noDevice ? 'No battery device selected. Use the device switcher to select a device.' : error,
+    lastSeen,
+    sendControl,
+  }
 }
 
 export default useRealTimeData

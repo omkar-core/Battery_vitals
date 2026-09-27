@@ -1,18 +1,25 @@
 import 'server-only'
 import { getDB } from './mongodb'
-import { GUEST_USER_ID, DEMO_BATTERY_ID } from './batteryRegistry'
 
 /**
  * Save a newly generated AI health report.
+ * Requires explicit userId and batteryId - no guest/demo fallback.
  */
 export async function saveReport(reportData) {
+  if (!reportData.userId) {
+    throw new Error('userId is required to save report')
+  }
+  if (!reportData.batteryId) {
+    throw new Error('batteryId is required to save report')
+  }
+
   const reportId = reportData.reportId || `rep_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`
   const now = new Date().toISOString()
 
   const doc = {
     reportId,
-    userId: reportData.userId || GUEST_USER_ID,
-    batteryId: reportData.batteryId || DEMO_BATTERY_ID,
+    userId: reportData.userId,
+    batteryId: reportData.batteryId,
     title: reportData.title || `Battery Report — ${new Date().toLocaleDateString()}`,
     period: reportData.period || 'weekly',
     summary: reportData.summary || '',
@@ -35,13 +42,14 @@ export async function saveReport(reportData) {
 
 /**
  * Get saved reports for a user and battery.
+ * Requires explicit userId - no guest fallback.
  */
 export async function getUserReports(userId, batteryId = null) {
-  const effectiveUser = userId || GUEST_USER_ID
+  if (!userId) return []
 
   try {
     const db = await getDB()
-    const query = { userId: effectiveUser }
+    const query = { userId }
     if (batteryId) {
       query.batteryId = batteryId
     }
@@ -57,46 +65,48 @@ export async function getUserReports(userId, batteryId = null) {
       return rest
     })
   } catch (error) {
-    console.warn('[reports] Error loading reports:', error.message)
+    console.error('[reports] Error loading reports:', error.message)
     return []
   }
 }
 
 /**
  * Fetch a single report by reportId.
+ * Requires explicit userId - no guest fallback.
  */
 export async function getReportById(reportId, userId) {
-  const effectiveUser = userId || GUEST_USER_ID
+  if (!userId) return null
 
   try {
     const db = await getDB()
     const report = await db.collection('ai_reports').findOne({ reportId })
     if (!report) return null
 
-    if (report.userId !== effectiveUser && report.userId !== GUEST_USER_ID && effectiveUser !== GUEST_USER_ID) {
+    if (report.userId !== userId) {
       return null
     }
 
     const { _id, ...rest } = report
     return rest
   } catch (error) {
-    console.warn('[reports] Error fetching report by ID:', error.message)
+    console.error('[reports] Error fetching report by ID:', error.message)
     return null
   }
 }
 
 /**
  * Delete a report by ID.
+ * Requires explicit userId - no guest fallback.
  */
 export async function deleteReport(reportId, userId) {
-  const effectiveUser = userId || GUEST_USER_ID
+  if (!userId) return false
 
   try {
     const db = await getDB()
     const report = await db.collection('ai_reports').findOne({ reportId })
     if (!report) return false
 
-    if (report.userId !== effectiveUser && effectiveUser !== GUEST_USER_ID) {
+    if (report.userId !== userId) {
       return false
     }
 

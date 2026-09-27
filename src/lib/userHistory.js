@@ -1,6 +1,5 @@
 import 'server-only'
 import { getDB } from './mongodb'
-import { GUEST_USER_ID, DEMO_BATTERY_ID } from './batteryRegistry'
 
 export const DEFAULT_USER_PREFERENCES = {
   aiModel: 'gemini-1.5-flash',
@@ -13,7 +12,6 @@ export const DEFAULT_USER_PREFERENCES = {
     reports: true,
     offline: true,
   },
-  defaultBatteryId: DEMO_BATTERY_ID,
   units: {
     temperature: 'C', // 'C' | 'F'
     energy: 'Wh', // 'Wh' | 'kWh'
@@ -22,17 +20,11 @@ export const DEFAULT_USER_PREFERENCES = {
 
 /**
  * Get stored preferences & state for a user.
+ * Requires explicit userId - no guest fallback.
  */
 export async function getUserHistoryState(userId) {
-  if (!userId || userId === GUEST_USER_ID) {
-    return {
-      userId: GUEST_USER_ID,
-      selectedBatteryId: DEMO_BATTERY_ID,
-      lastActiveAt: new Date().toISOString(),
-      preferences: DEFAULT_USER_PREFERENCES,
-      viewedAlertsCount: 0,
-      viewedDiagnosticsCount: 0,
-    }
+  if (!userId) {
+    return null
   }
 
   try {
@@ -41,7 +33,7 @@ export async function getUserHistoryState(userId) {
     if (!doc) {
       return {
         userId,
-        selectedBatteryId: DEMO_BATTERY_ID,
+        selectedBatteryId: null,
         lastActiveAt: new Date().toISOString(),
         preferences: DEFAULT_USER_PREFERENCES,
         viewedAlertsCount: 0,
@@ -55,10 +47,10 @@ export async function getUserHistoryState(userId) {
       preferences: { ...DEFAULT_USER_PREFERENCES, ...(rest.preferences || {}) },
     }
   } catch (error) {
-    console.warn('[userHistory] Error fetching user history state:', error.message)
+    console.error('[userHistory] Error fetching user history state:', error.message)
     return {
       userId,
-      selectedBatteryId: DEMO_BATTERY_ID,
+      selectedBatteryId: null,
       lastActiveAt: new Date().toISOString(),
       preferences: DEFAULT_USER_PREFERENCES,
     }
@@ -67,9 +59,10 @@ export async function getUserHistoryState(userId) {
 
 /**
  * Update user active battery or preferences.
+ * Requires explicit userId - no guest fallback.
  */
 export async function updateUserHistoryState(userId, updatePayload) {
-  if (!userId || userId === GUEST_USER_ID) return null
+  if (!userId) return null
 
   const now = new Date().toISOString()
   try {
@@ -95,9 +88,10 @@ export async function updateUserHistoryState(userId, updatePayload) {
 
 /**
  * Record a user viewing an alert or diagnostic event.
+ * Requires explicit userId - no guest fallback.
  */
 export async function recordUserActivity(userId, activityType, details = {}) {
-  if (!userId || userId === GUEST_USER_ID) return
+  if (!userId) return
 
   try {
     const db = await getDB()
@@ -127,6 +121,6 @@ export async function recordUserActivity(userId, activityType, details = {}) {
       )
     }
   } catch (error) {
-    console.warn('[userHistory] Failed to record user activity:', error.message)
+    console.error('[userHistory] Failed to record user activity:', error.message)
   }
 }

@@ -3,7 +3,6 @@ import { executeBenchmarkValidation } from '../../../lib/validation/runValidatio
 import { checkRateLimit, getClientIp } from '../../../lib/rateLimit'
 import { handleError } from '../../../lib/errorHandler'
 import { getDB } from '../../../lib/mongodb'
-import { DEMO_BATTERY_ID } from '../../../lib/batteryRegistry'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,13 +14,17 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
     }
 
+    const { searchParams } = new URL(request.url)
+    const batteryId = searchParams.get('batteryId')
+
     let liveTelemetry = []
     try {
       const db = await getDB()
       if (db) {
+        const query = batteryId ? { $or: [{ batteryId }, { deviceId: batteryId }] } : {}
         liveTelemetry = await db
           .collection('readings')
-          .find({ $or: [{ batteryId: DEMO_BATTERY_ID }, { deviceId: DEMO_BATTERY_ID }] })
+          .find(query)
           .sort({ timestamp: -1 })
           .limit(20)
           .toArray()

@@ -1,20 +1,23 @@
 import 'server-only'
 import { getDB } from './mongodb'
-import { GUEST_USER_ID, DEMO_BATTERY_ID, getBatteryById } from './batteryRegistry'
+import { getBatteryById } from './batteryRegistry'
 
 /**
  * Fetch and build chronological timeline events for a given battery.
+ * Requires explicit batteryId - no demo fallback.
  */
 export async function getBatteryTimeline(userId, batteryId) {
-  const effectiveBattery = batteryId || DEMO_BATTERY_ID
-  const battery = await getBatteryById(effectiveBattery)
+  if (!batteryId) {
+    throw new Error('batteryId is required for timeline')
+  }
+  const battery = await getBatteryById(batteryId)
 
   const events = []
 
   // 1. Battery Created event
   if (battery) {
     events.push({
-      id: `evt_creation_${effectiveBattery}`,
+      id: `evt_creation_${batteryId}`,
       type: 'CREATION',
       title: 'Battery Profile Created',
       description: `Battery registered with profile ${battery.profileId || 'LiFePO4'}. Nominal voltage: ${battery.nominalVoltage || 12.8}V.`,
@@ -30,7 +33,7 @@ export async function getBatteryTimeline(userId, batteryId) {
     // 2. Connection Events
     const connEvents = await db
       .collection('connection_events')
-      .find({ batteryId: effectiveBattery })
+      .find({ batteryId })
       .sort({ timestamp: -1 })
       .limit(10)
       .toArray()
@@ -50,7 +53,7 @@ export async function getBatteryTimeline(userId, batteryId) {
     // 3. Alerts & Protection Events
     const alerts = await db
       .collection('alerts')
-      .find({ $or: [{ batteryId: effectiveBattery }, { deviceId: effectiveBattery }] })
+      .find({ $or: [{ batteryId }, { deviceId: batteryId }] })
       .sort({ timestamp: -1 })
       .limit(15)
       .toArray()

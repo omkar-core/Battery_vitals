@@ -1,19 +1,20 @@
 import 'server-only'
 import { getDB } from './mongodb'
-import { GUEST_USER_ID, DEMO_BATTERY_ID } from './batteryRegistry'
 
 /**
  * List all conversations for a specific user and battery.
+ * Requires explicit userId and batteryId - no demo/guest fallback.
  */
 export async function getConversations(userId, batteryId) {
-  const effectiveUser = userId || GUEST_USER_ID
-  const effectiveBattery = batteryId || DEMO_BATTERY_ID
+  if (!userId || !batteryId) {
+    return []
+  }
 
   try {
     const db = await getDB()
-    const query = { userId: effectiveUser }
-    if (effectiveBattery) {
-      query.batteryId = effectiveBattery
+    const query = { userId }
+    if (batteryId) {
+      query.batteryId = batteryId
     }
 
     const conversations = await db
@@ -34,17 +35,19 @@ export async function getConversations(userId, batteryId) {
 
 /**
  * Create a new conversation session.
+ * Requires explicit userId and batteryId - no demo/guest fallback.
  */
 export async function createConversation(userId, batteryId, title = 'New Discussion') {
-  const effectiveUser = userId || GUEST_USER_ID
-  const effectiveBattery = batteryId || DEMO_BATTERY_ID
+  if (!userId || !batteryId) {
+    throw new Error('userId and batteryId are required to create conversation')
+  }
   const conversationId = `conv_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 7)}`
   const now = new Date().toISOString()
 
   const conversation = {
     conversationId,
-    userId: effectiveUser,
-    batteryId: effectiveBattery,
+    userId,
+    batteryId,
     title: title.trim().substring(0, 100) || 'Battery Discussion',
     createdAt: now,
     updatedAt: now,
@@ -63,16 +66,17 @@ export async function createConversation(userId, batteryId, title = 'New Discuss
 
 /**
  * Get a specific conversation and its messages.
+ * Requires explicit userId - no guest fallback.
  */
 export async function getConversation(conversationId, userId) {
-  const effectiveUser = userId || GUEST_USER_ID
+  if (!userId) return null
 
   try {
     const db = await getDB()
     const conv = await db.collection('conversations').findOne({ conversationId })
     if (!conv) return null
 
-    if (conv.userId !== effectiveUser && conv.userId !== GUEST_USER_ID && effectiveUser !== GUEST_USER_ID) {
+    if (conv.userId !== userId) {
       // Ownership check mismatch
       return null
     }
@@ -101,16 +105,19 @@ export async function getConversation(conversationId, userId) {
 
 /**
  * Append a message to a conversation.
+ * Requires explicit userId - no guest fallback.
  */
 export async function appendMessage(conversationId, userId, role, content) {
-  const effectiveUser = userId || GUEST_USER_ID
+  if (!userId) {
+    throw new Error('userId is required to append message')
+  }
   const now = new Date().toISOString()
   const messageId = `msg_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 7)}`
 
   const messageDoc = {
     messageId,
     conversationId,
-    userId: effectiveUser,
+    userId,
     role: role === 'assistant' ? 'assistant' : role === 'system' ? 'system' : 'user',
     content: String(content || '').substring(0, 4000),
     timestamp: now,
@@ -147,16 +154,17 @@ export async function appendMessage(conversationId, userId, role, content) {
 
 /**
  * Delete a conversation and all its messages.
+ * Requires explicit userId - no guest fallback.
  */
 export async function deleteConversation(conversationId, userId) {
-  const effectiveUser = userId || GUEST_USER_ID
+  if (!userId) return false
 
   try {
     const db = await getDB()
     const conv = await db.collection('conversations').findOne({ conversationId })
     if (!conv) return false
 
-    if (conv.userId !== effectiveUser && effectiveUser !== GUEST_USER_ID) {
+    if (conv.userId !== userId) {
       return false
     }
 

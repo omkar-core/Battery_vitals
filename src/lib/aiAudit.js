@@ -1,14 +1,21 @@
 import 'server-only'
 import { getDB } from './mongodb'
-import { GUEST_USER_ID, DEMO_BATTERY_ID } from './batteryRegistry'
 
 /**
  * Log an AI request invocation to MongoDB `aiAuditLogs` collection.
+ * Requires userId and batteryId - no guest/demo fallback.
  */
 export async function logAIAuditRecord(record) {
+  if (!record.userId) {
+    throw new Error('userId is required for AI audit log')
+  }
+  if (!record.batteryId) {
+    throw new Error('batteryId is required for AI audit log')
+  }
+
   const auditEntry = {
-    userId: record.userId || GUEST_USER_ID,
-    batteryId: record.batteryId || DEMO_BATTERY_ID,
+    userId: record.userId,
+    batteryId: record.batteryId,
     endpoint: record.endpoint || '/api/ai/generic',
     conversationId: record.conversationId || null,
     model: record.model || 'gemini-1.5-flash',
@@ -29,20 +36,21 @@ export async function logAIAuditRecord(record) {
     await db.collection('aiAuditLogs').insertOne(auditEntry)
     return auditEntry
   } catch (error) {
-    console.warn('[aiAudit] Failed to record AI audit log:', error.message)
+    console.error('[aiAudit] Failed to record AI audit log:', error.message)
     return auditEntry
   }
 }
 
 /**
  * Fetch AI audit logs filtered by userId and optional batteryId.
+ * Requires explicit userId - no guest fallback.
  */
 export async function getAIAuditLogs(userId, batteryId = null, limit = 50) {
-  const effectiveUser = userId || GUEST_USER_ID
+  if (!userId) return []
 
   try {
     const db = await getDB()
-    const query = { userId: effectiveUser }
+    const query = { userId }
     if (batteryId) query.batteryId = batteryId
 
     const logs = await db
@@ -57,7 +65,7 @@ export async function getAIAuditLogs(userId, batteryId = null, limit = 50) {
       return rest
     })
   } catch (error) {
-    console.warn('[aiAudit] Failed to fetch AI audit logs:', error.message)
+    console.error('[aiAudit] Failed to fetch AI audit logs:', error.message)
     return []
   }
 }

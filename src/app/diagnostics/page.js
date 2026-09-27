@@ -49,10 +49,11 @@ export default function DiagnosticsPage() {
     setCalibrating(true)
     setCalResult(null)
     try {
-      const res = await fetch('/api/battery/calibrate', {
+      if (!data?.batteryId) return
+    const res = await fetch('/api/battery/calibrate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ batteryId: data?.batteryId || 'BAT001' }),
+        body: JSON.stringify({ batteryId: data.batteryId }),
       })
       const json = await res.json()
       setCalResult(json)
@@ -64,13 +65,14 @@ export default function DiagnosticsPage() {
   }
 
   const handleRunTroubleshoot = async () => {
+    if (!data?.batteryId) return
     setAiTroubleshootLoading(true)
     try {
       const res = await fetch('/api/ai/root-cause', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          batteryId: data?.batteryId || 'BAT001',
+          batteryId: data.batteryId,
           eventSeverity: (data?.ina_ok === false || data?.dht_ok === false) ? 'CRITICAL' : 'WARNING',
           telemetryWindow: [
             {

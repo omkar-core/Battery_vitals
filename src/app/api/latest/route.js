@@ -20,7 +20,11 @@ export async function GET(request) {
     }
 
     const { searchParams } = new URL(request.url)
-    const batteryId = sanitizeString(searchParams.get('batteryId') || 'BAT001', 30)
+    const batteryIdParam = searchParams.get('batteryId')
+    if (!batteryIdParam) {
+      return NextResponse.json({ error: 'batteryId query parameter is required' }, { status: 400 })
+    }
+    const batteryId = sanitizeString(batteryIdParam, 30)
 
     // Try reading from Firebase Realtime Database first
     let data = await getLatestTelemetry(batteryId)

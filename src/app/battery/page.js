@@ -66,7 +66,7 @@ function BatteryPageInner() {
 
       {/* 2. Battery profile: identity is deployed, never voltage-guessed */}
       <div style={{ marginBottom: 20 }}>
-        <BatteryProfileManager batteryId={battery.batteryId || 'BAT001'} />
+        <BatteryProfileManager batteryId={battery.batteryId} />
       </div>
 
       {/* 3. Top Metric Cards (INA219 Readings) */}

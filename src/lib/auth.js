@@ -31,7 +31,7 @@ export async function getSessionUser(request) {
   }
 
   if (!token || token === 'bv_guest_session' || token === 'null' || token === 'undefined') {
-    return GUEST_VIEWER_PRINCIPAL
+    throw new MissingCredentialsError('No valid authentication token provided')
   }
 
   try {
@@ -40,7 +40,9 @@ export async function getSessionUser(request) {
     }
     const decoded = await adminAuth.verifyIdToken(token, true) // checkRevoked = true
     const user = await findUser(decoded.uid)
-    if (!user || user.status === 'disabled') return GUEST_VIEWER_PRINCIPAL
+    if (!user || user.status === 'disabled') {
+      throw new InvalidTokenError('User not found or disabled')
+    }
     return user
   } catch (err) {
     if (err instanceof InvalidTokenError || err instanceof TokenExpiredError) throw err
@@ -86,64 +88,20 @@ export async function verifyFirebaseIdTokenOnly(idToken) {
 // User store — MongoDB profiles keyed by Firebase UID
 // ---------------------------------------------------------------------------
 
-export const GUEST_VIEWER_PRINCIPAL = {
-  id: 'usr_guest',
-  name: 'Guest Observer',
-  email: 'guest@batteryvitals.local',
-  role: ROLES.VIEWER,
-  status: 'active',
-}
-
-const DEFAULT_USERS = [
-  {
-    id: 'usr_admin_01',
-    name: 'Chief Battery Engineer',
-    email: 'admin@example.com',
-    role: ROLES.ADMIN,
-    title: 'Lead Power Systems Engineer',
-    department: 'Energy Storage & Safety',
-    avatar: '🛡️',
-    status: 'active',
-    lastActive: new Date().toISOString(),
-    createdAt: '2024-01-01T00:00:00Z',
-  },
-  {
-    id: 'usr_op_02',
-    name: 'Alex Rivera',
-    email: 'operator@example.com',
-    role: ROLES.OPERATOR,
-    title: 'Field Operations Specialist',
-    department: 'Hardware Telemetry & Maintenance',
-    avatar: '⚡',
-    status: 'active',
-    lastActive: new Date().toISOString(),
-    createdAt: '2024-01-15T00:00:00Z',
-  },
-  {
-    id: 'usr_view_03',
-    name: 'Elena Rostova',
-    email: 'viewer@example.com',
-    role: ROLES.VIEWER,
-    title: 'Fleet Analytics Observer',
-    department: 'Data Science & Reliability',
-    avatar: '👁️',
-    status: 'active',
-    lastActive: new Date().toISOString(),
-    createdAt: '2024-02-01T00:00:00Z',
-  },
-]
-
 /**
  * Find user by Firebase UID (primary key) or email (fallback for migration).
  * Returns public profile (no password hash — Firebase owns credentials).
+ * Returns null if not found (no demo fallback).
  */
 export async function findUser(idOrEmail) {
+  if (!idOrEmail) return null
+
   try {
     const db = await getDB()
     // Primary lookup: by Firebase UID
     let user = await db.collection('users').findOne({ firebaseUid: idOrEmail })
     if (!user && idOrEmail.includes('@')) {
-      // Fallback: by email (for demo/migration accounts)
+      // Fallback: by email (for migration accounts)
       user = await db.collection('users').findOne({ email: idOrEmail.toLowerCase() })
     }
     if (user) {
@@ -151,11 +109,9 @@ export async function findUser(idOrEmail) {
       return { ...safe, id: user.id || user._id?.toString(), firebaseUid: user.firebaseUid }
     }
   } catch (e) {
-    console.warn('[auth] findUser DB error:', e.message)
+    console.error('[auth] findUser DB error:', e.message)
   }
-  // Fallback to in-memory demo users
-  const fallback = DEFAULT_USERS.find((u) => u.id === idOrEmail || u.email.toLowerCase() === idOrEmail.toLowerCase())
-  return fallback || null
+  return null
 }
 
 /**
@@ -166,8 +122,9 @@ export async function findUserByCredentials(idOrEmail) {
 }
 
 /**
- * Get all users from MongoDB or fallback to in-memory store.
+ * Get all users from MongoDB.
  * Never exposes password hashes (there aren't any in the new schema).
+ * Returns empty array if DB unavailable (no demo fallback).
  */
 export async function getUsers() {
   try {
@@ -180,9 +137,9 @@ export async function getUsers() {
       })
     }
   } catch (e) {
-    console.warn('[auth] getUsers DB error, falling back to memory:', e.message)
+    console.error('[auth] getUsers DB error:', e.message)
   }
-  return DEFAULT_USERS.map(({ passwordHash, ...safe }) => safe)
+  return []
 }
 
 /**
@@ -216,9 +173,8 @@ export async function createUser(userData) {
     const { passwordHash, ...safe } = newUser
     return { ...safe, id: result.insertedId.toString(), firebaseUid }
   } catch (e) {
-    console.warn('[auth] createUser DB error:', e.message)
-    // Fallback to memory
-    return { ...newUser, id: `usr_${Date.now().toString(36)}` }
+    console.error('[auth] createUser DB error:', e.message)
+    throw e
   }
 }
 
@@ -236,7 +192,7 @@ export async function updateUser(id, updates) {
       { $set: { ...safeUpdates, lastActive: new Date().toISOString() } }
     )
   } catch (e) {
-    console.warn('[auth] updateUser DB error:', e.message)
+    console.error('[auth] updateUser DB error:', e.message)
   }
   return findUser(id)
 }
@@ -249,7 +205,7 @@ export async function deleteUser(id) {
     const db = await getDB()
     await db.collection('users').deleteOne({ firebaseUid: id })
   } catch (e) {
-    console.warn('[auth] deleteUser DB error:', e.message)
+    console.error('[auth] deleteUser DB error:', e.message)
   }
   return true
 }
@@ -264,7 +220,7 @@ export async function revokeAllUserSessions(firebaseUid) {
     await adminAuth.revokeRefreshTokens(firebaseUid)
     return true
   } catch (e) {
-    console.warn('[auth] revokeAllUserSessions failed:', e.message)
+    console.error('[auth] revokeAllUserSessions failed:', e.message)
     return false
   }
 }

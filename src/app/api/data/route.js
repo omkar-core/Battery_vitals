@@ -21,7 +21,10 @@ export async function POST(request) {
     }
 
     const d = await request.json().catch(() => ({}))
-    const batteryId = sanitizeString(d.batteryId || 'BAT001', 30)
+    if (!d.batteryId) {
+      return NextResponse.json({ error: 'batteryId is required in request body' }, { status: 400 })
+    }
+    const batteryId = sanitizeString(d.batteryId, 30)
     const now = new Date()
 
     const safetyMap = { SAFE: 'SAFE', CAUTION: 'CAUTION', WARNING: 'WARNING', CRITICAL: 'CRITICAL', SENSOR_FAULT: 'SAFE', EMERGENCY: 'EMERGENCY' }
@@ -105,7 +108,11 @@ export async function GET(request) {
     }
 
     const { searchParams } = new URL(request.url)
-    const batteryId = sanitizeString(searchParams.get('batteryId') || 'BAT001', 30)
+    const batteryIdParam = searchParams.get('batteryId')
+    if (!batteryIdParam) {
+      return NextResponse.json({ error: 'batteryId query parameter is required' }, { status: 400 })
+    }
+    const batteryId = sanitizeString(batteryIdParam, 30)
 
     let data = await getLatestTelemetry(batteryId)
     if (!data) {

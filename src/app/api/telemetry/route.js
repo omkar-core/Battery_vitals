@@ -26,7 +26,11 @@ export async function GET(request) {
     }
 
     const { searchParams } = new URL(request.url)
-    const batteryId = sanitizeString(searchParams.get('batteryId') || 'BAT001', 30)
+    const batteryIdParam = searchParams.get('batteryId')
+    if (!batteryIdParam) {
+      return NextResponse.json({ error: 'batteryId query parameter is required' }, { status: 400 })
+    }
+    const batteryId = sanitizeString(batteryIdParam, 30)
 
     // 1. Try reading from Firebase Realtime Database
     let data = await getLatestTelemetry(batteryId)
@@ -76,7 +80,7 @@ export async function POST(request) {
     const e = body.environment || {}
     const n = body.network || {}
 
-    // Zod gateway validation (VALIDATION.md Â§4.1): the documented flat ingest shape
+    // Zod gateway validation (VALIDATION.md §4.1): the documented flat ingest shape
     // `{ deviceId, voltage, current, temperature, ... }` is typed and range-checked
     // here. The layered ESP32 packet (`{ battery, gas, environment, network }`) is
     // additionally sanitized by the deterministic engine below.
@@ -91,7 +95,10 @@ export async function POST(request) {
       }
     }
 
-    const batteryId = sanitizeString(body.batteryId || 'BAT001', 30)
+    if (!body.batteryId) {
+      return NextResponse.json({ error: 'batteryId is required in request body' }, { status: 400 })
+    }
+    const batteryId = sanitizeString(body.batteryId, 30)
     const now = new Date()
 
     const safetyMap = { SAFE: 'SAFE', CAUTION: 'CAUTION', WARNING: 'WARNING', CRITICAL: 'CRITICAL', SENSOR_FAULT: 'SAFE', EMERGENCY: 'EMERGENCY' }
@@ -150,7 +157,7 @@ export async function POST(request) {
     }
 
     // -------------------------------------------------------------------------
-    // DETERMINISTIC SAFETY ENRICHMENT (Gap 7 â€” RULES.md Â§2).
+    // DETERMINISTIC SAFETY ENRICHMENT (Gap 7 — RULES.md §2).
     // Run the physics-based engine and merge safetyState + riskScore into every
     // document that is written to Firebase and MongoDB. Downstream consumers
     // (dashboards, history charts, AI diagnostics) use these pre-computed fields

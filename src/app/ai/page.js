@@ -10,7 +10,7 @@ import Link from 'next/link'
 
 export default function AIPage() {
   const [batteries, setBatteries] = useState([])
-  const [selectedBatteryId, setSelectedBatteryId] = useState('BAT001')
+  const [selectedBatteryId, setSelectedBatteryId] = useState(null)
   const [aiContext, setAiContext] = useState(null)
   const [healthSummary, setHealthSummary] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -32,6 +32,9 @@ export default function AIPage() {
         const batData = await batRes.json()
         if (!cancelled && batData.batteries) {
           setBatteries(batData.batteries)
+          if (batData.batteries.length > 0 && !selectedBatteryId) {
+            setSelectedBatteryId(batData.batteries[0].batteryId)
+          }
         }
       } catch (err) {
         console.warn('Failed to load batteries:', err)
@@ -39,7 +42,7 @@ export default function AIPage() {
     }
     loadBatteries()
     return () => { cancelled = true }
-  }, [])
+  }, [selectedBatteryId])
 
   useEffect(() => {
     if (!selectedBatteryId) return
@@ -104,24 +107,30 @@ export default function AIPage() {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <label style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Selected Battery:</label>
-            <select
-              value={selectedBatteryId}
-              onChange={(e) => setSelectedBatteryId(e.target.value)}
-              style={{
-                backgroundColor: 'var(--input-bg)',
-                color: 'var(--text-primary)',
-                border: '1px solid var(--border)',
-                borderRadius: '8px',
-                padding: '8px 12px',
-                fontSize: '14px',
-              }}
-            >
-              {batteries.map((b) => (
-                <option key={b.batteryId} value={b.batteryId}>
-                  {b.name} ({b.batteryId})
-                </option>
-              ))}
-            </select>
+            {batteries.length > 0 ? (
+              <select
+                value={selectedBatteryId || ''}
+                onChange={(e) => setSelectedBatteryId(e.target.value)}
+                style={{
+                  backgroundColor: 'var(--input-bg)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '8px',
+                  padding: '8px 12px',
+                  fontSize: '14px',
+                }}
+              >
+                {batteries.map((b) => (
+                  <option key={b.batteryId} value={b.batteryId}>
+                    {b.name} ({b.batteryId})
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                No batteries registered
+              </span>
+            )}
           </div>
         </div>
 
@@ -129,12 +138,12 @@ export default function AIPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
           <div style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
             <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>My Batteries</div>
-            <div style={{ fontSize: '28px', fontWeight: 700, marginTop: '4px', color: '#38BDF8' }}>{batteries.length || 1}</div>
+            <div style={{ fontSize: '28px', fontWeight: 700, marginTop: '4px', color: '#38BDF8' }}>{batteries.length}</div>
           </div>
           <div style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
             <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>State of Health</div>
             <div style={{ fontSize: '28px', fontWeight: 700, marginTop: '4px', color: '#00E8A0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span>{aiContext?.currentTelemetry?.soh || 89}%</span>
+              <span>{aiContext?.currentTelemetry?.soh != null ? aiContext.currentTelemetry.soh + '%' : '--'}</span>
               <button
                 onClick={() => setWhyMetric('State of Health (SOH)')}
                 style={{
@@ -155,7 +164,7 @@ export default function AIPage() {
           <div style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
             <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Thermal Events</div>
             <div style={{ fontSize: '28px', fontWeight: 700, marginTop: '4px', color: '#FFB800' }}>
-              {healthSummary?.thermalEvents || 1}
+              {healthSummary?.thermalEvents != null ? healthSummary.thermalEvents : '--'}
             </div>
           </div>
           <div style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
@@ -170,9 +179,11 @@ export default function AIPage() {
         <AIContextIndicator contextData={aiContext} />
 
         {/* Real Predictive RUL Forecast with Uncertainty (NASA Benchmark Validated) */}
-        <div style={{ marginBottom: '24px' }}>
-          <FailureForecast batteryId={selectedBatteryId} />
-        </div>
+        {selectedBatteryId && (
+          <div style={{ marginBottom: '24px' }}>
+            <FailureForecast batteryId={selectedBatteryId} />
+          </div>
+        )}
 
         {/* Main Grid: AI Assistant & Timeline Launcher */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
@@ -187,7 +198,7 @@ export default function AIPage() {
       </main>
 
       {/* Why Metric Explainer Modal */}
-      {whyMetric && (
+      {whyMetric && selectedBatteryId && (
         <WhyExplainerModal
           metricName={whyMetric}
           batteryId={selectedBatteryId}

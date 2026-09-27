@@ -2,24 +2,27 @@ import 'server-only'
 import { getDB } from './mongodb'
 import { evaluateBatterySafety } from './batterySafety'
 import { getBatteryProfile } from './batteryProfiles'
-import { getBatteryById, DEMO_BATTERY_ID } from './batteryRegistry'
+import { getBatteryById } from './batteryRegistry'
 
 /**
  * Builds a sanitized, comprehensive AI Context object for a specific user and battery.
  * Ensures cross-user data boundaries are strictly respected.
+ * Requires explicit batteryId - no demo fallback.
  */
 export async function buildAIContext({ userId, batteryId, includeHistoryDays = 30 }) {
-  const targetBatteryId = batteryId || DEMO_BATTERY_ID
+  if (!batteryId) {
+    throw new Error('batteryId is required for AI context')
+  }
 
   // 1. Get Battery Metadata & Active Profile
-  const batteryMeta = (await getBatteryById(targetBatteryId)) || {}
+  const batteryMeta = (await getBatteryById(batteryId)) || {}
   const profile = getBatteryProfile(batteryMeta.profileId || 'LIFEPO4_12V_100AH')
 
   // 2. Load Current Telemetry (from Firebase RTDB or MongoDB)
   let latestTelemetry = null
   try {
     const { getLatestTelemetry } = await import('./firebaseAdmin')
-    latestTelemetry = await getLatestTelemetry(targetBatteryId)
+    latestTelemetry = await getLatestTelemetry(batteryId)
   } catch (e) {
     // Continue to MongoDB fallback
   }
@@ -30,14 +33,14 @@ export async function buildAIContext({ userId, batteryId, includeHistoryDays = 3
       if (db) {
         const doc = await db
           .collection('live_data')
-          .findOne({ $or: [{ batteryId: targetBatteryId }, { deviceId: targetBatteryId }] })
+          .findOne({ $or: [{ batteryId }, { deviceId: batteryId }] })
         if (doc) {
           const { _id, ...rest } = doc
           latestTelemetry = rest
         } else {
           const rDoc = await db
             .collection('readings')
-            .find({ $or: [{ batteryId: targetBatteryId }, { deviceId: targetBatteryId }] })
+            .find({ $or: [{ batteryId }, { deviceId: batteryId }] })
             .sort({ timestamp: -1 })
             .limit(1)
             .next()
@@ -55,7 +58,7 @@ export async function buildAIContext({ userId, batteryId, includeHistoryDays = 3
   // If no hardware telemetry has been received yet, use null fields without fabrication
   if (!latestTelemetry) {
     latestTelemetry = {
-      batteryId: targetBatteryId,
+      batteryId,
       voltage: null,
       current: null,
       temperature: null,
@@ -81,7 +84,7 @@ export async function buildAIContext({ userId, batteryId, includeHistoryDays = 3
     const db = await getDB()
     const alertDocs = await db
       .collection('alerts')
-      .find({ $or: [{ batteryId: targetBatteryId }, { deviceId: targetBatteryId }] })
+      .find({ $or: [{ batteryId }, { deviceId: batteryId }] })
       .sort({ timestamp: -1 })
       .limit(5)
       .toArray()
@@ -112,7 +115,7 @@ export async function buildAIContext({ userId, batteryId, includeHistoryDays = 3
     const thirtyDaysAgo = new Date(now - 30 * 86400000).toISOString()
 
     const doc7 = await db.collection('readings').findOne({
-      $or: [{ batteryId: targetBatteryId }, { deviceId: targetBatteryId }],
+      $or: [{ batteryId }, { deviceId: batteryId }],
       timestamp: { $lte: sevenDaysAgo },
     }, { sort: { timestamp: -1 } })
 
@@ -126,7 +129,7 @@ export async function buildAIContext({ userId, batteryId, includeHistoryDays = 3
     }
 
     const doc30 = await db.collection('readings').findOne({
-      $or: [{ batteryId: targetBatteryId }, { deviceId: targetBatteryId }],
+      $or: [{ batteryId }, { deviceId: batteryId }],
       timestamp: { $lte: thirtyDaysAgo },
     }, { sort: { timestamp: -1 } })
 
@@ -166,7 +169,7 @@ export async function buildAIContext({ userId, batteryId, includeHistoryDays = 3
 
   // Sanitized Context Payload
   return {
-    batteryId: targetBatteryId,
+    batteryId,
     batteryName: batteryMeta.name || profile.name || 'LiFePO4 Storage Pack',
     chemistry: profile.chemistry,
     nominalVoltage: profile.nominalVoltage,
@@ -230,6 +233,6 @@ ${p30 ? `- SOH: Current ${ct.soh != null ? ct.soh + '%' : '--'} vs 30d ago ${p30
 - Cell Temp: Current ${ct.temperature != null ? ct.temperature + '°C' : '--'} vs 30d ago ${p30.temperature != null ? p30.temperature + '°C' : '--'}` : '- 30-Day Comparison: Insufficient historical samples (awaiting completed cycles)'}
 
 SENSOR CONFIDENCE: ${aiContext.sensorConfidence.overallConfidence}
-================================
+===============================
 `.trim()
 }

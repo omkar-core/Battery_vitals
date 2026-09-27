@@ -12,7 +12,7 @@ import styles from '../../styles/pages.module.css'
 
 export default function Analytics() {
   const { data, history, connected } = useRealTimeData()
-  const { profile: activeProfile, voltageBand } = useActiveProfile(data?.batteryId || 'BAT001')
+  const { profile: activeProfile, voltageBand } = useActiveProfile(data?.batteryId)
 
   const live = data
   const bhi = live?.risk?.bhi ?? live?.bhi
@@ -96,12 +96,13 @@ export default function Analytics() {
   const [aiLoading, setAiLoading] = useState(false)
 
   const handleGenerateAISummary = async () => {
+    if (!data?.batteryId) return
     setAiLoading(true)
     try {
       const res = await fetch('/api/ai/report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ batteryId: data?.batteryId || 'BAT001', period: 'weekly' }),
+        body: JSON.stringify({ batteryId: data.batteryId, period: 'weekly' }),
       })
       const json = await res.json()
       if (res.ok && json.narrative) {

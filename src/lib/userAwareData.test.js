@@ -1,25 +1,32 @@
 import { describe, it, expect, vi } from 'vitest'
-import { getUserBatteries, getBatteryById, validateBatteryOwnership, DEFAULT_DEMO_BATTERY, GUEST_USER_ID } from './batteryRegistry'
+import { getUserBatteries, getBatteryById, validateBatteryOwnership } from './batteryRegistry'
 import { formatAIContextPrompt } from './aiContext'
 import { logAIAuditRecord } from './aiAudit'
 
 describe('Battery Registry & User Ownership', () => {
-  it('returns default demo battery for guest user or unauthenticated state', async () => {
-    const guestBatteries = await getUserBatteries(GUEST_USER_ID)
-    expect(guestBatteries).toBeDefined()
-    expect(guestBatteries.length).toBeGreaterThan(0)
-    expect(guestBatteries[0].batteryId).toBe('BAT001')
+  it('returns empty array for unknown user', async () => {
+    const batteries = await getUserBatteries('unknown_user')
+    expect(batteries).toEqual([])
   })
 
-  it('validates ownership correctly for demo battery BAT001', async () => {
-    const isOwner = await validateBatteryOwnership(GUEST_USER_ID, 'BAT001')
-    expect(isOwner).toBe(true)
+  it('returns null for non-existent battery', async () => {
+    const battery = await getBatteryById('NONEXISTENT')
+    expect(battery).toBeNull()
   })
 
-  it('fetches battery metadata by ID', async () => {
-    const battery = await getBatteryById('BAT001')
-    expect(battery).toBeDefined()
-    expect(battery.chemistry).toBe('LiFePO4')
+  it('returns false for ownership of non-existent battery', async () => {
+    const isOwner = await validateBatteryOwnership('user123', 'NONEXISTENT')
+    expect(isOwner).toBe(false)
+  })
+
+  it('returns empty array for null userId', async () => {
+    const batteries = await getUserBatteries(null)
+    expect(batteries).toEqual([])
+  })
+
+  it('returns null for null batteryId', async () => {
+    const battery = await getBatteryById(null)
+    expect(battery).toBeNull()
   })
 })
 
@@ -77,5 +84,19 @@ describe('AI Audit Logger', () => {
     expect(entry.endpoint).toBe('/api/ai/chat')
     expect(entry.responseTimeMs).toBe(120)
     expect(entry.timestamp).toBeDefined()
+  })
+
+  it('throws error when userId is missing', async () => {
+    await expect(logAIAuditRecord({
+      batteryId: 'BAT001',
+      endpoint: '/api/ai/chat',
+    })).rejects.toThrow('userId is required')
+  })
+
+  it('throws error when batteryId is missing', async () => {
+    await expect(logAIAuditRecord({
+      userId: 'usr_test_123',
+      endpoint: '/api/ai/chat',
+    })).rejects.toThrow('batteryId is required')
   })
 })

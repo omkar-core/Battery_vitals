@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import Header from '../../components/Header'
+import { authHeaders } from '../../lib/clientToken'
 
 export default function BatteryTimelinePage() {
   const [events, setEvents] = useState([])
@@ -9,12 +10,33 @@ export default function BatteryTimelinePage() {
   const [selectedEvent, setSelectedEvent] = useState(null)
   const [explanation, setExplanation] = useState(null)
   const [explaining, setExplaining] = useState(false)
+  const [batteries, setBatteries] = useState([])
+  const [selectedBatteryId, setSelectedBatteryId] = useState('')
 
+  // Load user's batteries on mount
   useEffect(() => {
+    async function loadBatteries() {
+      try {
+        const batRes = await fetch('/api/battery/my-batteries', { headers: authHeaders() })
+        const batData = await batRes.json()
+        if (batData.batteries && batData.batteries.length > 0) {
+          setBatteries(batData.batteries)
+          setSelectedBatteryId(batData.batteries[0].batteryId)
+        }
+      } catch (err) {
+        console.warn('Failed to load batteries:', err)
+      }
+    }
+    loadBatteries()
+  }, [])
+
+  // Load timeline when battery changes
+  useEffect(() => {
+    if (!selectedBatteryId) return
     async function loadTimeline() {
       setLoading(true)
       try {
-        const res = await fetch('/api/ai/timeline?batteryId=BAT001')
+        const res = await fetch(`/api/ai/timeline?batteryId=${encodeURIComponent(selectedBatteryId)}`, { headers: authHeaders() })
         const data = await res.json()
         if (data.events) setEvents(data.events)
       } catch (err) {
@@ -24,17 +46,18 @@ export default function BatteryTimelinePage() {
       }
     }
     loadTimeline()
-  }, [])
+  }, [selectedBatteryId])
 
   const handleExplainEvent = async (evt) => {
+    if (!selectedBatteryId) return
     setSelectedEvent(evt)
     setExplaining(true)
     setExplanation(null)
     try {
       const res = await fetch('/api/ai/timeline', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ batteryId: 'BAT001', eventId: evt.id }),
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ batteryId: selectedBatteryId, eventId: evt.id }),
       })
       const data = await res.json()
       if (data.aiExplanation) setExplanation(data.aiExplanation)
@@ -50,18 +73,44 @@ export default function BatteryTimelinePage() {
       <Header />
 
       <main style={{ maxWidth: '1000px', margin: '0 auto', padding: '24px 16px' }}>
-        <div style={{ marginBottom: '24px' }}>
-          <h1 style={{ fontSize: '24px', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span>📜</span> Personal Battery Lifecycle Timeline
-          </h1>
-          <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)', fontSize: '14px' }}>
-            Chronological event stream from commissioning, charge cycles, thermal events &amp; protection trips.
-          </p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
+          <div>
+            <h1 style={{ fontSize: '24px', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span>📜</span> Personal Battery Lifecycle Timeline
+            </h1>
+            <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)', fontSize: '14px' }}>
+              Chronological event stream from commissioning, charge cycles, thermal events & protection trips.
+            </p>
+          </div>
+
+          {batteries.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <label style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Battery:</label>
+              <select
+                value={selectedBatteryId}
+                onChange={(e) => setSelectedBatteryId(e.target.value)}
+                style={{
+                  backgroundColor: 'var(--input-bg)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '8px',
+                  padding: '8px 12px',
+                  fontSize: '14px',
+                }}
+              >
+                {batteries.map((b) => (
+                  <option key={b.batteryId} value={b.batteryId}>
+                    {b.name} ({b.batteryId})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {loading ? (
           <div style={{ padding: '40px', textAlign: 'center', color: '#38BDF8' }}>Loading timeline...</div>
-        ) : (
+        ) : selectedBatteryId ? (
           <div style={{ position: 'relative', paddingLeft: '24px', borderLeft: '2px solid var(--border)' }}>
             {events.map((evt, idx) => (
               <div
@@ -87,7 +136,7 @@ export default function BatteryTimelinePage() {
                   border: '3px solid var(--bg-canvas)',
                 }} />
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'gap', gap: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{ fontSize: '20px' }}>{evt.icon || '📌'}</span>
                     <h3 style={{ margin: 0, fontSize: '16px', color: 'var(--text-primary)' }}>{evt.title}</h3>
@@ -119,6 +168,10 @@ export default function BatteryTimelinePage() {
                 </button>
               </div>
             ))}
+          </div>
+        ) : (
+          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
+            No batteries registered. Add a battery device to view timeline.
           </div>
         )}
       </main>

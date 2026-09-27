@@ -29,21 +29,31 @@ export default function FleetSummaryCard({
     )
   }
 
-  const data = fleetData || {
-    totalPacks: 1,
-    safeCount: 1,
-    warningCount: 0,
-    criticalCount: 0,
-    fleetHeadline: 'Active Hardware Node Online (BAT001)',
-    fleetNarrative: 'Hardware monitoring node BAT001 is active and transmitting real telemetry over Firebase Realtime Database and MongoDB.',
-    topPriorityActions: [
-      'Maintain continuous telemetry ingestion on node BAT001.',
-      'Review threshold profiles against cell chemistry specifications.',
-    ],
-    packs: [
-      { deviceId: 'BAT001', name: 'Primary Node (BAT001)', state: 'SAFE', soh: null, voltage: null, temperature: null },
-    ],
+  // Require actual fleetData - no fallback to demo data
+  if (!fleetData || !fleetData.packs || fleetData.packs.length === 0) {
+    return (
+      <div className={styles.card}>
+        <div className={styles.cardHeader}>
+          <div className={styles.titleGroup}>
+            <span className={styles.aiBadge}>✨ Fleet AI</span>
+            <h3 className={styles.cardTitle}>Cross-Fleet Health Heatmap</h3>
+          </div>
+        </div>
+        <div style={{
+          backgroundColor: 'var(--bg-surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 8,
+          padding: 24,
+          textAlign: 'center',
+          color: 'var(--text-secondary)'
+        }}>
+          No battery devices registered. Add devices via the Devices API to see fleet telemetry.
+        </div>
+      </div>
+    )
   }
+
+  const data = fleetData
 
   const getStateColor = (state) => {
     const s = String(state || 'SAFE').toUpperCase()
@@ -62,9 +72,9 @@ export default function FleetSummaryCard({
           <h3 className={styles.cardTitle}>Cross-Fleet Health Heatmap</h3>
         </div>
         <div style={{ display: 'flex', gap: 12, fontSize: 11 }}>
-          <span style={{ color: '#00E8A0' }}>● {data.safeCount} Safe</span>
-          <span style={{ color: '#FFB800' }}>● {data.warningCount} Warning</span>
-          <span style={{ color: '#FF2D55' }}>● {data.criticalCount} Critical</span>
+          <span style={{ color: '#00E8A0' }}>● {data.safeCount || 0} Safe</span>
+          <span style={{ color: '#FFB800' }}>● {data.warningCount || 0} Warning</span>
+          <span style={{ color: '#FF2D55' }}>● {data.criticalCount || 0} Critical</span>
         </div>
       </div>
 
@@ -80,10 +90,10 @@ export default function FleetSummaryCard({
         }}
       >
         <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
-          {data.fleetHeadline}
+          {data.fleetHeadline || `${data.totalPacks || 0} battery packs in fleet`}
         </div>
         <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-          {data.fleetNarrative}
+          {data.fleetNarrative || 'Real-time fleet telemetry from registered battery devices.'}
         </div>
       </div>
 

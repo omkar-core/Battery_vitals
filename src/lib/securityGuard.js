@@ -1,6 +1,6 @@
 import 'server-only'
 import { getSessionUser } from './auth'
-import { validateBatteryOwnership, DEMO_BATTERY_ID, GUEST_USER_ID } from './batteryRegistry'
+import { validateBatteryOwnership } from './batteryRegistry'
 import { checkRateLimit } from './rateLimit'
 
 // Per-endpoint rate limit configuration
@@ -14,14 +14,23 @@ const AI_ENDPOINT_LIMITS = {
 
 /**
  * Unified Backend Security & Ownership Guard for Battery Vital API Endpoints.
+ * Requires authenticated user and explicit batteryId - no guest/demo fallback.
  */
 export async function guardAIRequest(request, requestedBatteryId = null, endpoint = 'default') {
-  // 1. Resolve Authenticated User
+  // 1. Resolve Authenticated User (throws if not authenticated)
   const user = await getSessionUser(request)
-  const isGuest = user.id === GUEST_USER_ID
 
-  // 2. Resolve Target Battery ID
-  const batteryId = requestedBatteryId || DEMO_BATTERY_ID
+  // 2. Resolve Target Battery ID (required)
+  if (!requestedBatteryId) {
+    return {
+      authorized: false,
+      status: 400,
+      error: 'Bad Request: batteryId is required.',
+      user,
+      batteryId: null,
+    }
+  }
+  const batteryId = requestedBatteryId
 
   // 3. Ownership Verification
   const isOwner = await validateBatteryOwnership(user.id, batteryId)
@@ -37,7 +46,7 @@ export async function guardAIRequest(request, requestedBatteryId = null, endpoin
 
   // 4. Rate Limiting (per user/IP + per endpoint)
   const clientIp = request.headers.get('x-forwarded-for') || '127.0.0.1'
-  const rateKey = isGuest ? `ip:${clientIp}:ai:${endpoint}` : `usr:${user.id}:ai:${endpoint}`
+  const rateKey = `usr:${user.id}:ai:${endpoint}`
   const limitConfig = AI_ENDPOINT_LIMITS[endpoint] || AI_ENDPOINT_LIMITS.default
   const rateCheck = checkRateLimit(rateKey, limitConfig)
 
@@ -56,7 +65,6 @@ export async function guardAIRequest(request, requestedBatteryId = null, endpoin
     authorized: true,
     user,
     batteryId,
-    isGuest,
     rateLimit: {
       remaining: rateCheck.remaining,
       resetTime: rateCheck.resetTime,

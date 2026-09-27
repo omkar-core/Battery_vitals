@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { getSessionUser, getVerifiedFirebaseUser, verifyFirebaseIdTokenOnly, findUser, createUser, revokeAllUserSessions, requirePermission, GUEST_VIEWER_PRINCIPAL } from './auth'
-import { InvalidTokenError, TokenExpiredError, AuthenticationError, PermissionError } from './errors'
+import { getSessionUser, getVerifiedFirebaseUser, verifyFirebaseIdTokenOnly, findUser, createUser, revokeAllUserSessions, requirePermission } from './auth'
+import { InvalidTokenError, TokenExpiredError, AuthenticationError, PermissionError, MissingCredentialsError } from './errors'
 
 // Mock Firebase Admin Auth
 vi.mock('./firebaseAdmin', () => ({
@@ -17,7 +17,7 @@ vi.mock('./mongodb', () => ({
     collection: vi.fn(() => ({
       findOne: vi.fn(),
       find: vi.fn(() => ({ toArray: vi.fn() })),
-      insertOne: vi.fn(),
+      insertOne: vi.fn().mockResolvedValue({ insertedId: 'mock-id' }),
       updateOne: vi.fn(),
       deleteOne: vi.fn(),
     })),
@@ -32,19 +32,25 @@ describe('auth — Firebase ID token verification (getSessionUser)', () => {
     vi.clearAllMocks()
   })
 
-  it('returns guest user when token missing', async () => {
+  it('throws MissingCredentialsError when token missing', async () => {
     const req = { headers: { get: () => null }, cookies: { get: () => null } }
-    const result = await getSessionUser(req)
-    expect(result).toEqual(GUEST_VIEWER_PRINCIPAL)
+    await expect(getSessionUser(req)).rejects.toThrow(MissingCredentialsError)
   })
 
-  it('returns guest user when token is bv_guest_session', async () => {
+  it('throws MissingCredentialsError when token is bv_guest_session', async () => {
     const req = { 
       headers: { get: () => null }, 
       cookies: { get: () => 'bv_guest_session' } 
     }
-    const result = await getSessionUser(req)
-    expect(result).toEqual(GUEST_VIEWER_PRINCIPAL)
+    await expect(getSessionUser(req)).rejects.toThrow(MissingCredentialsError)
+  })
+
+  it('throws MissingCredentialsError when token is null string', async () => {
+    const req = { 
+      headers: { get: () => null }, 
+      cookies: { get: () => 'null' } 
+    }
+    await expect(getSessionUser(req)).rejects.toThrow(MissingCredentialsError)
   })
 
   it('rejects invalid token format', async () => {
@@ -174,17 +180,5 @@ describe('auth — requirePermission', () => {
 
   it('is exported and callable', () => {
     expect(typeof requirePermission).toBe('function')
-  })
-})
-
-describe('auth — GUEST_VIEWER_PRINCIPAL', () => {
-  it('has expected guest user properties', () => {
-    expect(GUEST_VIEWER_PRINCIPAL).toEqual({
-      id: 'usr_guest',
-      name: 'Guest Observer',
-      email: 'guest@batteryvitals.local',
-      role: 'viewer',
-      status: 'active',
-    })
   })
 })
