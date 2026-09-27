@@ -27,15 +27,22 @@ if (
 
 /**
  * Check if a request exceeds rate limit for a given key/IP.
+ * Supports both old signature: checkRateLimit(identifier, maxRequests, windowMs)
+ * and new signature: checkRateLimit(identifier, { max, windowMs })
  * @param {string} identifier - Unique client identifier (e.g., IP address or route key)
- * @param {Object} options - Rate limit options
- * @param {number} options.max - Maximum allowed requests within the window
- * @param {number} options.windowMs - Time window in milliseconds (default: 60,000ms = 1 min)
- * @returns {{ allowed: boolean, remaining: number, resetTime: number, retryAfter: number }}
+ * @param {Object|number} options - Rate limit options (new) or maxRequests (old)
+ * @param {number} [options.max] - Maximum allowed requests within the window (new)
+ * @param {number} [options.windowMs] - Time window in milliseconds (default: 60,000ms = 1 min) (new)
+ * @param {number} [maxRequests] - Maximum allowed requests (old signature)
+ * @param {number} [windowMs] - Time window in milliseconds (old signature)
+ * @returns {{ allowed: boolean, remaining: number, resetTime: number, retryAfter: number, success?: boolean }}
  */
-export function checkRateLimit(identifier, options = {}) {
-  const maxRequests = options.max ?? 60
-  const windowMs = options.windowMs ?? 60000
+export function checkRateLimit(identifier, options = {}, maxRequests, windowMs) {
+  // Backward compatibility: detect old signature checkRateLimit(id, max, windowMs)
+  const isOldSignature = typeof options === 'number' || (typeof maxRequests === 'number' && typeof windowMs === 'number')
+  const max = isOldSignature ? (options || 60) : (options.max ?? 60)
+  const window = isOldSignature ? (maxRequests || 60000) : (options.windowMs ?? 60000)
+  
   const now = Date.now()
   const record = tracker.get(identifier)
 
@@ -45,21 +52,23 @@ export function checkRateLimit(identifier, options = {}) {
 
     const newRecord = {
       count: 1,
-      resetTime: now + windowMs,
+      resetTime: now + window,
     }
     tracker.set(identifier, newRecord)
     return {
       allowed: true,
-      remaining: maxRequests - 1,
+      success: true,
+      remaining: max - 1,
       resetTime: newRecord.resetTime,
       retryAfter: 0,
     }
   }
 
-  if (record.count >= maxRequests) {
+  if (record.count >= max) {
     const retryAfter = Math.ceil((record.resetTime - now) / 1000)
     return {
       allowed: false,
+      success: false,
       remaining: 0,
       resetTime: record.resetTime,
       retryAfter,
@@ -69,7 +78,8 @@ export function checkRateLimit(identifier, options = {}) {
   record.count += 1
   return {
     allowed: true,
-    remaining: maxRequests - record.count,
+    success: true,
+    remaining: max - record.count,
     resetTime: record.resetTime,
     retryAfter: 0,
   }
