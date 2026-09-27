@@ -1,247 +1,52 @@
 import 'server-only'
-import crypto from 'crypto'
 import { getDB } from './mongodb'
 import { ROLES, hasPermission, PERMISSIONS } from './permissions'
 import { AuthenticationError, InvalidTokenError, TokenExpiredError, MissingCredentialsError, PermissionError } from './errors'
+import { adminAuth } from './firebaseAdmin'
+import { verifyFirebaseIdToken, getVerifiedFirebaseUser } from './firebaseAuthVerify'
 
 // ---------------------------------------------------------------------------
-// Battery Vital — Authentication & Session Layer
-// Passwords: PBKDF2-style scrypt hashing (Node stdlib, no external deps).
-// Sessions: HMAC-SHA256 signed tokens (stateless, expiring).
+// Battery Vital — Authentication & Session Layer (Firebase Auth + MongoDB Profiles)
+// ---------------------------------------------------------------------------
+// Passwords: Handled entirely by Firebase Auth (Google-managed, secure by default).
+// Sessions: Firebase ID tokens (1h expiry, auto-refreshed by client SDK).
+// MongoDB: Stores user PROFILES keyed by Firebase UID (firebaseUid field).
+// NO password fields in MongoDB. Firebase Auth owns all credential logic.
 // ---------------------------------------------------------------------------
 
-const SESSION_TTL_MS = 12 * 60 * 60 * 1000 // 12h
-const SALT_BYTES = 16
-const KEY_LENGTH = 64
-
-// Demo bootstrap credential used ONLY when a user row has no stored hash
-// (e.g. first-run seed in MongoDB). Never used as a session secret.
-export const DEFAULT_USER_PASSWORD = process.env.DEFAULT_ADMIN_PASSWORD || 'BatteryVital-2026'
-
-function sessionSecret() {
-  const secret = process.env.AUTH_TOKEN_SECRET
-  if (secret && secret.length >= 32) return secret
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('AUTH_TOKEN_SECRET must be set to a value of at least 32 chars in production.')
-  }
-  if (!process.env.AUTH_TOKEN_SECRET) {
-    console.warn('[auth] AUTH_TOKEN_SECRET not set; using dev-only fallback secret. Set it before deploying.')
-  }
-  return process.env.AUTH_TOKEN_SECRET || 'battery-vital-dev-secret-do-not-use-in-prod-0123456789abcdef'
-}
-
-// ------------------------- Password hashing -------------------------------
-
-export function hashPassword(password) {
-  const salt = crypto.randomBytes(SALT_BYTES).toString('hex')
-  const derived = crypto.scryptSync(String(password), salt, KEY_LENGTH).toString('hex')
-  return `${salt}:${derived}`
-}
-
-export function passwordMatches(password, storedHash) {
-  if (!storedHash || storedHash === DEFAULT_USER_PASSWORD || !storedHash.includes(':')) {
-    // Seeded/demo users may store the plain boot credential fingerprint only.
-    return timingSafeEqualStrings(String(password), DEFAULT_USER_PASSWORD)
-  }
-  const [salt, expectedHex] = storedHash.split(':')
-  if (!salt || !/^[0-9a-f]{32}$/.test(salt) || !/^[0-9a-f]{128}$/.test(expectedHex)) return false
-  const expected = Buffer.from(expectedHex, 'hex')
-  const candidate = crypto.scryptSync(String(password), salt, KEY_LENGTH)
-  return candidate.length === expected.length && crypto.timingSafeEqual(candidate, expected)
-}
-
-function timingSafeEqualStrings(a, b) {
-  const bufA = Buffer.from(String(a))
-  const bufB = Buffer.from(String(b))
-  if (bufA.length !== bufB.length) return false
-  return crypto.timingSafeEqual(bufA, bufB)
-}
-
-// --------------------------- Session tokens -------------------------------
-
-function base64Url(payload) {
-  return Buffer.from(JSON.stringify(payload)).toString('base64url')
-}
-
-function sign(payload) {
-  const body = base64Url(payload)
-  const sig = crypto.createHmac('sha256', sessionSecret()).update(body).digest('base64url')
-  return `${body}.${sig}`
-}
-
-export function createSessionToken(user) {
-  return sign({
-    sub: user.id,
-    role: user.role,
-    name: user.name,
-    email: user.email,
-    jti: crypto.randomBytes(16).toString('hex'),
-    iat: Date.now(),
-    exp: Date.now() + SESSION_TTL_MS,
-  })
-}
-
 /**
- * Decode a token payload without verifying the signature. Use only on tokens
- * produced locally in the same request (e.g. login), never on external input.
- */
-export function decodeSessionPayload(token) {
-  if (!token || typeof token !== 'string' || !token.includes('.')) return null
-  try {
-    return JSON.parse(Buffer.from(token.split('.')[0], 'base64url').toString('utf8'))
-  } catch (e) {
-    return null
-  }
-}
-
-export function verifySessionToken(token) {
-  if (!token || typeof token !== 'string' || !token.includes('.')) {
-    throw new InvalidTokenError()
-  }
-  const [body, sig] = token.split('.')
-  const expected = crypto.createHmac('sha256', sessionSecret()).update(body).digest('base64url')
-  const userSig = Buffer.from(sig)
-  const expectedSig = Buffer.from(expected)
-  if (userSig.length !== expectedSig.length || !crypto.timingSafeEqual(userSig, expectedSig)) {
-    throw new InvalidTokenError()
-  }
-  let payload
-  try {
-    payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'))
-  } catch (e) {
-    throw new InvalidTokenError()
-  }
-  if (!payload.sub || payload.exp == null || !payload.role) throw new InvalidTokenError()
-  if (Date.now() > payload.exp) throw new TokenExpiredError(payload.exp)
-  return payload
-}
-
-/**
- * Persist a session record so tokens can be revoked server-side on logout
- * (SECURITY.md §6). Best-effort: a DB failure must not block login.
- */
-export async function recordSession(payload) {
-  try {
-    const db = await getDB()
-    await db.collection('sessions').updateOne(
-      { jti: payload.jti },
-      {
-        $set: {
-          jti: payload.jti,
-          sub: payload.sub,
-          role: payload.role,
-          name: payload.name || null,
-          email: payload.email || null,
-          createdAt: new Date(payload.iat).toISOString(),
-          expiresAt: new Date(payload.exp).toISOString(),
-          revoked: false,
-        },
-      },
-      { upsert: true }
-    )
-  } catch (e) {
-    console.warn('[auth] recordSession failed (best-effort):', e.message)
-  }
-}
-
-/**
- * Fail-closed revocation check: a token must have an active, non-revoked,
- * unexpired session record in MongoDB. If the store is unreachable we reject
- * rather than risk replaying a revoked token.
- */
-let _sessionsIndexed = false
-async function ensureSessionIndexes(db) {
-  if (_sessionsIndexed) return
-  try {
-    const col = db.collection('sessions')
-    await col.createIndex({ jti: 1 })
-    await col.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 })
-    _sessionsIndexed = true
-  } catch (e) {
-    // Best-effort; indexes may already exist or permissions may differ
-  }
-}
-
-async function assertSessionActive(payload) {
-  try {
-    const db = await getDB()
-    await ensureSessionIndexes(db)
-    const session = await db.collection('sessions').findOne({ jti: payload.jti })
-    if (!session || session.revoked === true) throw new InvalidTokenError()
-    if (Date.now() > new Date(session.expiresAt).getTime()) throw new TokenExpiredError(payload.exp)
-  } catch (error) {
-    if (error instanceof InvalidTokenError || error instanceof TokenExpiredError) throw error
-    console.warn('[auth] session store unreachable; rejecting token (fail-closed):', error.message)
-    throw new InvalidTokenError()
-  }
-}
-
-/**
- * Revoke a session by its raw signed token (used by /api/auth/logout).
- */
-export async function revokeSessionByToken(token) {
-  if (!token || typeof token !== 'string' || !token.includes('.')) return false
-  const body = token.split('.')[0]
-  let payload = null
-  try {
-    payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'))
-  } catch (e) {
-    return false
-  }
-  if (!payload.jti) return false
-  try {
-    const db = await getDB()
-    await db.collection('sessions').updateOne({ jti: payload.jti }, { $set: { revoked: true, revokedAt: new Date().toISOString() } })
-    return true
-  } catch (e) {
-    console.warn('[auth] revokeSessionByToken failed:', e.message)
-    return false
-  }
-}
-
-function getCookieFromRequest(request, name) {
-  if (request?.cookies?.get) {
-    const val = request.cookies.get(name)?.value
-    if (val) return val
-  }
-  const cookieHeader = request?.headers?.get?.('cookie') || ''
-  const match = new RegExp(`(?:^|;\\s*)${name}=([^;]+)`).exec(cookieHeader)
-  return match ? decodeURIComponent(match[1]) : ''
-}
-
-const GUEST_VIEWER_PRINCIPAL = {
-  id: 'usr_guest',
-  name: 'Guest Observer',
-  email: 'guest@batteryvitals.local',
-  role: ROLES.VIEWER,
-  status: 'active',
-}
-
-/**
- * Resolve the authenticated user from an incoming request.
- * Reads `Authorization: Bearer <token>` or `bv_session` cookie.
- * Defaults to guest viewer with safe read-only permissions when unauthenticated.
+ * Verify a Firebase ID token and return the authenticated user's MongoDB profile.
+ * This is the SINGLE authoritative auth check for all protected routes.
+ * Fail-closed: any verification error throws InvalidTokenError/TokenExpiredError.
  */
 export async function getSessionUser(request) {
-  const header = request?.headers?.get?.('authorization') || ''
-  const match = /^Bearer\s+(.+)$/i.exec(header)
-  const cookieToken = getCookieFromRequest(request, 'bv_session')
-  const token = match ? match[1] : cookieToken
+  const authHeader = request.headers.get('authorization') || ''
+  const match = /^Bearer\s+(.+)$/i.exec(authHeader)
+  let token = match ? match[1] : null
+
+  if (!token) {
+    const cookieHeader = request.headers.get('cookie') || ''
+    const cookieMatch = /(?:^|;\s*)bv_session=([^;]+)/.exec(cookieHeader)
+    if (cookieMatch) token = decodeURIComponent(cookieMatch[1])
+  }
 
   if (!token || token === 'bv_guest_session' || token === 'null' || token === 'undefined') {
     return GUEST_VIEWER_PRINCIPAL
   }
 
   try {
-    const payload = verifySessionToken(token)
-    await assertSessionActive(payload)
-    const user = await findUser(payload.sub)
+    if (!adminAuth) {
+      throw new InvalidTokenError('Firebase Admin not initialized')
+    }
+    const decoded = await adminAuth.verifyIdToken(token, true) // checkRevoked = true
+    const user = await findUser(decoded.uid)
     if (!user || user.status === 'disabled') return GUEST_VIEWER_PRINCIPAL
     return user
   } catch (err) {
-    // If bearer token was explicitly provided in header and is invalid/expired, throw
-    if (match) throw err
-    return GUEST_VIEWER_PRINCIPAL
+    if (err instanceof InvalidTokenError || err instanceof TokenExpiredError) throw err
+    if (err.code === 'auth/id-token-expired') throw new TokenExpiredError()
+    if (err.code === 'auth/id-token-revoked') throw new InvalidTokenError('Token revoked')
+    throw new InvalidTokenError(err.message || 'Invalid ID token')
   }
 }
 
@@ -261,9 +66,35 @@ export async function requirePermission(request, permission) {
   return user
 }
 
-// --------------------------- User store -----------------------------------
+/**
+ * Verify a Firebase ID token without fetching MongoDB profile.
+ * Used by middleware for quick checks.
+ */
+export async function verifyFirebaseIdTokenOnly(idToken) {
+  if (!adminAuth) throw new InvalidTokenError('Firebase Admin not initialized')
+  if (!idToken || typeof idToken !== 'string') throw new InvalidTokenError('Missing ID token')
+  try {
+    return await adminAuth.verifyIdToken(idToken, false) // checkRevoked = false for speed
+  } catch (err) {
+    if (err.code === 'auth/id-token-expired') throw new TokenExpiredError()
+    if (err.code === 'auth/id-token-revoked') throw new InvalidTokenError('Token revoked')
+    throw new InvalidTokenError(err.message || 'Invalid ID token')
+  }
+}
 
-export const DEFAULT_USERS = [
+// ---------------------------------------------------------------------------
+// User store — MongoDB profiles keyed by Firebase UID
+// ---------------------------------------------------------------------------
+
+export const GUEST_VIEWER_PRINCIPAL = {
+  id: 'usr_guest',
+  name: 'Guest Observer',
+  email: 'guest@batteryvitals.local',
+  role: ROLES.VIEWER,
+  status: 'active',
+}
+
+const DEFAULT_USERS = [
   {
     id: 'usr_admin_01',
     name: 'Chief Battery Engineer',
@@ -302,11 +133,41 @@ export const DEFAULT_USERS = [
   },
 ]
 
-let inMemoryUsers = [...DEFAULT_USERS]
+/**
+ * Find user by Firebase UID (primary key) or email (fallback for migration).
+ * Returns public profile (no password hash — Firebase owns credentials).
+ */
+export async function findUser(idOrEmail) {
+  try {
+    const db = await getDB()
+    // Primary lookup: by Firebase UID
+    let user = await db.collection('users').findOne({ firebaseUid: idOrEmail })
+    if (!user && idOrEmail.includes('@')) {
+      // Fallback: by email (for demo/migration accounts)
+      user = await db.collection('users').findOne({ email: idOrEmail.toLowerCase() })
+    }
+    if (user) {
+      const { passwordHash, ...safe } = user
+      return { ...safe, id: user.id || user._id?.toString(), firebaseUid: user.firebaseUid }
+    }
+  } catch (e) {
+    console.warn('[auth] findUser DB error:', e.message)
+  }
+  // Fallback to in-memory demo users
+  const fallback = DEFAULT_USERS.find((u) => u.id === idOrEmail || u.email.toLowerCase() === idOrEmail.toLowerCase())
+  return fallback || null
+}
 
 /**
- * Fetch all users from MongoDB or fallback to in-memory store.
- * Never expose password hashes to callers.
+ * Find user by email for backward compatibility (some routes may still call this).
+ */
+export async function findUserByCredentials(idOrEmail) {
+  return findUser(idOrEmail)
+}
+
+/**
+ * Get all users from MongoDB or fallback to in-memory store.
+ * Never exposes password hashes (there aren't any in the new schema).
  */
 export async function getUsers() {
   try {
@@ -315,103 +176,113 @@ export async function getUsers() {
     if (users && users.length > 0) {
       return users.map((u) => {
         const { passwordHash, ...safe } = u
-        return { ...safe, id: u.id || u._id?.toString() }
+        return { ...safe, id: u.id || u._id?.toString(), firebaseUid: u.firebaseUid }
       })
     }
   } catch (e) {
-    // Fall back to memory store
+    console.warn('[auth] getUsers DB error, falling back to memory:', e.message)
   }
-  return inMemoryUsers.map(({ passwordHash, ...safe }) => safe)
+  return DEFAULT_USERS.map(({ passwordHash, ...safe }) => safe)
 }
 
 /**
- * Raw (including credential hashes when present) user lookup for auth checks.
- */
-export async function findUserByCredentials(idOrEmail) {
-  try {
-    const db = await getDB()
-    const user = await db.collection('users').findOne({
-      $or: [{ id: idOrEmail }, { email: idOrEmail.toLowerCase() }],
-    })
-    if (user) return { ...user, id: user.id || user._id?.toString() }
-  } catch (e) {
-    // fall through to in-memory store
-  }
-  return inMemoryUsers.find((u) => u.id === idOrEmail || u.email.toLowerCase() === idOrEmail.toLowerCase()) || null
-}
-
-/**
- * Find user by ID or Email (public shape; never leaks hashes).
- */
-export async function findUser(idOrEmail) {
-  const user = await findUserByCredentials(idOrEmail)
-  if (!user) return null
-  const { passwordHash, ...safe } = user
-  return safe
-}
-
-/**
- * Create or register a new user. Stores a scrypt hash of `userData.password`
- * or the boot credential when no password is supplied.
+ * Create a new MongoDB profile keyed by Firebase UID.
+ * NO password field — Firebase Auth owns credentials.
+ * Caller must provide firebaseUid from verified Firebase Auth token.
  */
 export async function createUser(userData) {
-  const passwordHash = userData.password
-    ? hashPassword(userData.password)
-    : hashPassword(DEFAULT_USER_PASSWORD)
+  const { firebaseUid, ...profileData } = userData
+
+  if (!firebaseUid) {
+    throw new Error('firebaseUid is required to create user profile')
+  }
+
   const newUser = {
-    id: userData.id || `usr_${Date.now().toString(36)}`,
-    name: userData.name || 'Team Member',
-    email: userData.email,
-    role: userData.role || ROLES.VIEWER,
-    title: userData.title || 'Battery Specialist',
-    department: userData.department || 'Operations',
-    avatar: userData.role === ROLES.ADMIN ? '🛡️' : userData.role === ROLES.OPERATOR ? '⚡' : '👁️',
-    status: userData.status || 'active',
+    firebaseUid,
+    name: profileData.name || 'Team Member',
+    email: profileData.email,
+    role: profileData.role || ROLES.VIEWER,
+    title: profileData.title || 'Battery Specialist',
+    department: profileData.department || 'Operations',
+    avatar: profileData.role === ROLES.ADMIN ? '🛡️' : profileData.role === ROLES.OPERATOR ? '⚡' : '👁️',
+    status: profileData.status || 'active',
     lastActive: new Date().toISOString(),
     createdAt: new Date().toISOString(),
-    passwordHash,
   }
-  const newUserRaw = { ...newUser }
 
   try {
     const db = await getDB()
-    await db.collection('users').insertOne(newUserRaw)
+    const result = await db.collection('users').insertOne(newUser)
+    const { passwordHash, ...safe } = newUser
+    return { ...safe, id: result.insertedId.toString(), firebaseUid }
   } catch (e) {
-    inMemoryUsers.push(newUserRaw)
+    console.warn('[auth] createUser DB error:', e.message)
+    // Fallback to memory
+    return { ...newUser, id: `usr_${Date.now().toString(36)}` }
   }
-
-  const { passwordHash: _drop, ...publicUser } = newUserRaw
-  return publicUser
 }
 
 /**
- * Update user profile or role.
+ * Update user profile (role, name, etc.). NO password updates — Firebase Auth owns that.
  */
 export async function updateUser(id, updates) {
-  const { password, ...safeUpdates } = updates
-  const setFields = { ...safeUpdates }
-  if (password) setFields.passwordHash = hashPassword(password)
+  const { password, firebaseUid, ...safeUpdates } = updates
+  if (firebaseUid) delete safeUpdates.firebaseUid // immutable
 
   try {
     const db = await getDB()
-    await db.collection('users').updateOne({ id }, { $set: setFields })
+    await db.collection('users').updateOne(
+      { firebaseUid: id },
+      { $set: { ...safeUpdates, lastActive: new Date().toISOString() } }
+    )
   } catch (e) {
-    inMemoryUsers = inMemoryUsers.map((u) => (u.id === id ? { ...u, ...setFields } : u))
+    console.warn('[auth] updateUser DB error:', e.message)
   }
   return findUser(id)
 }
 
 /**
- * Delete a user.
+ * Delete user profile by Firebase UID.
  */
 export async function deleteUser(id) {
   try {
     const db = await getDB()
-    await db.collection('users').deleteOne({ id })
+    await db.collection('users').deleteOne({ firebaseUid: id })
   } catch (e) {
-    inMemoryUsers = inMemoryUsers.filter((u) => u.id !== id)
+    console.warn('[auth] deleteUser DB error:', e.message)
   }
   return true
 }
 
+/**
+ * Revoke all sessions for a user (called on logout, role change, etc.).
+ * Uses Firebase Admin SDK to revoke all refresh tokens for the UID.
+ */
+export async function revokeAllUserSessions(firebaseUid) {
+  if (!adminAuth) return false
+  try {
+    await adminAuth.revokeRefreshTokens(firebaseUid)
+    return true
+  } catch (e) {
+    console.warn('[auth] revokeAllUserSessions failed:', e.message)
+    return false
+  }
+}
+
+// Keep for backward compatibility (no-op since we don't use MongoDB sessions anymore)
+export async function revokeSessionByToken(token) {
+  if (!token || !token.includes('.')) return false
+  try {
+    const decoded = await adminAuth?.verifyIdToken(token, false)
+    if (decoded?.uid) {
+      return revokeAllUserSessions(decoded.uid)
+    }
+  } catch (e) {}
+  return false
+}
+
+// Re-export Firebase Auth verification functions
+export { verifyFirebaseIdToken, getVerifiedFirebaseUser } from './firebaseAuthVerify'
+
+// Re-export permissions
 export { PERMISSIONS }

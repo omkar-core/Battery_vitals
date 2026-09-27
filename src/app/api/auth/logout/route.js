@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { checkRateLimit, getClientIp } from '../../../../lib/rateLimit'
-import { revokeSessionByToken } from '../../../../lib/auth'
+import { getVerifiedFirebaseUser, revokeAllUserSessions } from '../../../../lib/auth'
 import { handleError } from '../../../../lib/errorHandler'
 
 export const dynamic = 'force-dynamic'
@@ -17,19 +17,34 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
     }
 
-    const header = request.headers.get('authorization') || ''
-    const match = /^Bearer\s+(.+)$/i.exec(header)
-    const token = match ? match[1] : null
+    // Verify Firebase ID token
+    const firebaseUser = await getVerifiedFirebaseUser(request)
+    if (!firebaseUser) {
+      return NextResponse.json(
+        { error: 'No active session', code: 'NO_SESSION' },
+        { status: 400 }
+      )
+    }
 
-    // Server-side revocation is the point of this endpoint: the token's session
-    // record is marked revoked so getSessionUser() rejects it even before expiry.
-    const revoked = await revokeSessionByToken(token)
+    // Revoke all refresh tokens for this UID in Firebase Auth
+    // This invalidates all ID tokens for this user across all devices
+    const revoked = await revokeAllUserSessions(firebaseUser.uid)
 
-    return NextResponse.json({
+    // Clear client-side token cookie
+    const response = NextResponse.json({
       success: true,
       revoked,
-      message: revoked ? 'User logged out successfully' : 'No active session to revoke',
+      message: revoked ? 'Logged out successfully. All sessions revoked.' : 'Logged out locally.',
     })
+    response.cookies.set('bv_session', '', {
+      path: '/',
+      httpOnly: false,
+      sameSite: 'lax',
+      maxAge: 0,
+      expires: new Date(0),
+    })
+
+    return response
   } catch (error) {
     return handleError(error, request)
   }

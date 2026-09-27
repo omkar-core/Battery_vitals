@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
-import { findUserByCredentials, createUser, createSessionToken, decodeSessionPayload, recordSession } from '../../../../lib/auth'
+import { getDB } from '../../../../lib/mongodb'
+import { getVerifiedFirebaseUser } from '../../../../lib/firebaseAuthVerify'
 import { checkRateLimit, getClientIp } from '../../../../lib/rateLimit'
-import { DuplicateEntryError, ValidationError } from '../../../../lib/errors'
+import { ValidationError } from '../../../../lib/errors'
 import { handleError } from '../../../../lib/errorHandler'
 
 export const dynamic = 'force-dynamic'
@@ -17,62 +18,73 @@ export async function POST(request) {
       )
     }
 
+    // Verify Firebase ID token — this is the ONLY way to register a profile
+    const firebaseUser = await getVerifiedFirebaseUser(request)
+    if (!firebaseUser) {
+      return NextResponse.json(
+        { error: 'Authentication required. Please sign in first.', code: 'MISSING_CREDENTIALS' },
+        { status: 401 }
+      )
+    }
+
     const body = await request.json().catch(() => ({}))
-    const email = String(body.email || '').trim().toLowerCase()
-    const password = String(body.password || '')
     const name = String(body.name || '').trim()
+    const email = String(body.email || '').trim().toLowerCase()
     const role = String(body.role || 'viewer').toLowerCase()
     const title = String(body.title || 'Battery Specialist').trim()
     const department = String(body.department || 'Operations').trim()
 
-    if (!email || !password || !name) {
-      throw new ValidationError('Name, Email, and Password are required.')
+    if (!name || !email) {
+      throw new ValidationError('Name and Email are required.')
     }
 
-    if (password.length < 6) {
-      throw new ValidationError('Password must be at least 6 characters long.')
+    // Email in body must match Firebase Auth email (security)
+    if (email !== firebaseUser.email.toLowerCase()) {
+      return NextResponse.json(
+        { error: 'Email mismatch with authenticated user.', code: 'EMAIL_MISMATCH' },
+        { status: 400 }
+      )
     }
 
-    const existing = await findUserByCredentials(email)
-    if (existing) {
-      throw new DuplicateEntryError('Email', email)
+    const db = await getDB()
+
+    // Idempotent upsert: if profile exists for this Firebase UID, return it
+    const existingProfile = await db.collection('users').findOne({ firebaseUid: firebaseUser.uid })
+    if (existingProfile) {
+      const { passwordHash, ...safeProfile } = existingProfile
+      return NextResponse.json({
+        success: true,
+        user: { ...safeProfile, id: existingProfile.id || existingProfile._id?.toString(), firebaseUid: firebaseUser.uid },
+      })
     }
 
-    const user = await createUser({
+    // Create new MongoDB profile keyed by Firebase UID
+    // NO password field — Firebase Auth owns credentials
+    const newProfile = {
+      firebaseUid: firebaseUser.uid,
       name,
       email,
-      password,
       role: ['admin', 'operator', 'viewer'].includes(role) ? role : 'viewer',
       title,
       department,
-    })
+      avatar: role === 'admin' ? '🛡️' : role === 'operator' ? '⚡' : '👁️',
+      status: 'active',
+      lastActive: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+    }
 
-    const token = createSessionToken(user)
-    await recordSession(decodeSessionPayload(token))
+    const result = await db.collection('users').insertOne(newProfile)
 
-    const response = NextResponse.json({
+    const savedProfile = {
+      ...newProfile,
+      id: result.insertedId.toString(),
+      firebaseUid: firebaseUser.uid,
+    }
+
+    return NextResponse.json({
       success: true,
-      message: 'Account registered successfully',
-      token,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        title: user.title,
-        department: user.department,
-        avatar: user.avatar,
-      },
+      user: savedProfile,
     }, { status: 201 })
-
-    response.cookies.set('bv_session', token, {
-      path: '/',
-      httpOnly: false,
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7,
-    })
-
-    return response
   } catch (error) {
     return handleError(error, request)
   }

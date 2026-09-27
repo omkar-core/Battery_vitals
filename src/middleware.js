@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 const PUBLIC_PATHS = [
+  '/api/auth/register',
   '/api/auth/login',
   '/api/auth/logout',
   '/api/health',
@@ -15,7 +16,16 @@ const PUBLIC_PATHS = [
   '/manifest.json',
 ]
 
-export function middleware(request) {
+/**
+ * Middleware for auth - does basic token presence check only.
+ * Full Firebase ID token verification (with revocation check) happens in route handlers
+ * via getVerifiedFirebaseUser() which uses Firebase Admin SDK in Node.js runtime.
+ * 
+ * WHY: Middleware runs in Edge Runtime where firebase-admin (and its jwks-rsa dependency)
+ * uses eval() which is not allowed. Full token verification with revocation check
+ * is done in route handlers via getVerifiedFirebaseUser() which runs in Node.js runtime.
+ */
+export async function middleware(request) {
   const { pathname } = request.nextUrl
   const method = request.method
 
@@ -24,41 +34,38 @@ export function middleware(request) {
     return NextResponse.next()
   }
 
+  // Extract token from Authorization header or cookie
   const authHeader = request.headers.get('authorization') || ''
-  const cookieToken = request.cookies.get('bv_session')?.value
+  const match = /^Bearer\s+(.+)$/i.exec(authHeader)
+  let token = match ? match[1] : null
 
-  // For API routes:
-  // - If Bearer token is provided, pass through to route handler for token verification
-  // - If cookie session is present, pass through
-  // - If it's a read-only GET request, allow viewing telemetry/diagnostics
-  // - If it's a mutating request (POST/PUT/DELETE/PATCH) without any auth, reject with 401
+  if (!token) {
+    const cookieHeader = request.headers.get('cookie') || ''
+    const cookieMatch = /(?:^|;\s*)bv_session=([^;]+)/.exec(cookieHeader)
+    if (cookieMatch) token = decodeURIComponent(cookieMatch[1])
+  }
+
+  // For API routes: enforce token presence for mutating requests
   if (pathname.startsWith('/api/')) {
-    const hasBearer = authHeader.startsWith('Bearer ') && authHeader.length > 7
-    const hasCookie = Boolean(cookieToken)
     const isReadOnly = method === 'GET' || method === 'HEAD' || method === 'OPTIONS'
 
-    if (!hasBearer && !hasCookie && !isReadOnly) {
-      return NextResponse.json(
-        { error: 'Authentication required', code: 'MISSING_CREDENTIALS' },
-        { status: 401 }
-      )
+    if (!isReadOnly) {
+      // Mutating requests MUST have a token (full verification in route handler)
+      if (!token || token === 'bv_guest_session') {
+        return NextResponse.json(
+          { error: 'Authentication required', code: 'MISSING_CREDENTIALS' },
+          { status: 401 }
+        )
+      }
+      // Token present - let route handler do full verification
+      return NextResponse.next()
     }
+
+    // Read-only API requests: allow regardless
     return NextResponse.next()
   }
 
-  // For page routes, check for session cookie presence
-  // If not present, assign a guest viewer session cookie so browsing is never blocked
-  if (!cookieToken) {
-    const response = NextResponse.next()
-    response.cookies.set('bv_session', 'bv_guest_session', {
-      path: '/',
-      httpOnly: false,
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7,
-    })
-    return response
-  }
-
+  // For page routes: no blocking
   return NextResponse.next()
 }
 
