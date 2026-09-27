@@ -340,19 +340,24 @@ battery-vital/
 
 ### LED Status Indicators
 
-| LED Color | GPIO | System State | Condition |
-|-----------|------|--------------|-----------|
-| 🟢 **Green** | 14 | Normal | All battery & ambient parameters within nominal thresholds |
-| 🟡 **Yellow** | 26 | Warning | Minor threshold excursion (e.g., elevated temp or slight gas trace) |
-| 🔴 **Red** | 27 | Critical | Dangerous levels detected (overvoltage, overtemp, high smoke/gas) |
+| LED Color | GPIO | System State | Hardware Behavior & Condition |
+|-----------|------|--------------|-------------------------------|
+| 🟢 **Green** | 14 | **System ON & SAFE** | **SOLID ON** immediately upon boot (after single startup beep) when all metrics are nominal. Symbol that system is powered ON and healthy. |
+| 🟡 **Yellow** | 26 | **CAUTION / WARNING** | **SOLID ON** on advisory drift; **BLINKING (0.5s ON / 0.5s OFF)** on WARNING excursions. |
+| 🔴 **Red** | 27 | **CRITICAL / EMERGENCY** | **BLINKING FAST (0.25s)** on CRITICAL; **RAPID FLASH (0.1s)** on EMERGENCY trips. |
 
-### Buzzer Alarm Patterns
+### Buzzer Alarm Patterns (Pulse-Based — No Continuous Screech)
 
 | Pattern | Sound Timing | Trigger Condition |
 |---------|--------------|-------------------|
-| **Continuous** | Solid high tone | Critical battery hazard, thermal runaway risk, gas emergency |
-| **Fast Beep** | 0.5s ON / 0.5s OFF | Warning threshold exceeded (high load, high temp) |
-| **Slow Beep** | 2.0s ON / 2.0s OFF | Minor anomaly detected or system alert notification |
+| **Startup Chirp** | Single 100 ms beep | System boot complete; signals hardware initialized |
+| **Silent** | OFF | Normal / SAFE and advisory CAUTION states |
+| **Warning Chime** | 150 ms ON / 1850 ms OFF | Warning threshold exceeded (gentle periodic reminder, not deafening) |
+| **Urgent Alert** | 200 ms ON / 300 ms OFF | Critical battery hazard, overvoltage, high smoke/gas (pulsed alert) |
+| **Emergency Siren** | Double-pulse: 100ms ON / 100ms OFF / 100ms ON / 700ms OFF | Severe emergency / thermal runaway condition |
+
+> [!NOTE]
+> **Direct Live Viewing (No Login Required)**: Anyone opening the website dashboard at `/` immediately streams live telemetry from the default hardware node (`BAT001`) in real time. Login/registration is **only required for mutating controls** (manual LED toggles, threshold overrides, or custom battery profile management).
 
 ---
 

@@ -154,6 +154,20 @@ export default function Dashboard() {
     data?.battery?.ina_ok === false
   const safety = isSensorFault ? 'SENSOR_FAULT' : rawSafety
 
+  // Sync ControlPanel state with live physical ESP32 actuators in auto mode
+  const activeControlState = useMemo(() => {
+    if (commands?.auto_mode && data) {
+      return {
+        ...commands,
+        green_led: data.green_led ?? (safety === 'SAFE'),
+        yellow_led: data.yellow_led ?? (safety === 'CAUTION' || safety === 'WARNING'),
+        red_led: data.red_led ?? (safety === 'CRITICAL' || safety === 'EMERGENCY'),
+        buzzer: data.buzzer ?? false,
+      }
+    }
+    return commands
+  }, [commands, data, safety])
+
   const profile = data?.battery?.profile ?? data?.profile ?? null
   const rawOp = (data?.battery?.op ?? data?.op ?? 'IDLE').toUpperCase()
   const op =
@@ -677,7 +691,7 @@ export default function Dashboard() {
         <LiveChart data={history} />
         <div className={styles.bentoRight}>
           <div className={styles.grid2} style={{ gridTemplateColumns: '1fr', marginBottom: 0 }}>
-            <ControlPanel commands={commands} onCommand={handleControl} />
+            <ControlPanel commands={activeControlState} onCommand={handleControl} batteryState={safety} />
           </div>
         </div>
       </div>

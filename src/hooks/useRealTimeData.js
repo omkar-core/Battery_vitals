@@ -16,9 +16,9 @@ function createTimeoutSignal(ms) {
 function resolveBatteryId(provided) {
   if (provided) return provided
   try {
-    return localStorage.getItem('bv_active_device')
+    return localStorage.getItem('bv_active_device') || 'BAT001'
   } catch (e) {
-    return null
+    return 'BAT001'
   }
 }
 

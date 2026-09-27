@@ -144,6 +144,11 @@ export function normalizeEsp32Packet(packet, { now = Date.now() } = {}) {
       green: p.green_led !== undefined ? !!p.green_led : null,
       buzzer: p.buzzer !== undefined ? !!p.buzzer : null,
     },
+    auto_mode: p.auto_mode !== undefined ? !!p.auto_mode : null,
+    red_led: p.red_led !== undefined ? !!p.red_led : null,
+    yellow_led: p.yellow_led !== undefined ? !!p.yellow_led : null,
+    green_led: p.green_led !== undefined ? !!p.green_led : null,
+    buzzer: p.buzzer !== undefined ? !!p.buzzer : null,
     battery,
     environment: {
       temperature,

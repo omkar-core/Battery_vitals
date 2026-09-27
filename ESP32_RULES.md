@@ -410,40 +410,74 @@ The web application dispatches actuator control commands through Firebase RTDB a
 }
 ```
 
-### 6.2 LED Actuator Behavior (GPIO 14, 26, 27)
+### 6.2 Startup Indication & LED Actuator Behavior (GPIO 14, 26, 27)
+
+1. **System Boot Sequence**:
+   - On boot, the buzzer emits a **single crisp beep (100 ms)**.
+   - If the boot self-test passes and metrics are nominal, the **Green LED (GPIO 14) lights up SOLID ON** as the physical symbol that the system is powered ON and operating in a SAFE condition.
+   - If self-test fails or a fault is detected during boot, the Green LED remains OFF and the respective warning/fault LED blinks.
+
+2. **Automated State Mapping Table**:
 
 | State | Green LED (GPIO 14) | Yellow LED (GPIO 26) | Red LED (GPIO 27) | Description |
 |:---|:---:|:---:|:---:|:---|
-| **Normal / SAFE** | **ON** | OFF | OFF | All electrical and atmospheric metrics nominal |
-| **CAUTION / WARNING** | OFF | **ON** (Solid/Blink) | OFF | Voltage drift, elevated temp (>40°C), low SOC |
-| **CRITICAL / EMERGENCY**| OFF | OFF | **ON** (Rapid Flash/Solid)| Safety trip active. Actuator lockout enforced |
-| **Sensor Fault** | OFF | **ON** | **ON** | INA219 or DHT11 disconnected |
+| **Normal / SAFE** | **SOLID ON** | OFF | OFF | System powered ON & healthy. All electrical/gas/temp metrics nominal. |
+| **CAUTION** | OFF | **SOLID ON** | OFF | Minor voltage drift, elevated temp (>40°C), low SOC (<20%). Silent advisory. |
+| **WARNING** | OFF | **BLINK (500ms ON / 500ms OFF)** | OFF | Moderate out-of-band threshold. Intermittent chime alert. |
+| **CRITICAL** | OFF | OFF | **BLINK FAST (250ms ON / 250ms OFF)** | Safety trip active. Urgent pulsed alarm. Actuator lockout enforced. |
+| **EMERGENCY** | OFF | **RAPID FLASH (100ms)** | **RAPID FLASH (100ms ON / 100ms OFF)** | Thermal runaway risk or severe overvoltage. Fast double-pulse alarm. |
+| **Sensor Fault** | OFF | **SOLID ON** | **PULSE (1s ON / 1s OFF)** | INA219 or DHT11 disconnected/offline. |
 
 ---
 
 ### 6.3 Buzzer Pattern Generator (GPIO 25)
 
-The active buzzer is driven using non-blocking state cadence on `millis()`:
+The active buzzer is driven using non-blocking modulo mathematical cadence on `millis()`. **To prevent ear fatigue, coil overheating, and unnecessary noise, continuous unbroken tones are strictly forbidden**:
 
 ```cpp
 enum BuzzerMode {
-  BUZZER_OFF,          // Silent
-  BUZZER_CONTINUOUS,   // Solid 2.4 kHz alarm (Emergency / Critical)
-  BUZZER_FAST_BEEP,    // 500ms ON / 500ms OFF (Warning / Gas trip)
-  BUZZER_SLOW_BEEP     // 2000ms ON / 2000ms OFF (Caution / Alert Acknowledged)
+  BZ_OFF,        // Silent (Normal / SAFE / CAUTION)
+  BZ_WARNING,    // 150ms pulse every 2000ms: gentle reminder, NOT annoying
+  BZ_CRITICAL,   // Urgent pulse: 200ms ON / 300ms OFF (500ms period) - alert without continuous screech
+  BZ_EMERGENCY   // Double pulse: 100ms ON, 100ms OFF, 100ms ON, 700ms OFF (1000ms period)
 };
 ```
 
 ---
 
-### 6.4 Auto Mode vs Manual Override
+### 6.4 Auto Mode vs Manual Override & Website Synchronization
 
 1. **Auto Mode (`auto_mode: true`)**:
    - Firmware automatically binds actuator pins to the deterministic safety state.
-   - User commands in the dashboard to toggle individual LEDs are locked.
+   - Web Control Panel toggles visually reflect the physical pins reported in `/live_data/{batteryId}`.
 2. **Manual Override (`auto_mode: false`)**:
-   - Operator has taken manual control of the actuators (e.g. for testing or routine maintenance).
-   - **Safety Override Limit**: If a physical metric breaches a `CRITICAL` limit, firmware **immediately reverts to Auto Mode** and triggers the physical alarm.
+   - Operator takes manual control of the actuators (for testing or verification).
+   - **Safety Override Lockout**: If a physical metric breaches a `CRITICAL` or `EMERGENCY` limit, the firmware **immediately reverts to Auto Mode** and triggers the physical alarm. Remote web overrides cannot silence active trips.
+
+---
+
+### 6.5 Website Synchronization & Public Direct Streaming Mode
+
+1. **Zero Login Requirement for Live Monitoring**:
+   - The web platform provides **100% public, direct read-only telemetry viewing**.
+   - A visitor, technician, or judge **DOES NOT need to log in or register** to view live streaming telemetry from the ESP32 node.
+   - When opening the website (`/`), the dashboard defaults to active asset `BAT001` automatically and opens a real-time WebSocket listener to Firebase RTDB path `/live_data/BAT001`.
+   - If Firebase RTDB is empty or temporarily unreachable, the frontend automatically falls back to HTTP polling `/api/telemetry?batteryId=BAT001` every 4 seconds.
+   - Authentication (Admin / Operator login) is **only required for mutating controls** (toggling manual actuator overrides, modifying battery profiles, clearing latched trips, or running on-demand AI diagnostics).
+
+2. **Full Actuator & Sensor Synchronization**:
+   - Every telemetry packet sent by ESP32 transmits the live physical pin states:
+     ```json
+     {
+       "green_led": true,
+       "yellow_led": false,
+       "red_led": false,
+       "buzzer": false,
+       "auto_mode": true,
+       "state": "SAFE"
+     }
+     ```
+   - The web Control Panel mirrors these physical pin states in real time.
 
 ---
 
@@ -451,16 +485,38 @@ enum BuzzerMode {
 
 ### 7.1 Non-Blocking Scheduling & Watchdog (WDT)
 
-The firmware main loop **MUST NEVER** call blocking `delay()` statements longer than 10 ms. All intervals must use `millis()` gating:
+The firmware main loop **MUST NEVER** call blocking `delay()` statements longer than 10 ms. All intervals must use `millis()` gating. Furthermore, developers must manage both the **Task Watchdog Timer (TWDT)** and **Interrupt Watchdog Timer (IWDT)**:
 
 ```cpp
 #include <esp_task_wdt.h>
-#define WDT_TIMEOUT_SEC 10
+#include <esp_idf_version.h>
+
+#define WDT_TIMEOUT_SEC 15
+
+void initWatchdog() {
+  // ESP32 Arduino Core 3.x (ESP-IDF v5.x) vs Core 2.0.x (ESP-IDF v4.4) compatibility:
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+  esp_task_wdt_config_t wdtConfig = {
+    .timeout_ms = (uint32_t)WDT_TIMEOUT_SEC * 1000,
+    .idle_core_mask = 0,
+    .trigger_panic = true
+  };
+  // In Core 3.x, TWDT is initialized at boot. Reconfigure or fallback gracefully:
+  if (esp_task_wdt_reconfigure(&wdtConfig) != ESP_OK) {
+    esp_task_wdt_init(&wdtConfig);
+  }
+#else
+  esp_task_wdt_init(WDT_TIMEOUT_SEC, true);
+#endif
+
+  // CRITICAL: Enroll current task into TWDT watch BEFORE calling any esp_task_wdt_reset()
+  esp_task_wdt_add(NULL); 
+}
 
 void setup() {
-  // Initialize Hardware Watchdog
-  esp_task_wdt_init(WDT_TIMEOUT_SEC, true);
-  esp_task_wdt_add(NULL); // Add current thread to WDT watch
+  // 1. Initialize WDT FIRST before network loops or sensor routines
+  initWatchdog();
+  // ... initialize peripherals
 }
 
 void loop() {
@@ -482,6 +538,16 @@ void loop() {
   delay(5);
 }
 ```
+
+#### Interrupt Watchdog (IWDT) & DHT Sensor Critical Rule
+The Adafruit DHT library measures single-wire pulses via bit-banging inside a critical section (`portENTER_CRITICAL()`), disabling CPU interrupts up to Level 5. If the DHT11 sensor is missing a **4.7kΩ to 10kΩ pull-up resistor to 3.3V**, is disconnected, or the data pin is floating/held LOW:
+1. The bit-banging routine blocks waiting for pin transitions or exhausts millions of clock cycles with interrupts masked.
+2. The hardware Interrupt Watchdog timer expires (typically 300 ms), causing a hard CPU reset:  
+   `Guru Meditation Error: Core 1 panic'ed (Interrupt wdt timeout on CPU1)`.
+3. **Mandatory Mitigations**:
+   - Always wire a **4.7kΩ – 10kΩ external pull-up resistor** between DHT Data (GPIO 4) and 3.3V (do not rely on internal weak pull-ups).
+   - Rate-limit DHT sampling to **minimum 2000 ms** between reads (`dht.readTemperature()` / `dht.readHumidity()`). Never query the sensor on every 1.5s loop iteration or consecutively in tight loops.
+   - Verify pin integrity before bit-banging: configure `pinMode(DHT_PIN, INPUT_PULLUP)` and verify `digitalRead(DHT_PIN) == HIGH` (idle bus state) before reading.
 
 ---
 
@@ -679,12 +745,15 @@ Vitest runs automated compatibility tests in [`src/lib/esp32Payload.test.js`](fi
 
 | Symptom | Probable Cause | Diagnostic Command / Check | Resolution |
 |:---|:---|:---|:---|
-| **Website shows "No Data Yet"** | WiFi offline or wrong Firebase URL | Check Serial output at 115200 baud | Verify `WIFI_SSID` and `FIREBASE_HOST` in `config.h` |
+| **Website shows "No Data Yet"** | WiFi offline or wrong Firebase URL | Check Serial output at 115200 baud | Verify `WIFI_SSID` and `FIREBASE_HOST` in `config.h`. Ensure URL has no trailing `/s` or `/`. |
 | **Voltage reads 0.0V or constant** | INA219 disconnected or wrong I2C address | I2C Scanner sketch; check SDA 21, SCL 22 | Verify 4.7kΩ pull-up resistors and 0x40 address |
-| **Temperature reads NaN or 25°C fixed**| DHT11 timing timeout or missing pull-up | Check `dht_ok` in telemetry payload | Verify 10kΩ pull-up on GPIO 4; check non-blocking timing |
+| **Temperature reads NaN or 25°C fixed**| DHT11 timing timeout or missing pull-up | Check `dht_ok` in telemetry payload | Verify 10kΩ pull-up on GPIO 4; check non-blocking timing (min 2000ms) |
+| **`Guru Meditation: Interrupt wdt timeout on CPU1`** | DHT11 bit-banging inside critical section with disconnected/floating pin or missing pull-up | Backtrace shows `dht.readTemperature()` / GPIO access with interrupts masked | Add 4.7kΩ–10kΩ pull-up between GPIO 4 and 3.3V; rate-limit DHT reads to >= 2000ms; verify pin is HIGH before reading |
+| **`task_wdt: esp_task_wdt_reset: task not found`** | Calling `esp_task_wdt_reset()` before enrolling the task | Inspect setup sequence | Call `esp_task_wdt_add(NULL)` BEFORE any loop calls `esp_task_wdt_reset()` |
+| **`task_wdt: esp_task_wdt_init: TWDT already initialized`** | ESP32 Core 3.x initializes TWDT at boot; calling `esp_task_wdt_init()` again fails | Check ESP32 Arduino Core version (2.x vs 3.x) | Use `#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5,0,0)` and call `esp_task_wdt_reconfigure()` |
 | **MQ-2 reads 0 ADC or 4095 saturated** | Connected to ADC2 or heater unpowered | Verify MQ-2 VCC is 5V, output on GPIO 34 | Never use ADC2 with Wi-Fi; check voltage divider |
 | **Current / Power shows inverted signs**| INA219 Vin+ and Vin- wired backwards | Check `current_mA` sign when charging | Swap Vin+ and Vin- terminal leads |
-| **ESP32 reboots continuously** | Watchdog timeout or power brownout | Check boot message `rst:0x10 (RTCWDT)` | Add 470µF bulk capacitor across 5V/GND; feed WDT in loop |
+| **ESP32 reboots continuously** | Watchdog timeout or power brownout | Check boot message `rst:0x10 (RTCWDT)` | Add 470µF bulk capacitor across 5V/GND; feed WDT in loop; eliminate blocking while loops |
 | **Commands from UI not acting on LEDs**| ESP32 in Auto Mode or polling stopped | Check `auto_mode` in `/commands/BAT001` | Set `auto_mode: false` in controls or check `pollCommands()` |
 
 ---
