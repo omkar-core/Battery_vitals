@@ -599,3 +599,97 @@ export function detectTelemetryDrift(liveTelemetry = [], reference = null) {
   }
 }
 
+/**
+ * Discharge-Only Remaining Runtime Estimation.
+ *
+ * Specifically designed for the active hardware test rig:
+ * Circuit: Battery (+) → VIN+ (INA219) → Shunt → VIN- → 330Ω Resistor → LED → Battery (-)
+ *
+ * Calculates remaining hours/days based on current discharge current (|I|), SOC, and battery capacity,
+ * and incorporates dV/dt voltage drop extrapolation when active.
+ *
+ * @param {Object} params - { soc, voltage, currentA, capacityAh, dVdt, chemistry }
+ * @returns {Object} { hours, days, formatted, dischargeCurrent_mA, method, loadType, hardwareMode, cycleNote }
+ */
+export function calculateRemainingRuntime({
+  soc = null,
+  voltage = null,
+  currentA = null,
+  capacityAh = null,
+  dVdt = null,
+  chemistry = null,
+} = {}) {
+  const s = soc != null && Number.isFinite(Number(soc)) ? Number(soc) : null
+  const v = voltage != null && Number.isFinite(Number(voltage)) ? Number(voltage) : null
+  const i = currentA != null && Number.isFinite(Number(currentA)) ? Math.abs(Number(currentA)) : null
+  const cap = capacityAh != null && Number.isFinite(Number(capacityAh)) ? Number(capacityAh) : null
+
+  // Fallback capacity based on voltage / chemistry if not explicitly provided
+  let effectiveCap = cap
+  if (!effectiveCap && v != null) {
+    if (v >= 2.4 && v <= 4.4) effectiveCap = 2.5 // 18650 2500mAh
+    else if (v > 4.4 && v <= 10.0) effectiveCap = 0.45 // 9V GP 450mAh
+    else if (v >= 0.8 && v < 2.4) effectiveCap = 2.0 // AA 2000mAh
+    else effectiveCap = 10.0 // generic
+  }
+
+  // If no load / idle current (< 0.1 mA)
+  if (i == null || i < 0.0001) {
+    return {
+      hours: null,
+      days: null,
+      formatted: 'Idle (No Load)',
+      dischargeCurrent_mA: i != null ? (i * 1000).toFixed(1) : '0.0',
+      method: 'Coulomb Capacity + Voltage Slope',
+      loadType: '330Ω + LED Load Circuit',
+      hardwareMode: 'Discharge-Only (No Active Charger Attached)',
+      cycleNote: 'Cycle count represents accumulated discharge throughput (Discharged Ah / Capacity)',
+      isIdle: true,
+    }
+  }
+
+  const currentMA = (i * 1000).toFixed(1)
+  const effSoc = s != null ? s : (v != null && v >= 3.0 ? Math.min(100, Math.max(5, (v - 3.0) / (4.2 - 3.0) * 100)) : 50)
+  const remainingAh = (effectiveCap || 2.5) * (effSoc / 100)
+
+  let runtimeHours = remainingAh / i
+
+  // dV/dt refinement if voltage slope is negative and meaningful
+  const rate = dVdt != null && Number.isFinite(Number(dVdt)) ? Number(dVdt) : null
+  if (rate != null && rate < -0.0001 && v != null) {
+    const cutoffV = v < 5 ? 2.8 : (v < 10 ? 5.4 : 10.5)
+    if (v > cutoffV) {
+      // dVdt in V/min -> convert to hours: (v - cutoffV) / (|rate| * 60)
+      const dVdtHours = (v - cutoffV) / (Math.abs(rate) * 60)
+      if (dVdtHours > 0.1 && dVdtHours < 1000) {
+        // Blend capacity-based and dV/dt-based estimate (70% capacity, 30% dVdt)
+        runtimeHours = runtimeHours * 0.7 + dVdtHours * 0.3
+      }
+    }
+  }
+
+  const hoursRounded = Math.round(runtimeHours * 10) / 10
+  const daysRounded = Math.round((runtimeHours / 24) * 10) / 10
+
+  const formatted =
+    runtimeHours >= 48
+      ? `${daysRounded} days`
+      : runtimeHours >= 1
+      ? `${hoursRounded} hrs`
+      : `${Math.round(runtimeHours * 60)} mins`
+
+  return {
+    hours: hoursRounded,
+    days: daysRounded,
+    formatted: `${formatted} @ ${currentMA} mA`,
+    dischargeCurrent_mA: currentMA,
+    effectiveCapacityAh: effectiveCap,
+    method: 'Coulomb Capacity + Voltage Slope',
+    loadType: 'Continuous Discharge Load (330Ω Resistor + LED)',
+    hardwareMode: 'Discharge-Only (No Active Charger Attached)',
+    cycleNote: 'Cycle count represents accumulated discharge throughput (Discharged Ah / Capacity)',
+    isIdle: false,
+  }
+}
+
+

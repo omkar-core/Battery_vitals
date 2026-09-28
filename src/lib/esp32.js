@@ -10,6 +10,9 @@
 // This module converts those packets into the shape every route and page
 // expects, without inventing any values that the device did not report.
 
+import { inferBatteryProfile, calculateAutoSOC, getBatteryProfile } from './batteryProfiles'
+import { calculateRemainingRuntime } from './rulModel'
+
 const NUMBER_FIELDS = [
   'voltage',
   'soc',
@@ -68,21 +71,47 @@ export function normalizeEsp32Packet(packet, { now = Date.now() } = {}) {
   const rawPower = num(p.power)
   const uptimeMs = num(p.timestamp)
   const voltage = num(p.voltage)
-  const soc = num(p.soc)
+
+  // Auto-infer battery profile and chemistry from terminal voltage
+  const inferred = inferBatteryProfile(voltage)
+  const profileId = p.profile_id || p.profileId || (inferred.inferred ? inferred.profileId : null)
+  const profile = p.profile || (inferred.inferred ? (inferred.profile?.name || inferred.cellType) : null)
+  const activeProfile = profileId ? getBatteryProfile(profileId) : inferred.profile
+
   // SOH is only trusted when it is genuinely derived from a live resistance
   // measurement under load. The firmware boot default (100%) must never be
-  // presented as real telemetry. New firmware reports `soh_valid`; legacy
-  // frames are treated as measured only when a positive resistance is present.
+  // presented as real telemetry.
   const rawSoh = num(p.soh)
+  const currentAmps = rawCurrent != null ? Math.abs(rawCurrent / 1000) : 0
+  const resistanceValue = num(p.resistance)
   const sohMeasured =
     p.soh_valid === true ||
-    (p.soh_valid === false ? false : num(p.resistance) > 0)
+    (p.soh_valid === false ? false : (resistanceValue > 0 && currentAmps >= 0.05))
   const soh = sohMeasured && rawSoh != null ? rawSoh : null
+
+  // Auto calculate SOC from OCV if hardware reported null or uncalibrated default
+  const rawSoc = num(p.soc)
+  const autoSocObj = calculateAutoSOC(voltage, activeProfile || profileId)
+  const soc = (rawSoc != null && rawSoc > 0 && rawSoc <= 100) ? rawSoc : (autoSocObj.soc ?? rawSoc)
+
   const bhi = num(p.bhi)
   const temperature = num(p.temperature)
   const humidity = num(p.humidity)
   const safety = mapState(p.state || p.safety)
   const op = String(p.op || '').toUpperCase()
+
+  const currentA = rawCurrent != null ? rawCurrent / 1000 : null
+  const powerW = rawPower != null ? rawPower / 1000 : null
+
+  // Calculate estimated remaining discharge runtime based on circuit load
+  const remainingRuntime = calculateRemainingRuntime({
+    soc,
+    voltage,
+    currentA,
+    capacityAh: activeProfile?.capacityAh || inferred.capacityAh,
+    dVdt: num(p.dV_dt),
+    chemistry: activeProfile?.chemistry || inferred.chemistry,
+  })
 
   const battery = { voltage }
 
@@ -90,12 +119,13 @@ export function normalizeEsp32Packet(packet, { now = Date.now() } = {}) {
     if (p[f] !== undefined) battery[f] = num(p[f])
   }
 
-  battery.current = rawCurrent != null ? rawCurrent / 1000 : null
-  battery.power = rawPower != null ? rawPower / 1000 : null
+  battery.current = currentA
+  battery.power = powerW
   battery.soc = soc
   battery.soh = soh
   battery.safety = safety
   battery.op = op || null
+  battery.rul = remainingRuntime.days ?? null
 
   // Strip the raw firmware keys so a normalized document is never treated as
   // a raw packet again (keeps the transform idempotent).
@@ -103,11 +133,13 @@ export function normalizeEsp32Packet(packet, { now = Date.now() } = {}) {
     batteryId: p.batteryId || 'BAT001',
     deviceId: p.deviceId || null,
     voltage,
-    current: battery.current,
+    current: currentA,
     current_mA: rawCurrent,
-    power: battery.power,
+    power: powerW,
     power_mW: rawPower,
     soc,
+    socMethod: autoSocObj.method,
+    socUncertainty: autoSocObj.uncertainty,
     soh,
     bhi,
     temperature,
@@ -121,10 +153,14 @@ export function normalizeEsp32Packet(packet, { now = Date.now() } = {}) {
     loadVoltage: num(p.loadVoltage),
     safety: safety || null,
     opDirection: op || null,
-    resistance: num(p.resistance),
-    profile: p.profile || null,
-    profileId: p.profile_id || p.profileId || null,
+    resistance: resistanceValue,
+    resistanceMeasurable: currentAmps >= 0.05,
+    resistanceAdvisory: currentAmps < 0.05 ? 'Load current <50mA (INA219 resolution limit)' : null,
+    profile,
+    profileId,
     profileVersion: num(p.config_version ?? p.profileVersion),
+    inferredBattery: inferred,
+    remainingRuntime,
     firmware: p.firmware || null,
     mac: p.mac || null,
     cycles: num(p.cycles),

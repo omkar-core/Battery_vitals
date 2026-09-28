@@ -203,6 +203,76 @@ export function unknownBatteryState() {
 }
 
 const PRESET_PROFILES = {
+  ICR_18650_2500MAH: {
+    profileId: 'ICR_18650_2500MAH',
+    name: '18650 Li-Ion (3.7V 2500mAh)',
+    manufacturer: 'ICR / Standard 18650',
+    model: '18650-2500mAh',
+    chemistry: 'LI_ION',
+    series: 1,
+    parallel: 1,
+    capacityAh: 2.5,
+    nominalVoltage: 3.7,
+    manufacturerOverrides: {
+      cellVMin: 2.75,
+      cellVMax: 4.25,
+      cellVNom: 3.7,
+      dischargeMaxA: 5.0,
+      chargeMaxA: 1.5,
+    },
+    user: {
+      vMin: 2.75,
+      warningLow: 3.2,
+      normalMin: 3.5,
+      normalMax: 4.15,
+      warningHigh: 4.25,
+      vMax: 4.35,
+    },
+  },
+  GP_9V_6F22: {
+    profileId: 'GP_9V_6F22',
+    name: '9V Carbon-Zinc (GP 1604S)',
+    manufacturer: 'GP / Standard 9V',
+    model: '1604S 6F22',
+    chemistry: 'CUSTOM',
+    series: 6,
+    parallel: 1,
+    capacityAh: 0.45,
+    nominalVoltage: 9.0,
+    manufacturerOverrides: {
+      cellVMin: 0.9,
+      cellVMax: 1.6,
+      cellVNom: 1.5,
+      dischargeMaxA: 0.5,
+      chargeMaxA: 0.1,
+    },
+    user: {
+      vMin: 5.4,
+      warningLow: 6.0,
+      normalMin: 7.0,
+      normalMax: 9.2,
+      warningHigh: 9.6,
+      vMax: 10.0,
+    },
+  },
+  NIMH_AA_1_2V: {
+    profileId: 'NIMH_AA_1_2V',
+    name: 'NiMH / Alkaline 1.2V–1.5V AA',
+    manufacturer: 'Standard 1.2V Cell',
+    chemistry: 'NIMH',
+    series: 1,
+    parallel: 1,
+    capacityAh: 2.0,
+    nominalVoltage: 1.2,
+    user: {
+      vMin: 0.9,
+      warningLow: 1.0,
+      normalMin: 1.15,
+      normalMax: 1.42,
+      warningHigh: 1.48,
+      vMax: 1.55,
+    },
+  },
   LIFEPO4_12V_100AH: {
     profileId: 'LIFEPO4_12V_100AH',
     name: 'LiFePO4 12V 100Ah (4S)',
@@ -238,4 +308,192 @@ export function getBatteryProfile(profileId = 'LIFEPO4_12V_100AH') {
     return buildProfileFromInput(preset)
   }
   return buildProfileFromInput({ profileId })
+}
+
+/**
+ * Auto-infer battery profile and chemistry directly from terminal voltage.
+ * Provides zero-input classification with confidence scoring for the hardware test rig.
+ */
+export function inferBatteryProfile(voltage) {
+  const v = finite(voltage)
+  if (v == null || v <= 0.2) {
+    return {
+      inferred: false,
+      profileId: null,
+      profile: null,
+      chemistry: 'UNKNOWN',
+      confidence: 'NONE',
+      confidenceScore: 0,
+      nominalVoltage: null,
+      capacityAh: null,
+      message: 'No voltage reading detected — check INA219 connections',
+    }
+  }
+
+  // 18650 Li-Ion (1S: 2.4V - 4.4V)
+  if (v >= 2.4 && v <= 4.4) {
+    const isNominal = v >= 3.0 && v <= 4.25
+    return {
+      inferred: true,
+      profileId: 'ICR_18650_2500MAH',
+      profile: getBatteryProfile('ICR_18650_2500MAH'),
+      chemistry: 'LI_ION',
+      confidence: isNominal ? 'HIGH' : 'MEDIUM',
+      confidenceScore: isNominal ? 95 : 75,
+      nominalVoltage: 3.7,
+      capacityAh: 2.5,
+      cellCount: 1,
+      cellType: '18650 Li-Ion (3.7V nominal)',
+      message: `Inferred 1S Li-Ion cell (3.7V nom, 2500mAh) from ${v.toFixed(2)}V terminal voltage`,
+    }
+  }
+
+  // 9V Battery (5.0V - 10.0V)
+  if (v > 4.4 && v <= 10.0) {
+    const isNominal = v >= 6.0 && v <= 9.6
+    return {
+      inferred: true,
+      profileId: 'GP_9V_6F22',
+      profile: getBatteryProfile('GP_9V_6F22'),
+      chemistry: 'CARBON_ZINC',
+      confidence: isNominal ? 'HIGH' : 'MEDIUM',
+      confidenceScore: isNominal ? 90 : 70,
+      nominalVoltage: 9.0,
+      capacityAh: 0.45,
+      cellCount: 6,
+      cellType: '9V Block (6F22 Carbon-Zinc/Alkaline)',
+      message: `Inferred 9V battery (9.0V nom, 450mAh) from ${v.toFixed(2)}V terminal voltage`,
+    }
+  }
+
+  // 1.2V - 1.5V Single Cell (0.8V - 2.0V)
+  if (v >= 0.8 && v < 2.4) {
+    return {
+      inferred: true,
+      profileId: 'NIMH_AA_1_2V',
+      profile: getBatteryProfile('NIMH_AA_1_2V'),
+      chemistry: 'NIMH',
+      confidence: 'HIGH',
+      confidenceScore: 85,
+      nominalVoltage: 1.2,
+      capacityAh: 2.0,
+      cellCount: 1,
+      cellType: 'NiMH / Alkaline AA',
+      message: `Inferred 1.2V/1.5V cell from ${v.toFixed(2)}V terminal voltage`,
+    }
+  }
+
+  // 12V Pack (> 10.0V)
+  if (v > 10.0 && v <= 16.0) {
+    return {
+      inferred: true,
+      profileId: 'LIFEPO4_12V_100AH',
+      profile: getBatteryProfile('LIFEPO4_12V_100AH'),
+      chemistry: 'LIFEPO4',
+      confidence: 'HIGH',
+      confidenceScore: 85,
+      nominalVoltage: 12.8,
+      capacityAh: 100,
+      cellCount: 4,
+      cellType: '12V Pack (4S LiFePO4 / Lead-Acid)',
+      message: `Inferred 12V pack from ${v.toFixed(2)}V terminal voltage`,
+    }
+  }
+
+  return {
+    inferred: false,
+    profileId: null,
+    profile: null,
+    chemistry: 'UNKNOWN',
+    confidence: 'LOW',
+    confidenceScore: 30,
+    nominalVoltage: v,
+    capacityAh: null,
+    message: `Unrecognized voltage ${v.toFixed(2)}V outside standard single-cell profiles`,
+  }
+}
+
+/**
+ * Deterministic OCV-to-SOC mapping function.
+ * Evaluates State of Charge from terminal open-circuit voltage with chemistry-specific curves.
+ */
+export function calculateAutoSOC(voltage, profileInput = null) {
+  const v = finite(voltage)
+  if (v == null || v <= 0) return { soc: null, method: 'NONE', uncertainty: 'unknown' }
+
+  let profile = profileInput
+  if (typeof profileInput === 'string') {
+    profile = getBatteryProfile(profileInput)
+  }
+  if (!profile || !profile.profileId) {
+    const inf = inferBatteryProfile(v)
+    profile = inf.profile || profile
+  }
+
+  const pid = profile?.profileId || ''
+  const chem = String(profile?.chemistry || '').toUpperCase()
+
+  // 1. Li-Ion 1S (18650) empirical OCV curve
+  if (pid === 'ICR_18650_2500MAH' || chem === 'LI_ION' || (v >= 2.4 && v <= 4.4)) {
+    const ocvTable = [
+      [4.20, 100],
+      [4.15, 95],
+      [4.10, 90],
+      [4.05, 85],
+      [4.00, 80],
+      [3.92, 70],
+      [3.85, 60],
+      [3.80, 50],
+      [3.75, 40],
+      [3.70, 30],
+      [3.65, 20],
+      [3.55, 12],
+      [3.45, 6],
+      [3.30, 2],
+      [2.75, 0],
+    ]
+    if (v >= 4.20) return { soc: 100, method: 'NONLINEAR_OCV', uncertainty: '±3%' }
+    if (v <= 2.75) return { soc: 0, method: 'NONLINEAR_OCV', uncertainty: '±3%' }
+    for (let i = 0; i < ocvTable.length - 1; i++) {
+      const [vHigh, sHigh] = ocvTable[i]
+      const [vLow, sLow] = ocvTable[i + 1]
+      if (v <= vHigh && v >= vLow) {
+        const fraction = (v - vLow) / (vHigh - vLow)
+        const soc = Math.round(sLow + fraction * (sHigh - sLow))
+        return { soc: Math.max(0, Math.min(100, soc)), method: 'NONLINEAR_OCV', uncertainty: '±5%' }
+      }
+    }
+  }
+
+  // 2. 9V Carbon-Zinc / Alkaline
+  if (pid === 'GP_9V_6F22' || (v > 4.4 && v <= 10.0)) {
+    const vMax = 9.5
+    const vMin = 5.4
+    if (v >= vMax) return { soc: 100, method: 'LINEAR_OCV', uncertainty: '±5%' }
+    if (v <= vMin) return { soc: 0, method: 'LINEAR_OCV', uncertainty: '±5%' }
+    const soc = Math.round(((v - vMin) / (vMax - vMin)) * 100)
+    return { soc: Math.max(0, Math.min(100, soc)), method: 'LINEAR_OCV', uncertainty: '±8%' }
+  }
+
+  // 3. NiMH 1.2V
+  if (pid === 'NIMH_AA_1_2V' || (v >= 0.8 && v < 2.4)) {
+    const vMax = 1.42
+    const vMin = 0.95
+    if (v >= vMax) return { soc: 100, method: 'OCV_MAPPING', uncertainty: '±5%' }
+    if (v <= vMin) return { soc: 0, method: 'OCV_MAPPING', uncertainty: '±5%' }
+    const soc = Math.round(((v - vMin) / (vMax - vMin)) * 100)
+    return { soc: Math.max(0, Math.min(100, soc)), method: 'OCV_MAPPING', uncertainty: '±7%' }
+  }
+
+  // 4. Fallback 12V LiFePO4 / Lead-Acid
+  if (v >= 10.0) {
+    const vMax = 13.6
+    const vMin = 10.5
+    if (v >= vMax) return { soc: 100, method: 'LINEAR_OCV', uncertainty: '±5%' }
+    if (v <= vMin) return { soc: 0, method: 'LINEAR_OCV', uncertainty: '±5%' }
+    const soc = Math.round(((v - vMin) / (vMax - vMin)) * 100)
+    return { soc: Math.max(0, Math.min(100, soc)), method: 'LINEAR_OCV', uncertainty: '±5%' }
+  }
+
+  return { soc: null, method: 'NONE', uncertainty: 'unknown' }
 }

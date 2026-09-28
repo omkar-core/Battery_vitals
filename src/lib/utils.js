@@ -298,6 +298,10 @@ export function normalizeTelemetry(rows, timeKey = 'time') {
     heap: ['network.free_heap', 'free_heap', 'heap'],
     uptime: ['network.uptime', 'uptime'],
     errors: ['errors', 'error_count'],
+    inferredBattery: ['inferredBattery', 'battery.inferredBattery'],
+    remainingRuntime: ['remainingRuntime', 'battery.remainingRuntime'],
+    socMethod: ['socMethod', 'battery.socMethod'],
+    resistanceMeasurable: ['resistanceMeasurable', 'battery.resistanceMeasurable'],
   }
 
   return rows.map((row) => {

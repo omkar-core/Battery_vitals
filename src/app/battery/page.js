@@ -8,17 +8,6 @@ import BatteryStatus from '../../components/battery/BatteryStatus'
 import BatteryProfileManager from '../../components/battery/BatteryProfileManager'
 import HistoryChart from '../../components/charts/HistoryChart'
 import { useBattery } from '../../hooks/useBattery'
-import {
-  BatteryCharging,
-  Zap,
-  Activity,
-  Cpu,
-  Clock,
-  RefreshCw,
-  Sliders,
-  TrendingUp,
-  Download,
-} from 'lucide-react'
 import styles from '../../styles/pages.module.css'
 
 export default function BatteryPage() {
@@ -33,13 +22,15 @@ function BatteryPageInner() {
   const { battery, history, connected, mode, lastSeen } = useBattery()
   const [activeMetric, setActiveMetric] = useState('voltage') // 'voltage', 'current', 'power', 'soc'
 
+  const inferred = battery.inferredBattery
+
   return (
     <Layout connected={connected} lastSeen={lastSeen} data={{ battery }}>
       {/* 1. Page Header */}
       <div className={styles.pageHeader}>
         <div>
           <h1 className={styles.pageTitle}>
-            <BatteryCharging size={24} style={{ verticalAlign: 'middle', marginRight: 8 }} color="#00E8A0" />
+            <span style={{ verticalAlign: 'middle', marginRight: 8, fontSize: 24 }}>🔋</span>
             Battery Monitor &amp; <span className="gradText">Telemetry Hub</span>
           </h1>
           <p className={styles.subtitle} style={{ marginBottom: 0 }}>
@@ -47,7 +38,22 @@ function BatteryPageInner() {
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          {inferred?.inferred && (
+            <span
+              style={{
+                background: 'rgba(56,189,248,0.12)',
+                border: '1px solid rgba(56,189,248,0.3)',
+                color: '#38BDF8',
+                padding: '6px 12px',
+                borderRadius: 20,
+                fontSize: 12,
+                fontWeight: 700,
+              }}
+            >
+              <span>⚡</span> Auto: {inferred.cellType} ({inferred.confidence} Conf)
+            </span>
+          )}
           <span
             style={{
               background: 'rgba(0,232,160,0.12)',
@@ -59,7 +65,7 @@ function BatteryPageInner() {
               fontWeight: 700,
             }}
           >
-            Pack: {battery.batteryId}{battery.profileId ? ` (${battery.profileId})` : ' (profile not set)'}
+            Pack: {battery.batteryId}{battery.profileId ? ` (${battery.profileId})` : ''}
           </span>
         </div>
       </div>
@@ -81,7 +87,7 @@ function BatteryPageInner() {
           <div className={styles.card}>
             <div className={styles.cardHeader}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Activity size={18} color="#00E8A0" />
+                <span style={{ fontSize: 18 }}>⚡</span>
                 <h3 className={styles.cardTitle}>State of Charge (SOC)</h3>
               </div>
               <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>Open-Circuit Voltage Model</span>
@@ -102,7 +108,7 @@ function BatteryPageInner() {
         <div className={styles.card} style={{ display: 'flex', flexDirection: 'column' }}>
           <div className={styles.cardHeader}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <TrendingUp size={18} color="#38BDF8" />
+              <span style={{ fontSize: 18 }}>📈</span>
               <h3 className={styles.cardTitle}>Telemetry Curves</h3>
             </div>
 

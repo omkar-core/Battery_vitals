@@ -455,8 +455,8 @@ function buildDiagnosticPrompt({ latest, validation, safety, snapshot, historySu
 
   const histBlock =
     historySummary.count > 0
-      ? `Recent history window (${historySummary.count} samples):\n- Voltage: min ${historySummary.voltage?.min}V, max ${historySummary.voltage?.max}V\n- Temperature: min ${historySummary.temperature?.min}°C, max ${historySummary.temperature?.max}°C\n- BHI: min ${historySummary.bhi?.min}, max ${historySummary.bhi?.max}\n- SOH latest: ${historySummary.soh?.latest ?? 'not reported'}%\n- SOC latest: ${historySummary.soc?.latest ?? 'not reported'}%`
-      : 'Recent history window: no samples available.'
+      ? `Historical summary window (${historySummary.count} samples reviewed):\n- Voltage: min ${historySummary.voltage?.min}V, max ${historySummary.voltage?.max}V\n- Temperature: min ${historySummary.temperature?.min}°C, max ${historySummary.temperature?.max}°C\n- BHI: min ${historySummary.bhi?.min}, max ${historySummary.bhi?.max}\n- SOH latest: ${historySummary.soh?.latest ?? 'not reported'}%\n- SOC latest: ${historySummary.soc?.latest ?? 'not reported'}%`
+      : 'Historical summary window: no prior historical samples available.'
 
   const violations = safety.violations
     .map((v) => `- ${v.state}: ${v.rule.message} (field: ${v.rule.field}, value: ${v.rule.value ?? 'n/a'})`)
@@ -466,7 +466,17 @@ function buildDiagnosticPrompt({ latest, validation, safety, snapshot, historySu
     .map((i) => `- [${i.code}] ${i.message}`)
     .join('\n')
 
+  const profileDesc = a.profile || a.inferredBattery?.cellType || a.profileId || 'Auto-Inferred Profile'
+  const runtimeDesc = a.remainingRuntime?.formatted || 'Not calculated'
+
   return `Battery system: Battery Vitals (ESP32 telemetry).
+Hardware Configuration:
+- Circuit topology: Discharge-only test rig [Battery (+) -> VIN+ (INA219) -> 0.1Ω Shunt -> VIN- -> 330Ω Resistor -> LED -> Battery (-)]
+- Connected profile: ${profileDesc} (nominal ${orNotReported(a.inferredBattery?.nominalVoltage, 'V')}, capacity ${orNotReported(a.inferredBattery?.capacityAh, 'Ah')})
+- Active hardware mode: Discharge-only continuous load (no active charging module attached)
+- Cycle metric definition: Discharge throughput EFC (accumulated discharged Ah / nominal capacity)
+- Estimated discharge runtime at current load: ${runtimeDesc}
+
 Deterministic safety engine verdict (authoritative, do not contradict):
 - State: ${safety.state}
 - Risk score: ${safety.score}/100
@@ -474,21 +484,19 @@ Deterministic safety engine verdict (authoritative, do not contradict):
 ${violations ? 'Detected violations:\n' + violations : '- No safety violations.'}
 
 Validated live telemetry (missing fields are NOT reported — do not invent them):
-- Voltage: ${orNotReported(a.voltage ?? a.battery?.voltage, 'V')}
-- Current: ${orNotReported(a.current ?? a.battery?.current, 'A')} (direction: ${orNotReported(a.opDirection)})
-- Power: ${orNotReported(a.power ?? a.battery?.power, 'W')}
-- Temperature: ${orNotReported(a.temperature ?? a.environment?.temperature, '°C')}
+- Voltage: ${orNotReported(a.voltage ?? a.battery?.voltage, 'V')} (dV/dt: ${orNotReported(a.dV_dt ?? a.battery?.dV_dt, 'V/min')})
+- Current: ${orNotReported(a.current ?? a.battery?.current, 'A')} (${orNotReported(a.current_mA ?? (a.current != null ? (a.current * 1000).toFixed(1) : null), 'mA')}, direction: ${orNotReported(a.opDirection || 'DISCHARGING')})
+- Power: ${orNotReported(a.power ?? a.battery?.power, 'W')} (${orNotReported(a.power_mW ?? (a.power != null ? (a.power * 1000).toFixed(1) : null), 'mW')})
+- Temperature: ${orNotReported(a.temperature ?? a.environment?.temperature, '°C')} (dT/dt: ${orNotReported(a.dT_dt ?? a.environment?.dT_dt, '°C/min')})
 - Humidity: ${orNotReported(a.humidity ?? a.environment?.humidity, '%')}
-- SOC: ${orNotReported(a.soc ?? a.battery?.soc, '%')}
-- SOH: ${orNotReported(a.soh ?? a.battery?.soh, '%')}
+- SOC: ${orNotReported(a.soc ?? a.battery?.soc, '%')} (Method: ${orNotReported(a.socMethod, 'OCV mapping')})
+- SOH: ${orNotReported(a.soh ?? a.battery?.soh, '%')} (Note: SOH resistance measurement is honest and only active when load >= 50mA)
 - BHI: ${orNotReported(a.bhi ?? a.risk?.bhi, '/100')}
-- Internal resistance: ${orNotReported(a.resistance ?? a.battery?.resistance, ' mΩ')}
+- Internal resistance: ${orNotReported(a.resistance ?? a.battery?.resistance, ' mΩ')} ${a.resistanceAdvisory ? `(${a.resistanceAdvisory})` : ''}
 - MQ-2: ${orNotReported(gas.index_mq2 ?? a.mq2, ' ADC')}
 - MQ-135: ${orNotReported(gas.index_mq135 ?? a.mq135, ' ADC')}
-- Cycles: ${orNotReported(a.cycles ?? a.battery?.cycles)}
 - Energy throughput: ${orNotReported(a.energyWh ?? a.battery?.energyWh, ' Wh')}
 - Firmware: ${orNotReported(a.firmware, '')}
-- Deployed battery profile: ${orNotReported(a.profileId ?? a.profile_id, '')} (state: ${orNotReported(a.profileState, '')}) — never infer chemistry from voltage alone
 
 ${histBlock}
 Validation issues:
@@ -501,7 +509,7 @@ Produce a structured diagnostic as VALID JSON only, with exactly this shape:
 {
   "overall_status": "SAFE|CAUTION|WARNING|CRITICAL|EMERGENCY|UNKNOWN",
   "risk_score": 0-100,
-  "battery_health_summary": "2-3 sentence plain-language summary referencing actual measured values and sensor-fusion weights",
+  "battery_health_summary": "2-3 sentence plain-language summary referencing actual measured values, discharge circuit dynamics, and sensor-fusion weights",
   "key_findings": ["short factual findings grounded in the data above"],
   "sensor_fusion_weights": {
     "primary_driver": "temperature|voltage|gas|current|none",
@@ -537,9 +545,16 @@ function buildChatPrompt({ question, telemetry, history, recentDiagnostics, aler
     .map((al) => `- [${al.severity}] ${al.type}: ${al.message}`)
   const alertBlock = alertLines.length ? `\nRecent alerts:\n${alertLines.join('\n')}` : ''
 
+  const profileDesc = a.profile || a.inferredBattery?.cellType || a.profileId || 'Auto-Inferred Profile'
+
   return {
     safety,
     prompt: `Battery system: Battery Vitals (ESP32 telemetry).
+Hardware Configuration:
+- Connected cell profile: ${profileDesc}
+- Hardware mode: Discharge-only test circuit (330Ω resistor + LED load, INA219 + DHT + MQ-2 + MQ-135 sensors)
+- Estimated remaining runtime: ${a.remainingRuntime?.formatted || 'calculated based on load'}
+
 Deterministic safety engine verdict (authoritative):
 - State: ${safety.state}
 - Risk score: ${safety.score}/100
@@ -547,7 +562,8 @@ Deterministic safety engine verdict (authoritative):
 
 Validated live telemetry (missing = not reported, never invent):
 - Voltage: ${orNotReported(a.voltage ?? a.battery?.voltage, 'V')}
-- Current: ${orNotReported(a.current ?? a.battery?.current, 'A')} (${orNotReported(a.opDirection)})
+- Current: ${orNotReported(a.current ?? a.battery?.current, 'A')} (${orNotReported(a.current_mA ?? (a.current != null ? (a.current * 1000).toFixed(1) : null), 'mA')}, ${orNotReported(a.opDirection || 'DISCHARGING')})
+- Power: ${orNotReported(a.power ?? a.battery?.power, 'W')}
 - Temperature: ${orNotReported(a.temperature ?? a.environment?.temperature, '°C')}
 - SOC: ${orNotReported(a.soc ?? a.battery?.soc, '%')}
 - SOH: ${orNotReported(a.soh ?? a.battery?.soh, '%')}

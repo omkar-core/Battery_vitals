@@ -2,6 +2,8 @@
 // No generative AI is used here. This layer is the authoritative truth that
 // the intelligence engine may interpret but never override.
 
+import { getBatteryProfile, profileToEngineConfig } from './batteryProfiles'
+
 export const SAFETY_STATES = {
   UNKNOWN: 'UNKNOWN',
   SAFE: 'SAFE',
@@ -233,7 +235,24 @@ export function computeSafety(clean = {}, cfg = {}) {
   const dTdt = num(clean.dT_dt ?? clean.dTdt ?? clean.tempRate)
   const gasRise = num(clean.mq2_rise ?? clean.gasRise ?? clean.dMq2_dt)
 
-  const E = normalizeSafetyConfig(cfg)
+  // Dynamically resolve operating thresholds if an active or inferred profile is attached
+  let effectiveCfg = cfg
+  if (!cfg.voltage || Object.keys(cfg.voltage).length === 0) {
+    const profId = clean.profileId || (clean.inferredBattery?.inferred ? clean.inferredBattery.profileId : null)
+    if (profId) {
+      try {
+        const prof = clean.profile && typeof clean.profile === 'object' ? clean.profile : getBatteryProfile(profId)
+        if (prof) {
+          const profCfg = profileToEngineConfig(prof)
+          effectiveCfg = { ...profCfg, ...cfg, voltage: { ...profCfg.voltage, ...(cfg.voltage || {}) } }
+        }
+      } catch (e) {
+        // Fall back to standard engine defaults
+      }
+    }
+  }
+
+  const E = normalizeSafetyConfig(effectiveCfg)
 
   let worst = 'SAFE'
 

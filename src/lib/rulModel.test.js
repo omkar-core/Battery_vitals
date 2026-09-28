@@ -5,6 +5,7 @@ import {
   predictRulWithUncertainty,
   predictRulGaussianProcess,
   detectTelemetryDrift,
+  calculateRemainingRuntime,
   EOL_SOH_THRESHOLD,
 } from './rulModel'
 
@@ -120,6 +121,24 @@ describe('rulModel.js — Bootstrap RUL Estimation & Uncertainty Quantification'
     expect(driftedCheck.hasDrift).toBe(true)
     expect(driftedCheck.transferabilityScore).toBeLessThan(70)
     expect(driftedCheck.driftReasons.length).toBeGreaterThan(0)
+  })
+
+  it('calculates remaining discharge runtime on discharge-only hardware loads', () => {
+    // 18650 Li-ion cell (2500mAh) with 10mA continuous load at 80% SOC
+    const runtime18650 = calculateRemainingRuntime({
+      soc: 80,
+      voltage: 4.0,
+      currentA: 0.010, // 10 mA
+      capacityAh: 2.5,
+    })
+    expect(runtime18650.isIdle).toBe(false)
+    expect(runtime18650.hours).toBeGreaterThan(150)
+    expect(runtime18650.dischargeCurrent_mA).toBe('10.0')
+
+    // Idle case (no current flowing)
+    const idleCheck = calculateRemainingRuntime({ soc: 100, currentA: 0 })
+    expect(idleCheck.isIdle).toBe(true)
+    expect(idleCheck.formatted).toBe('Idle (No Load)')
   })
 })
 

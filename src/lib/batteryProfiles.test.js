@@ -6,6 +6,8 @@ import {
   checkCompatibility,
   validatePreConnection,
   unknownBatteryState,
+  inferBatteryProfile,
+  calculateAutoSOC,
 } from './batteryProfiles';
 import { BatteryProfileSchema, DeployProfileSchema } from './schemas';
 
@@ -82,5 +84,41 @@ describe('batteryProfiles — fixed hardware + deployable profile (no voltage gu
     expect(BatteryProfileSchema.safeParse({ name: 'x', chemistry: 'LI_ION', series: 99 }).success).toBe(false);
     expect(DeployProfileSchema.safeParse({ deviceId: 'BAT001', profileId: 'BV-X' }).success).toBe(true);
     expect(DeployProfileSchema.safeParse({ deviceId: 'bad id!', profileId: 'BV-X' }).success).toBe(false);
+  });
+
+  it('accurately auto-infers battery chemistry and profile from terminal voltage', () => {
+    const cell18650 = inferBatteryProfile(3.85);
+    expect(cell18650.inferred).toBe(true);
+    expect(cell18650.profileId).toBe('ICR_18650_2500MAH');
+    expect(cell18650.chemistry).toBe('LI_ION');
+    expect(cell18650.confidence).toBe('HIGH');
+    expect(cell18650.nominalVoltage).toBe(3.7);
+
+    const batt9v = inferBatteryProfile(8.8);
+    expect(batt9v.inferred).toBe(true);
+    expect(batt9v.profileId).toBe('GP_9V_6F22');
+    expect(batt9v.chemistry).toBe('CARBON_ZINC');
+    expect(batt9v.confidence).toBe('HIGH');
+    expect(batt9v.nominalVoltage).toBe(9.0);
+
+    const cellNimh = inferBatteryProfile(1.3);
+    expect(cellNimh.inferred).toBe(true);
+    expect(cellNimh.profileId).toBe('NIMH_AA_1_2V');
+    expect(cellNimh.chemistry).toBe('NIMH');
+  });
+
+  it('computes empirical OCV State of Charge across supported cell chemistries', () => {
+    const socFull18650 = calculateAutoSOC(4.18, 'ICR_18650_2500MAH');
+    expect(socFull18650.soc).toBeGreaterThanOrEqual(95);
+
+    const socNominal18650 = calculateAutoSOC(3.80, 'ICR_18650_2500MAH');
+    expect(socNominal18650.soc).toBe(50);
+
+    const socCutoff18650 = calculateAutoSOC(2.70, 'ICR_18650_2500MAH');
+    expect(socCutoff18650.soc).toBe(0);
+
+    const soc9v = calculateAutoSOC(8.5, 'GP_9V_6F22');
+    expect(soc9v.soc).toBeGreaterThan(60);
+    expect(soc9v.soc).toBeLessThan(90);
   });
 });

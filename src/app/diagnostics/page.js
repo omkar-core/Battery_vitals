@@ -10,28 +10,6 @@ import {
   rssiToBars,
   getConnectionState,
 } from '../../lib/utils'
-import {
-  Cpu,
-  Database,
-  Radio,
-  Server,
-  Activity,
-  CheckCircle,
-  AlertTriangle,
-  XCircle,
-  Copy,
-  Check,
-  Download,
-  Wifi,
-  HardDrive,
-  Clock,
-  ArrowRight,
-  RefreshCw,
-  Flame,
-  Gauge,
-  Droplets,
-  Share2,
-} from 'lucide-react'
 import styles from '../../styles/pages.module.css'
 
 export default function DiagnosticsPage() {
@@ -155,7 +133,7 @@ export default function DiagnosticsPage() {
       <div className={styles.pageHeader}>
         <div>
           <h1 className={styles.pageTitle}>
-            <Cpu size={22} style={{ verticalAlign: 'middle', marginRight: 8 }} color="#00E8A0" />
+            <span style={{ verticalAlign: 'middle', marginRight: 8, fontSize: 22 }}>🛠️</span>
             Hardware &amp; System <span className="gradText">Diagnostics</span>
           </h1>
           <p className={styles.subtitle} style={{ marginBottom: 0 }}>
@@ -169,7 +147,7 @@ export default function DiagnosticsPage() {
           className={styles.filterBtn}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
         >
-          <RefreshCw size={12} className={refreshing ? styles.spinAnimation : ''} />
+          <span>🔄</span>
           <span>Ping System Status</span>
         </button>
       </div>
@@ -177,7 +155,7 @@ export default function DiagnosticsPage() {
       {/* 1. INTERACTIVE 5-HOP DATA FLOW DIAGRAM */}
       <div className={styles.card}>
         <h3 className={styles.cardTitle} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Share2 size={16} color="#38BDF8" />
+          <span>🔄</span>
           Live Architecture Data Flow
         </h3>
 
@@ -201,7 +179,7 @@ export default function DiagnosticsPage() {
                 borderRadius: 12,
               }}
             >
-              <Cpu size={24} color={conn.state === 'LIVE' ? '#00E8A0' : '#FF2D55'} />
+              <span style={{ fontSize: 24 }}>📟</span>
               <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', marginTop: 4 }}>ESP32 Node</div>
               <div style={{ fontSize: 10, color: conn.color, fontWeight: 700, marginTop: 2 }}>
                 {conn.state}
@@ -210,7 +188,7 @@ export default function DiagnosticsPage() {
             <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>2.0s Telemetry</div>
           </div>
 
-          <ArrowRight size={18} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+          <span style={{ color: 'var(--text-muted)', fontSize: 16 }}>➡️</span>
 
           {/* Hop 2: Firebase Realtime Database */}
           <div style={{ textAlign: 'center', flex: 1, minWidth: 140 }}>
@@ -222,7 +200,7 @@ export default function DiagnosticsPage() {
                 borderRadius: 12,
               }}
             >
-              <Radio size={24} color="#38BDF8" />
+              <span style={{ fontSize: 24 }}>📡</span>
               <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', marginTop: 4 }}>Firebase RTDB</div>
               <div style={{ fontSize: 10, color: '#38BDF8', fontWeight: 700, marginTop: 2 }}>
                 Real-Time Database
@@ -231,7 +209,7 @@ export default function DiagnosticsPage() {
             <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>Zero-Broker Push</div>
           </div>
 
-          <ArrowRight size={18} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+          <span style={{ color: 'var(--text-muted)', fontSize: 16 }}>➡️</span>
 
           {/* Hop 3: Vercel / Admin SDK */}
           <div style={{ textAlign: 'center', flex: 1, minWidth: 140 }}>
@@ -243,7 +221,7 @@ export default function DiagnosticsPage() {
                 borderRadius: 12,
               }}
             >
-              <Server size={24} color="#A78BFA" />
+              <span style={{ fontSize: 24 }}>🖥️</span>
               <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', marginTop: 4 }}>Admin SDK API</div>
               <div style={{ fontSize: 10, color: '#A78BFA', fontWeight: 700, marginTop: 2 }}>
                 Next.js Backend
@@ -254,7 +232,7 @@ export default function DiagnosticsPage() {
             </div>
           </div>
 
-          <ArrowRight size={18} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+          <span style={{ color: 'var(--text-muted)', fontSize: 16 }}>➡️</span>
 
           {/* Hop 4: MongoDB Atlas */}
           <div style={{ textAlign: 'center', flex: 1, minWidth: 140 }}>
@@ -266,7 +244,7 @@ export default function DiagnosticsPage() {
                 borderRadius: 12,
               }}
             >
-              <Database size={24} color={healthInfo?.database === 'connected' ? '#00E8A0' : '#FFD60A'} />
+              <span style={{ fontSize: 24 }}>🗄️</span>
               <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', marginTop: 4 }}>MongoDB Atlas</div>
               <div style={{ fontSize: 10, color: '#00E8A0', fontWeight: 700, marginTop: 2 }}>
                 Background Archive
@@ -275,7 +253,7 @@ export default function DiagnosticsPage() {
             <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>Time-Series Sync</div>
           </div>
 
-          <ArrowRight size={18} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+          <span style={{ color: 'var(--text-muted)', fontSize: 16 }}>➡️</span>
 
           {/* Hop 5: Client Dashboard */}
           <div style={{ textAlign: 'center', flex: 1, minWidth: 140 }}>
@@ -287,7 +265,7 @@ export default function DiagnosticsPage() {
                 borderRadius: 12,
               }}
             >
-              <Activity size={24} color="#00E8A0" />
+              <span style={{ fontSize: 24 }}>📊</span>
               <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', marginTop: 4 }}>Client WebApp</div>
               <div style={{ fontSize: 10, color: '#00E8A0', fontWeight: 700, marginTop: 2 }}>
                 {mode === 'firebase' ? 'Firebase Real-Time' : 'HTTP Polling'}
@@ -391,7 +369,7 @@ export default function DiagnosticsPage() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontWeight: 700, color: '#FFD60A', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Gauge size={16} /> INA219 I2C
+                <span>⚡</span> INA219 I2C
               </span>
               <div style={{ display: 'flex', gap: 4 }}>
                 <span className="chip" style={{ fontSize: 9.5, color: '#38BDF8' }}>
@@ -425,7 +403,7 @@ export default function DiagnosticsPage() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontWeight: 700, color: '#FF2D55', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Flame size={16} /> DHT11 Digital
+                <span>🌡️</span> DHT11 Digital
               </span>
               <div style={{ display: 'flex', gap: 4 }}>
                 <span className="chip" style={{ fontSize: 9.5, color: '#38BDF8' }}>
@@ -457,7 +435,7 @@ export default function DiagnosticsPage() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontWeight: 700, color: '#FF6B35', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Flame size={16} /> MQ-2 Analog ADC
+                <span>🔥</span> MQ-2 Analog ADC
               </span>
               <div style={{ display: 'flex', gap: 4 }}>
                 <span className="chip" style={{ fontSize: 9.5, color: data?.gas?.warm ? '#FFD60A' : '#38BDF8' }}>
@@ -489,7 +467,7 @@ export default function DiagnosticsPage() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontWeight: 700, color: '#A78BFA', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Droplets size={16} /> MQ-135 Analog ADC
+                <span>🌫️</span> MQ-135 Analog ADC
               </span>
               <div style={{ display: 'flex', gap: 4 }}>
                 <span className="chip" style={{ fontSize: 9.5, color: data?.gas?.warm ? '#FFD60A' : '#38BDF8' }}>
@@ -567,15 +545,15 @@ export default function DiagnosticsPage() {
           value={`${net.rssi ?? '--'} dBm`}
           unit={`(${wifiBars.bars}/4)`}
           color={wifiBars.color}
-          icon={Wifi}
+          icon="📶"
           subtext={wifiBars.label}
         />
         <MetricCard
           title="ESP32 Free Heap"
-          value={Math.round(net.heap / 1024)}
+          value={net.heap != null ? Math.round(net.heap / 1024) : '--'}
           unit="KB"
           color="#38BDF8"
-          icon={HardDrive}
+          icon="💾"
           subtext="RAM Availability"
         />
         <MetricCard
@@ -583,7 +561,7 @@ export default function DiagnosticsPage() {
           value={formatUptime(net.uptime)}
           unit=""
           color="#00E8A0"
-          icon={Clock}
+          icon="⏱️"
           subtext={`Raw: ${net.uptime || 0}s`}
         />
         <MetricCard
@@ -591,7 +569,7 @@ export default function DiagnosticsPage() {
           value={net.firmware}
           unit=""
           color="#A78BFA"
-          icon={Cpu}
+          icon="📟"
           subtext="ESP32 Microcontroller"
         />
       </div>
@@ -606,7 +584,7 @@ export default function DiagnosticsPage() {
               className={styles.filterBtn}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
             >
-              {copied ? <Check size={13} color="#00E8A0" /> : <Copy size={13} />}
+              <span>{copied ? '✅' : '📋'}</span>
               <span>{copied ? 'Copied!' : 'Copy JSON'}</span>
             </button>
             <button
@@ -614,7 +592,7 @@ export default function DiagnosticsPage() {
               className={styles.filterBtn}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
             >
-              <Download size={13} />
+              <span>💾</span>
               <span>Download Packet</span>
             </button>
           </div>

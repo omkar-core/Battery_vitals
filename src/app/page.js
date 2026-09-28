@@ -132,6 +132,8 @@ export default function Dashboard() {
   const cycles = live.cycles
   const efficiency = live.efficiency
   const rul = live.rul
+  const inferred = data?.inferredBattery || data?.battery?.inferredBattery || live?.inferredBattery
+  const remainingRuntime = data?.remainingRuntime || data?.battery?.remainingRuntime || live?.remainingRuntime
 
   // L4 - Ticker items with deltas against the previous sample (real data only)
   const tickerItems = useMemo(() => {
@@ -414,9 +416,18 @@ export default function Dashboard() {
           Mode: {op}
         </span>
 
-        {profile && (
+        {inferred?.inferred ? (
+          <span className="chip" style={{ background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.35)', color: '#38bdf8' }}>
+            <span>🔋</span> Auto: {inferred.cellType} ({inferred.confidence})
+          </span>
+        ) : profile ? (
           <span className="chip">
             <span>⚙️</span> {profile}
+          </span>
+        ) : null}
+        {remainingRuntime?.formatted && !remainingRuntime?.isIdle && (
+          <span className="chip" style={{ background: 'rgba(0, 232, 160, 0.12)', border: '1px solid rgba(0, 232, 160, 0.35)', color: '#00e8a0' }}>
+            <span>⏱️</span> Runtime: {remainingRuntime.formatted}
           </span>
         )}
         {phase && (
@@ -481,7 +492,13 @@ export default function Dashboard() {
               <span>{op === 'CHARGING' ? '↗️' : op === 'DISCHARGING' ? '↘️' : '⏸️'}</span>
               Mode: {op}
             </span>
-            {profile && <span className="chip"><span>⚙️</span> {profile}</span>}
+            {inferred?.inferred ? (
+              <span className="chip" style={{ background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.35)', color: '#38bdf8' }}>
+                <span>🔋</span> {inferred.cellType}
+              </span>
+            ) : profile ? (
+              <span className="chip"><span>⚙️</span> {profile}</span>
+            ) : null}
           </div>
         </div>
 
@@ -502,9 +519,11 @@ export default function Dashboard() {
             </svg>
             <div className={styles.gaugeCenter}>
               <div className={styles.gaugeScore} style={{ color: 'var(--state-info)' }}>
-                {soh == null ? '--' : Math.round(soh)}%
+                {soh == null ? (data?.resistanceMeasurable === false ? 'Honest SOH' : '--') : `${Math.round(soh)}%`}
               </div>
-              <div className={styles.gaugeLabel}>Battery SOH</div>
+              <div className={styles.gaugeLabel}>
+                {soh == null && data?.resistanceMeasurable === false ? 'Awaiting >50mA Load' : 'Battery SOH'}
+              </div>
             </div>
           </div>
         </div>
@@ -543,7 +562,7 @@ export default function Dashboard() {
           color="var(--state-caution)"
           icon="⚡"
           chip={voltageChip}
-          subtext={voltageBand ? `Safe: ${voltageBand}` : 'Deploy a profile for band'}
+          subtext={inferred?.inferred ? `${inferred.cellType} (Auto)` : (voltageBand ? `Safe: ${voltageBand}` : 'Auto-detected')}
         />
         <MetricCard
           title="Current"
@@ -552,7 +571,7 @@ export default function Dashboard() {
           color={current < 0 ? 'var(--state-critical)' : 'var(--state-safe)'}
           icon="🔌"
           chip={currentChip}
-          subtext={current != null ? `${(current * 1000).toFixed(1)} mA (${Math.abs(current) < 0.001 ? 'Idle' : current > 0 ? 'Charging' : 'Discharging'})` : 'Awaiting sensor'}
+          subtext={current != null ? `${(current * 1000).toFixed(1)} mA (${Math.abs(current) < 0.001 ? 'Idle' : current > 0 ? 'Discharging' : 'Discharging'})` : 'Awaiting sensor'}
         />
         <MetricCard
           title="Power"
@@ -569,7 +588,7 @@ export default function Dashboard() {
           color="var(--state-critical)"
           icon="🌡️"
           chip={tempChip}
-          subtext="Limit < 50°C"
+          subtext="Ambient (DHT)"
         />
         <MetricCard
           title="Humidity"
@@ -587,7 +606,7 @@ export default function Dashboard() {
           color="var(--state-safe)"
           icon="🔋"
           delta={soc == null ? null : Number(soc) - (sparkRows[sparkRows.length - 2]?.soc ?? soc)}
-          subtext="State of Charge"
+          subtext={data?.socMethod ? `${data.socMethod} (Auto)` : 'State of Charge'}
         />
       </div>
 
@@ -613,11 +632,11 @@ export default function Dashboard() {
         />
         <MetricCard
           title="Internal Res."
-          value={formatNumber(resistance, 2)}
-          unit="mΩ"
+          value={data?.resistanceMeasurable === false ? 'Advisory' : (resistance != null && resistance > 0 ? formatNumber(resistance, 1) : '--')}
+          unit={data?.resistanceMeasurable === false ? '' : 'mΩ'}
           color="var(--purple)"
           icon="🧬"
-          subtext="Cell Degradation"
+          subtext={data?.resistanceMeasurable === false ? 'Current <50mA (Low Load)' : 'Cell Degradation'}
         />
         <MetricCard
           title="Efficiency"
@@ -628,20 +647,20 @@ export default function Dashboard() {
           subtext="Coulombic Return"
         />
         <MetricCard
-          title="Cycles"
-          value={formatNumber(cycles, 0)}
+          title="Discharge EFC"
+          value={formatNumber(cycles, 1)}
           unit="cyc"
           color="var(--purple)"
           icon="🔄"
-          subtext="Equivalent Full Cycles"
+          subtext="Throughput (No Charger)"
         />
         <MetricCard
-          title="Est. RUL"
-          value={rul != null ? formatNumber(rul, 0) : '--'}
-          unit="days"
+          title="Est. Runtime"
+          value={remainingRuntime?.formatted ? remainingRuntime.formatted.split(' @')[0] : (rul != null ? `${formatNumber(rul, 0)} days` : '--')}
+          unit=""
           color="var(--state-safe)"
           icon="⏳"
-          subtext="Remaining Useful Life"
+          subtext={remainingRuntime?.dischargeCurrent_mA ? `Discharge @ ${remainingRuntime.dischargeCurrent_mA} mA` : 'Remaining Discharge'}
         />
       </div>
 
