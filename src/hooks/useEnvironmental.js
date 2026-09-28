@@ -10,8 +10,8 @@ export function useEnvironmental() {
     const raw = data?.environmental || data || {}
     const temperature = raw.temperature != null ? Number(raw.temperature) : null
     const humidity = raw.humidity != null ? Number(raw.humidity) : null
-    const mq2 = raw.mq2 != null ? Number(raw.mq2) : (raw.gasIndex?.mq2 != null ? Number(raw.gasIndex.mq2) : null)
-    const mq135 = raw.mq135 != null ? Number(raw.mq135) : (raw.gasIndex?.mq135 != null ? Number(raw.gasIndex.mq135) : null)
+    const mq2 = raw.mq2 != null ? Number(raw.mq2) : (raw.gasIndex?.mq2 != null ? Number(raw.gasIndex.mq2) : (raw.gas?.index_mq2 != null ? Number(raw.gas.index_mq2) : null))
+    const mq135 = raw.mq135 != null ? Number(raw.mq135) : (raw.gasIndex?.mq135 != null ? Number(raw.gasIndex.mq135) : (raw.gas?.index_mq135 != null ? Number(raw.gas.index_mq135) : null))
     
     // Calculate AQI (0-500 scale) if MQ-135 reading is available
     let aqi = null
@@ -93,8 +93,8 @@ export function useEnvironmental() {
         time: h.time || new Date(h.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
         temperature: e.temperature != null ? Number(Number(e.temperature).toFixed(1)) : null,
         humidity: e.humidity != null ? Number(Number(e.humidity).toFixed(1)) : null,
-        mq2: e.mq2 != null ? Math.round(Number(e.mq2)) : null,
-        mq135: e.mq135 != null ? Math.round(Number(e.mq135)) : null,
+        mq2: e.mq2 != null ? Math.round(Number(e.mq2)) : (e.gasIndex?.mq2 != null ? Math.round(Number(e.gasIndex.mq2)) : (e.gas?.index_mq2 != null ? Math.round(Number(e.gas.index_mq2)) : null)),
+        mq135: e.mq135 != null ? Math.round(Number(e.mq135)) : (e.gasIndex?.mq135 != null ? Math.round(Number(e.gasIndex.mq135)) : (e.gas?.index_mq135 != null ? Math.round(Number(e.gas.index_mq135)) : null)),
       }
     })
   }, [history])

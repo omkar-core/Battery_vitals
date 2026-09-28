@@ -145,8 +145,16 @@ export default function Dashboard() {
     }
     const items = []
     if (voltage != null) items.push({ key: 'v', label: 'VOLT', value: `${formatNumber(voltage)}V`, delta: delta(voltage, prev.voltage), deltaText: dTxt(voltage, prev.voltage) })
-    if (current != null) items.push({ key: 'i', label: 'CURR', value: `${formatNumber(current)}A`, delta: delta(current, prev.current), deltaText: dTxt(current, prev.current) })
-    if (power != null) items.push({ key: 'p', label: 'PWR', value: `${formatNumber(power)}W`, delta: delta(power, prev.power), deltaText: dTxt(power, prev.power) })
+    if (current != null) {
+      const mA = (current * 1000).toFixed(1)
+      const cVal = Math.abs(current) < 0.1 && current !== 0 ? `${current.toFixed(3)}A` : `${formatNumber(current)}A`
+      items.push({ key: 'i', label: 'CURR', value: `${cVal} (${mA}mA)`, delta: delta(current, prev.current), deltaText: dTxt(current, prev.current) })
+    }
+    if (power != null) {
+      const mW = (power * 1000).toFixed(1)
+      const pVal = Math.abs(power) < 0.1 && power !== 0 ? `${power.toFixed(3)}W` : `${formatNumber(power)}W`
+      items.push({ key: 'p', label: 'PWR', value: `${pVal} (${mW}mW)`, delta: delta(power, prev.power), deltaText: dTxt(power, prev.power) })
+    }
     if (soc != null) items.push({ key: 's', label: 'SOC', value: `${Math.round(soc)}%`, delta: delta(soc, prev.soc), deltaText: dTxt(soc, prev.soc) })
     if (temperature != null) items.push({ key: 't', label: 'TEMP', value: `${formatNumber(temperature, 1)}°C`, delta: delta(temperature, prev.temperature), deltaText: dTxt(temperature, prev.temperature) })
     if (bhi != null) items.push({ key: 'bhi', label: 'BHI', value: `${Math.round(bhi)}`, delta: delta(bhi, prev.bhi), deltaText: dTxt(bhi, prev.bhi) })
@@ -539,20 +547,20 @@ export default function Dashboard() {
         />
         <MetricCard
           title="Current"
-          value={formatNumber(current)}
+          value={current != null ? (Math.abs(current) < 0.1 && current !== 0 ? current.toFixed(3) : formatNumber(current, 2)) : '--'}
           unit="A"
           color={current < 0 ? 'var(--state-critical)' : 'var(--state-safe)'}
           icon="🔌"
           chip={currentChip}
-          subtext={current < 0 ? 'Discharging' : current > 0 ? 'Charging' : 'Idle'}
+          subtext={current != null ? `${(current * 1000).toFixed(1)} mA (${Math.abs(current) < 0.001 ? 'Idle' : current > 0 ? 'Charging' : 'Discharging'})` : 'Awaiting sensor'}
         />
         <MetricCard
           title="Power"
-          value={formatNumber(power)}
+          value={power != null ? (Math.abs(power) < 0.1 && power !== 0 ? power.toFixed(3) : formatNumber(power, 2)) : '--'}
           unit="W"
           color="var(--state-info)"
           icon="💡"
-          subtext={power != null ? `${(power * 1000).toFixed(0)} mW` : '--'}
+          subtext={power != null ? `${(power * 1000).toFixed(1)} mW (Instantaneous)` : '--'}
         />
         <MetricCard
           title="Temperature"
@@ -677,7 +685,7 @@ export default function Dashboard() {
             min={-20}
             max={20}
             unit=" A"
-            digits={2}
+            digits={Math.abs(current || 0) < 0.1 && current !== 0 ? 3 : 2}
             zones={[
               { min: 0, max: 0.45, color: '#FF2D55' },
               { min: 0.45, max: 0.55, color: '#00E8A0' },

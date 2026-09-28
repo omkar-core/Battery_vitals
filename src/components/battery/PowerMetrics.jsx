@@ -38,13 +38,13 @@ export default function PowerMetrics({ battery }) {
           <span style={{ fontSize: 16 }}>🔌</span>
         </div>
         <div style={{ fontSize: 28, fontWeight: 800, color: '#38BDF8', letterSpacing: '-0.5px', display: 'flex', alignItems: 'center', gap: 6 }}>
-          {current != null ? current.toFixed(2) : '--'} <span style={{ fontSize: 16, fontWeight: 600 }}>A</span>
-          {current != null && Math.abs(current) > 0.05 && (
+          {current != null ? (Math.abs(current) < 0.1 && current !== 0 ? current.toFixed(3) : current.toFixed(2)) : '--'} <span style={{ fontSize: 16, fontWeight: 600 }}>A</span>
+          {current != null && Math.abs(current) > 0.005 && (
             isPositive ? <span style={{ fontSize: 18 }}>↗️</span> : <span style={{ fontSize: 18 }}>↘️</span>
           )}
         </div>
         <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 4 }}>
-          Limits: active profile
+          {current != null ? `${(current * 1000).toFixed(1)} mA • ${Math.abs(current) < 0.005 ? 'Idle' : isPositive ? 'Charging' : 'Discharging'}` : 'Limits: active profile'}
         </div>
       </div>
 
@@ -55,10 +55,10 @@ export default function PowerMetrics({ battery }) {
           <span style={{ fontSize: 16 }}>⚡</span>
         </div>
         <div style={{ fontSize: 28, fontWeight: 800, color: '#FFB800', letterSpacing: '-0.5px' }}>
-          {power != null ? power.toFixed(2) : '--'} <span style={{ fontSize: 16, fontWeight: 600 }}>W</span>
+          {power != null ? (Math.abs(power) < 0.1 && power !== 0 ? power.toFixed(3) : power.toFixed(2)) : '--'} <span style={{ fontSize: 16, fontWeight: 600 }}>W</span>
         </div>
         <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 4 }}>
-          P = V × I (Instantaneous)
+          {power != null ? `${(power * 1000).toFixed(1)} mW (Instantaneous)` : 'P = V × I (Instantaneous)'}
         </div>
       </div>
 

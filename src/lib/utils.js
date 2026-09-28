@@ -3,6 +3,24 @@ export function formatNumber(value, digits = 2) {
   return Number(value).toFixed(digits)
 }
 
+export function formatCurrent(value) {
+  if (value == null || Number.isNaN(Number(value))) return '--'
+  const v = Number(value)
+  const abs = Math.abs(v)
+  if (abs === 0) return '0.00'
+  if (abs < 0.1) return v.toFixed(3)
+  return v.toFixed(2)
+}
+
+export function formatPower(value) {
+  if (value == null || Number.isNaN(Number(value))) return '--'
+  const v = Number(value)
+  const abs = Math.abs(v)
+  if (abs === 0) return '0.00'
+  if (abs < 0.1) return v.toFixed(3)
+  return v.toFixed(2)
+}
+
 export function safetyColor(safety) {
   const s = (safety || 'SAFE').toUpperCase()
   if (s === 'EMERGENCY' || s === 'CRITICAL') return '#FF2D55'
@@ -248,7 +266,11 @@ export function normalizeTelemetry(rows, timeKey = 'time') {
   const aliases = {
     voltage: ['battery.voltage', 'voltage'],
     current: ['battery.current', 'current'],
+    current_mA: ['current_mA', 'battery.current_mA'],
     power: ['battery.power', 'power'],
+    power_mW: ['power_mW', 'battery.power_mW'],
+    shuntVoltage: ['shuntVoltage', 'battery.shuntVoltage'],
+    loadVoltage: ['loadVoltage', 'battery.loadVoltage'],
     soc: ['battery.soc', 'soc'],
     ekfSoc: ['battery.ekfSoc', 'ekfSoc'],
     soh: ['battery.soh', 'soh'],
@@ -257,16 +279,21 @@ export function normalizeTelemetry(rows, timeKey = 'time') {
     efficiency: ['battery.efficiency', 'efficiency'],
     rul: ['battery.rul', 'rul'],
     twinError: ['battery.twinError', 'twinError'],
-    dVdt: ['battery.dVdt', 'dVdt'],
+    dVdt: ['battery.dVdt', 'dVdt', 'dV_dt'],
     temperature: ['environment.temperature', 'temperature'],
     humidity: ['environment.humidity', 'humidity'],
-    dTdt: ['environment.dTdt', 'dTdt'],
-    gasMq2: ['gas.index_mq2', 'gas_mq2', 'mq2'],
-    gasMq135: ['gas.index_mq135', 'gas_mq135', 'mq135'],
-    gasRawMq2: ['gas.raw_mq2', 'raw_mq2'],
-    gasRawMq135: ['gas.raw_mq135', 'raw_mq135'],
+    dTdt: ['environment.dTdt', 'dTdt', 'dT_dt'],
+    gasMq2: ['gas.index_mq2', 'gasIndex.mq2', 'gas_mq2', 'mq2'],
+    gasMq135: ['gas.index_mq135', 'gasIndex.mq135', 'gas_mq135', 'mq135'],
+    mq2: ['mq2', 'gasIndex.mq2', 'gas.index_mq2'],
+    mq135: ['mq135', 'gasIndex.mq135', 'gas.index_mq135'],
+    mq2_pct: ['mq2_pct', 'gas.mq2_pct'],
+    mq135_ppm: ['mq135_ppm', 'gas.mq135_ppm'],
+    aqi: ['aqi', 'gasIndex.aqi', 'gas.aqi'],
+    gasRawMq2: ['gas.raw_mq2', 'raw_mq2', 'mq2'],
+    gasRawMq135: ['gas.raw_mq135', 'raw_mq135', 'mq135'],
     bhi: ['risk.bhi', 'bhi'],
-    rssi: ['network.rssi', 'rssi'],
+    rssi: ['network.rssi', 'wifi_rssi', 'rssi'],
     requests: ['network.requests', 'requests'],
     heap: ['network.free_heap', 'free_heap', 'heap'],
     uptime: ['network.uptime', 'uptime'],

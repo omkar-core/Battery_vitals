@@ -17,7 +17,7 @@ export default function Sparkline({ data = [], dataKey, color = '#00E8A0', heigh
               <stop offset="95%" stopColor={color} stopOpacity={0} />
             </linearGradient>
           </defs>
-          <YAxis hide domain={['dataMin', 'dataMax']} />
+          <YAxis hide domain={['auto', 'auto']} />
           <Area
             type="monotone"
             dataKey="v"

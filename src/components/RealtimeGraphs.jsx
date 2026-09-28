@@ -85,18 +85,18 @@ export default function RealtimeGraphs({ rawData = [], liveState = {}, profileBa
       return {
         ...d,
         timeLabel: format(t, timeRange === '24H' || timeRange === '7D' ? 'MM/dd HH:mm' : 'HH:mm:ss'),
-        voltage: d.voltage != null ? Number(d.voltage.toFixed(2)) : undefined,
-        current: d.current != null ? Number(d.current.toFixed(2)) : undefined,
-        power: d.power != null ? Number(d.power.toFixed(1)) : p != null ? Number(p.toFixed(1)) : undefined,
+        voltage: d.voltage != null ? Number(Number(d.voltage).toFixed(2)) : undefined,
+        current: cur != null ? Number(Number(cur).toFixed(4)) : undefined,
+        power: d.power != null ? Number(Number(d.power).toFixed(3)) : p != null ? Number(Number(p).toFixed(3)) : undefined,
         energyWh: Number(cumulativeWh.toFixed(2)),
-        temperature: d.temperature != null ? Number(d.temperature.toFixed(1)) : undefined,
-        humidity: d.humidity != null ? Number(d.humidity.toFixed(1)) : undefined,
-        gasMq2: d.gasMq2 != null ? Math.round(d.gasMq2) : undefined,
-        gasMq135: d.gasMq135 != null ? Math.round(d.gasMq135) : undefined,
+        temperature: d.temperature != null ? Number(Number(d.temperature).toFixed(1)) : undefined,
+        humidity: d.humidity != null ? Number(Number(d.humidity).toFixed(1)) : undefined,
+        gasMq2: d.gasMq2 != null ? Math.round(d.gasMq2) : (d.mq2 != null ? Math.round(d.mq2) : (d.gasIndex?.mq2 != null ? Math.round(d.gasIndex.mq2) : undefined)),
+        gasMq135: d.gasMq135 != null ? Math.round(d.gasMq135) : (d.mq135 != null ? Math.round(d.mq135) : (d.gasIndex?.mq135 != null ? Math.round(d.gasIndex.mq135) : undefined)),
         bhi: d.bhi != null ? Math.round(d.bhi) : undefined,
         soc: d.soc != null ? Math.round(d.soc) : undefined,
         soh: d.soh != null ? Math.round(d.soh) : undefined,
-        resistance: d.resistance != null ? Number(d.resistance.toFixed(2)) : undefined,
+        resistance: d.resistance != null ? Number(Number(d.resistance).toFixed(2)) : undefined,
       }
     })
   }, [rawData, timeRange])
@@ -256,7 +256,7 @@ export default function RealtimeGraphs({ rawData = [], liveState = {}, profileBa
             <LineChart data={chartData} margin={{ top: 10, right: 16, left: -10, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
               <XAxis dataKey="timeLabel" stroke="var(--chart-axis)" fontSize={10} minTickGap={25} />
-              <YAxis stroke="var(--chart-axis)" fontSize={10} domain={[9.5, 15.5]} />
+              <YAxis stroke="var(--chart-axis)" fontSize={10} domain={['auto', 'auto']} />
               <Tooltip {...TOOLTIP_STYLE} />
               {/* Safe Operating Zone Band */}
               <ReferenceArea
@@ -357,7 +357,7 @@ export default function RealtimeGraphs({ rawData = [], liveState = {}, profileBa
             <LineChart data={chartData} margin={{ top: 10, right: 16, left: -10, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
               <XAxis dataKey="timeLabel" stroke="var(--chart-axis)" fontSize={10} minTickGap={25} />
-              <YAxis yAxisId="left" stroke="#FF2D55" fontSize={10} domain={[15, 75]} />
+              <YAxis yAxisId="left" stroke="#FF2D55" fontSize={10} domain={['auto', 'auto']} />
               <YAxis yAxisId="right" orientation="right" stroke="#00BFFF" fontSize={10} domain={[0, 100]} />
               <Tooltip {...TOOLTIP_STYLE} />
               <ReferenceLine yAxisId="left" y={40} stroke="#FFD60A" strokeDasharray="3 3" label={{ value: '40°C Warn', fill: '#FFD60A', fontSize: 9 }} />
@@ -408,7 +408,7 @@ export default function RealtimeGraphs({ rawData = [], liveState = {}, profileBa
             <LineChart data={chartData} margin={{ top: 10, right: 16, left: -10, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
               <XAxis dataKey="timeLabel" stroke="var(--chart-axis)" fontSize={10} minTickGap={25} />
-              <YAxis stroke="var(--chart-axis)" fontSize={10} domain={[0, 4000]} />
+              <YAxis stroke="var(--chart-axis)" fontSize={10} domain={['auto', 'auto']} />
               <Tooltip {...TOOLTIP_STYLE} />
               {/* Threshold Bands */}
               <ReferenceArea y1={1500} y2={2200} fill="#FFD60A" fillOpacity={0.06} />

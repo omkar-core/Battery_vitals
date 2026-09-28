@@ -51,8 +51,8 @@ export function useBattery() {
         idx: i,
         time: h.time || new Date(h.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
         voltage: b.voltage != null ? Number(Number(b.voltage).toFixed(2)) : null,
-        current: b.current != null ? Number(Number(b.current).toFixed(2)) : null,
-        power: b.power != null ? Number(Number(b.power).toFixed(2)) : null,
+        current: b.current != null ? Number(Number(b.current).toFixed(4)) : null,
+        power: b.power != null ? Number(Number(b.power).toFixed(3)) : null,
         soc: b.soc != null ? Math.round(Number(b.soc)) : null,
       }
     })
