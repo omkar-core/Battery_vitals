@@ -126,14 +126,30 @@ Fetches the latest consolidated multi-sensor telemetry frame for a given device.
     "deviceId": "BAT001",
     "timestamp": 1758544200000,
     "battery": {
-      "voltage": 12.64,
-      "current": 2.45,
-      "power": 30.97,
-      "shuntVoltage": 0.0245,
-      "resistance": 12.5,
-      "soc": 84,
+      "voltage": 3.82,
+      "current": 0.0082,
+      "power": 0.0313,
+      "shuntVoltage": 0.0008,
+      "resistance": null,
+      "resistanceMeasurable": false,
+      "soc": 62,
+      "socMethod": "empirical_ocv",
       "soh": 98,
-      "bhi": 8
+      "bhi": 92
+    },
+    "inferredBattery": {
+      "cellType": "18650 Li-Ion",
+      "chemistry": "Li-Ion",
+      "nominalVoltage": 3.7,
+      "capacityAh": 2.5,
+      "confidence": "HIGH",
+      "inferred": true
+    },
+    "remainingRuntime": {
+      "remainingHours": 189.0,
+      "display": "189.0 hrs",
+      "method": "load_current",
+      "currentA": 0.0082
     },
     "environmental": {
       "temperature": 26.4,

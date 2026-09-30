@@ -35,9 +35,14 @@
 - **Latch Behavior**: If telemetry trips a `CRITICAL` or `EMERGENCY` state, [`src/lib/batterySafety.js`](file:///d:/Webapp/Working_webapps/Battery_vitals/src/lib/batterySafety.js) latches the system into `RECOVERY` even if raw sensor readings return to nominal bounds.
 - **Manual Reset Requirement**: The system retains audio-visual warning states until an authenticated operator or admin issues an explicit `manualReset` command.
 
-### 1.5 Fixed Hardware Operating Envelope & Profile Gating
+### 1.5 Fixed Hardware Operating Envelope & Dynamic Profile Gating
 - **Physical Headroom Margin**: The Texas Instruments INA219 bus voltage monitor operates with a 0.0V to 26.0V ceiling. The system enforces a strict operational envelope: maximum continuous pack voltage of **25.0V**, continuous current limit of **15.0A**, and power limit of **200.0W**.
 - **Envelope Validation**: Any configured battery profile exceeding these boundaries is rejected by [`src/lib/hardwareCompatibility.js`](file:///d:/Webapp/Working_webapps/Battery_vitals/src/lib/hardwareCompatibility.js) with `OUT_OF_RANGE_REJECTION`. The system will refuse to activate profiles that pose overvoltage or overcurrent hazards to the measurement hardware.
+- **Dynamic Profile Resolution**: When evaluating safety states in [`src/lib/batterySafety.js`](file:///d:/Webapp/Working_webapps/Battery_vitals/src/lib/batterySafety.js), the deterministic engine resolves voltage limits dynamically from the active or auto-inferred profile (`clean.profileId` or `clean.inferredBattery`):
+  - **18650 Li-Ion**: Normal: 3.30V–4.20V | Caution: 3.10V–4.25V | Warning: 2.90V–4.28V | Critical: <2.75V or >4.35V.
+  - **9V 6F22 Carbon-Zinc**: Normal: 6.60V–9.50V | Caution: 6.00V–9.60V | Warning: 5.60V–9.80V | Critical: <5.40V or >10.0V.
+  - **12V Default / Unprofiled**: Normal: 10.5V–14.6V | Warning: 9.8V–14.8V | Critical: <9.5V or >15.0V.
+- **Sensor-Honest Uncertainty Gating**: When continuous load current is below $50\text{ mA}$, voltage drop across the $0.1\ \Omega$ shunt ($\approx 0.5\text{--}2.5\text{ mV}$) is near the INA219 measurement floor. The engine flags `resistanceMeasurable: false` and sets SOH as advisory, preventing spurious health penalties from sensor quantization noise.
 
 ---
 

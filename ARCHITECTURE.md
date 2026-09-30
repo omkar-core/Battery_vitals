@@ -318,6 +318,8 @@ Battery_vitals/
     │   ├── firebaseAdmin.js         # Server-side Firebase Admin SDK
     │   ├── mongodb.js               # MongoDB connection pool & caching
     │   ├── gemini.js                # Gemini REST/SSE diagnostic wrapper
+    │   ├── batteryProfiles.js       # Zero-input auto-inference & multi-chemistry OCV presets
+    │   ├── rulModel.js              # Discharge-only runtime model & bootstrap RUL engine
     │   ├── batterySafety.js         # Pure deterministic safety engine & latching
     │   ├── hardwareCompatibility.js # Operating envelope validation & rejections
     │   ├── batteryAnalytics.js      # Dynamic voltage sag & oscillation detection

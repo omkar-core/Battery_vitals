@@ -150,17 +150,32 @@ Hardware Actuators (ESP32)
 
 ### Deterministic Safety Rules (`src/lib/batterySafety.js`)
 
-The platform enforces deterministic evaluation over raw sensor frames:
-- **Voltage Band**: 10.5V – 14.6V (12V nominal Lead-Acid / 3S Li-ion).
+The platform enforces deterministic evaluation over raw sensor frames with dynamic threshold binding based on active or auto-inferred battery chemistry:
+- **12V Lead-Acid / Standard Pack (Default)**: Normal: 10.5V – 14.6V, Warning: 9.8V – 14.8V, Critical: <9.5V or >15.0V.
+- **18650 Li-Ion (3.7V Nominal, 2500 mAh)**: Normal: 3.30V – 4.20V, Caution: 3.10V – 4.25V, Warning: 2.90V – 4.28V, Critical: <2.75V or >4.35V.
+- **9V 6F22 Carbon-Zinc (9.0V Nominal, 450 mAh)**: Normal: 6.60V – 9.50V, Caution: 6.00V – 9.60V, Warning: 5.60V – 9.80V, Critical: <5.40V or >10.0V.
 - **Current Band**: ±15.0A maximum continuous threshold.
 - **Thermal Threshold**: Warning at 38°C, Critical Trip at 45°C, Emergency at 55°C.
 - **MQ-2 Gas Threshold**: Clean < 400 ppm, Warning > 500 ppm, Critical > 800 ppm.
-- **SOC Calculation**: Linear Open-Circuit Voltage interpolation with Coulomb counting.
 
 ```
 Safety State Hierarchy:
 SAFE (0) < CAUTION (1) < WARNING (2) < CRITICAL (3) < EMERGENCY (4)
 ```
+
+### Zero-Configuration Battery Auto-Inference (`src/lib/batteryProfiles.js`)
+
+The platform automatically classifies connected battery chemistry directly from open-circuit voltage ($V_{oc}$) signatures without requiring manual user input forms:
+- **18650 Li-Ion**: Triggered when $2.75\text{V} \le V \le 4.35\text{V}$. Evaluates true non-linear Li-ion OCV plateau.
+- **9V Carbon-Zinc**: Triggered when $5.40\text{V} \le V \le 9.80\text{V}$. Evaluates multi-cell primary battery curve.
+- **Confidence Output**: Assigned as `HIGH`, `MEDIUM`, `LOW`, or `NONE` and attached to live packets.
+
+### Discharge-Only Load Support & Runtime Estimation (`src/lib/rulModel.js`)
+
+For test rigs configured without active charging circuits (e.g., continuous LED + $330\ \Omega$ load across INA219 shunt):
+- **Remaining Discharge Runtime**: Computed as $t_{\text{remaining}} = \frac{\text{Capacity (Ah)} \times \text{SOC}}{I_{\text{active}} (\text{A})}$, blended with measured $dV/dt$ voltage slope.
+- **Equivalent Full Cycles (EFC)**: Calculated as cumulative discharge throughput ($\text{Total Ah Discharged} / \text{Nominal Capacity Ah}$).
+- **Sensor Resolution Gating**: For loads $< 50\text{ mA}$, shunt voltage drops across $0.1\ \Omega$ are $\approx 0.5\text{--}2.5\text{ mV}$, at the resolution limit of the INA219. The system marks `resistanceMeasurable: false` and shows an honest "Advisory (<50mA load)" chip in the UI instead of fabricating inaccurate internal resistance.
 
 > [!IMPORTANT]
 > **Safety Invariant**: AI diagnostics from Gemini can provide contextual explanations and suggestions, but the system's `overall_status` may **NEVER** claim a lower risk level than the deterministic safety engine verdict.

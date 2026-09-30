@@ -87,16 +87,18 @@ A full-stack IoT platform bridging ESP32 edge sensor nodes with real-time cloud 
   - **Load Voltage**: Calculated as $V_{\text{load}} = V_{\text{bus}} + V_{\text{shunt}}$.
   - **Current Flow**: ±3.2A bidirectional (extendable to ±15.0A with external 0.01Ω shunt).
   - **Instantaneous Power**: 0W to 83W (calculated as $P = V_{\text{bus}} \times I$).
-  - **Internal Resistance Estimate**: Real-time $\Delta V / \Delta I$ dynamic resistance tracking.
-  - **State of Charge (SOC)**: Dynamic interpolation using calibrated Open Circuit Voltage (OCV) curves and Coulomb counting.
+  - **Internal Resistance Estimate**: Real-time $\Delta V / \Delta I$ dynamic resistance tracking with honest low-load uncertainty gating (flagged as non-measurable below 50mA).
+  - **State of Charge (SOC)**: Empirical non-linear OCV mapping for lithium chemistries and linear decay for multi-cell primary packs.
   - **State of Health (SOH)**: Baseline capacity retention tracking versus nominal rating.
   - **Battery Health Index (BHI)**: Multi-parameter composite penalty index (0–100) combining voltage stress, thermal stress, gas exposure, and resistance drift.
+  - **Zero-Configuration Profile Auto-Inference**: Autonomous detection of cell chemistry and nominal capacity from resting and operating voltage signatures (supports 18650 Li-Ion 3.7V 2500mAh and 9V 6F22 Carbon-Zinc 450mAh with confidence scores).
+  - **Discharge-Only Runtime Estimator**: Real-time continuous discharge runtime forecasting ($t_{\text{remaining}} = \frac{\text{Capacity (Ah)} \times \text{SOC}}{I_{\text{active}}}$) tailored for passive load testing jigs without attached charging circuitry.
 - **Sampling Frequency**: 1.5-second loop cycle.
-- **Nominal Operating Windows (12V Nominal / 4S LiFePO4 / 3S Li-ion)**:
-  - Normal Operating Band: 10.5V – 14.4V.
-  - Deep-Discharge Emergency: <9.5V.
-  - Overvoltage Trip: >14.6V.
-  - Continuous Overcurrent: >15.0A.
+- **Dynamic Operating Windows (Adaptive Chemistry Bounds)**:
+  - **12V Default Pack**: Normal: 10.5V – 14.4V | Warning: 9.8V – 14.8V | Emergency: <9.5V or >15.0V.
+  - **18650 Li-Ion (3.7V Nominal)**: Normal: 3.30V – 4.20V | Caution: 3.10V – 4.25V | Warning: 2.90V – 4.28V | Emergency: <2.75V or >4.35V.
+  - **9V Carbon-Zinc (9.0V Nominal)**: Normal: 6.60V – 9.50V | Caution: 6.00V – 9.60V | Warning: 5.60V – 9.80V | Emergency: <5.40V or >10.0V.
+  - **Continuous Overcurrent**: >15.0A.
 
 ### 3.2 Integrated Environmental Safety Station
 - **Hardware Sensors**:
