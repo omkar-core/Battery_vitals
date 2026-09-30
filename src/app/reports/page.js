@@ -10,7 +10,12 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
   const [batteries, setBatteries] = useState([])
-  const [selectedBatteryId, setSelectedBatteryId] = useState('')
+  const [selectedBatteryId, setSelectedBatteryId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('bv_active_device') || 'BAT001'
+    }
+    return 'BAT001'
+  })
 
   // Load user's batteries on mount
   useEffect(() => {

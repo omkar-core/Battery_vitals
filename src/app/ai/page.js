@@ -10,7 +10,12 @@ import Link from 'next/link'
 
 export default function AIPage() {
   const [batteries, setBatteries] = useState([])
-  const [selectedBatteryId, setSelectedBatteryId] = useState(null)
+  const [selectedBatteryId, setSelectedBatteryId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('bv_active_device') || 'BAT001'
+    }
+    return 'BAT001'
+  })
   const [aiContext, setAiContext] = useState(null)
   const [healthSummary, setHealthSummary] = useState(null)
   const [loading, setLoading] = useState(true)

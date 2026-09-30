@@ -11,7 +11,12 @@ export default function BatteryTimelinePage() {
   const [explanation, setExplanation] = useState(null)
   const [explaining, setExplaining] = useState(false)
   const [batteries, setBatteries] = useState([])
-  const [selectedBatteryId, setSelectedBatteryId] = useState('')
+  const [selectedBatteryId, setSelectedBatteryId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('bv_active_device') || 'BAT001'
+    }
+    return 'BAT001'
+  })
 
   // Load user's batteries on mount
   useEffect(() => {
