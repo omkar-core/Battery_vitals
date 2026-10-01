@@ -14,6 +14,7 @@ import SocRing from '../components/SocRing'
 import EnergyFlow from '../components/EnergyFlow'
 import NeedleGauge from '../components/NeedleGauge'
 import MoodBadge from '../components/MoodBadge'
+import RecentTelemetryFeed from '../components/dashboard/RecentTelemetryFeed'
 import SkeletonLoader, { SkeletonMetric, SkeletonChart, SkeletonControl, SkeletonAI } from '../components/SkeletonLoader'
 import { useRealTimeData } from '../hooks/useRealTimeData'
 import { useAI } from '../hooks/useAI'
@@ -117,26 +118,52 @@ export default function Dashboard() {
   const sparkRows = useMemo(() => normalizeTelemetry(history).slice(-24), [history])
   const sparkData = useMemo(() => sparkRows, [sparkRows])
 
-  const bhi = live.bhi
+  const lastSeen = data?.timestamp || data?.receivedAt || data?.ts
+
+  // Connection State
+  const connState = useMemo(() => {
+    if (!connected && !data) return { state: 'CONNECTING', label: 'Connecting to ESP32...', color: '#38BDF8' }
+    return getConnectionState(lastSeen)
+  }, [connected, data, lastSeen])
+
+  // Deterministic Disconnected / No Battery check
+  const isDisconnected = useMemo(() => {
+    if (!connected && !data) return true
+    if (connState.state === 'OFFLINE' || connState.state === 'NO_DATA') return true
+    if (data?.voltage != null && Number(data.voltage) <= 0.05 && (data.current == null || Math.abs(Number(data.current)) <= 0.005)) return true
+    return false
+  }, [connected, data, connState.state])
+
+  const bhi = isDisconnected ? null : live.bhi
   const bhiLocal = bhiStatus(bhi)
-  const voltage = live.voltage
-  const current = live.current
-  const power = live.power
-  const soc = live.soc
-  const soh = live.soh
-  const resistance = live.resistance
-  const temperature = live.temperature
-  const humidity = live.humidity
-  const gasMq2 = live.gasMq2
-  const gasMq135 = live.gasMq135
-  const cycles = live.cycles
-  const efficiency = live.efficiency
-  const rul = live.rul
-  const inferred = data?.inferredBattery || data?.battery?.inferredBattery || live?.inferredBattery
-  const remainingRuntime = data?.remainingRuntime || data?.battery?.remainingRuntime || live?.remainingRuntime
+  const voltage = isDisconnected ? 0 : (live.voltage != null ? live.voltage : 0)
+  const current = isDisconnected ? 0 : (live.current != null ? live.current : 0)
+  const power = isDisconnected ? 0 : (live.power != null ? live.power : (voltage != null && current != null ? Number((voltage * current).toFixed(3)) : 0))
+  const soc = isDisconnected ? 0 : (live.soc != null ? live.soc : 0)
+  const soh = isDisconnected ? null : live.soh
+  const resistance = isDisconnected ? null : live.resistance
+  const temperature = isDisconnected ? null : live.temperature
+  const humidity = isDisconnected ? null : live.humidity
+  const gasMq2 = isDisconnected ? 0 : (live.gasMq2 != null ? live.gasMq2 : 0)
+  const gasMq135 = isDisconnected ? 0 : (live.gasMq135 != null ? live.gasMq135 : 0)
+  const cycles = isDisconnected ? 0 : (live.cycles != null ? live.cycles : 0)
+  const efficiency = isDisconnected ? null : live.efficiency
+  const rul = isDisconnected ? null : live.rul
+  const inferred = isDisconnected ? null : (data?.inferredBattery || data?.battery?.inferredBattery || live?.inferredBattery)
+  const remainingRuntime = isDisconnected ? null : (data?.remainingRuntime || data?.battery?.remainingRuntime || live?.remainingRuntime)
 
   // L4 - Ticker items with deltas against the previous sample (real data only)
   const tickerItems = useMemo(() => {
+    if (isDisconnected) {
+      return [
+        { key: 'v', label: 'VOLT', value: '0.00V', delta: null, deltaText: '' },
+        { key: 'i', label: 'CURR', value: '0.00A (0.0mA)', delta: null, deltaText: '' },
+        { key: 'p', label: 'PWR', value: '0.00W (0.0mW)', delta: null, deltaText: '' },
+        { key: 's', label: 'SOC', value: '0%', delta: null, deltaText: '' },
+        { key: 't', label: 'TEMP', value: 'N/A', delta: null, deltaText: '' },
+        { key: 'bhi', label: 'BHI', value: 'N/A', delta: null, deltaText: '' },
+      ]
+    }
     const prev = sparkRows[sparkRows.length - 2] || {}
     const delta = (cur, p) => (cur == null || p == null ? null : Number(cur) - Number(p))
     const dTxt = (cur, p) => {
@@ -162,27 +189,30 @@ export default function Dashboard() {
     if (bhi != null) items.push({ key: 'bhi', label: 'BHI', value: `${Math.round(bhi)}`, delta: delta(bhi, prev.bhi), deltaText: dTxt(bhi, prev.bhi) })
     return items
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sparkRows, voltage, current, power, soc, temperature, bhi])
+  }, [isDisconnected, sparkRows, voltage, current, power, soc, temperature, bhi])
 
   // Remaining capacity label for the SOC ring (real SOC × nominal capacity)
   const capacityAh = data?.battery?.capacityAh ?? data?.capacityAh
   const remainingLabel =
-    soc != null && Number(capacityAh) > 0
+    !isDisconnected && soc != null && Number(capacityAh) > 0
       ? `${Math.round((Number(soc) / 100) * Number(capacityAh) * 1000)} mAh left`
       : null
 
-  // Safety State with 5 variants
-  const rawSafety = (data?.battery?.safety ?? data?.safety ?? 'SAFE').toUpperCase()
+  // Safety State with 5 variants + DISCONNECTED
+  const rawSafety = isDisconnected
+    ? 'DISCONNECTED'
+    : (data?.battery?.safety ?? data?.safety ?? 'SAFE').toUpperCase()
   const isSensorFault =
-    rawSafety === 'SENSOR_FAULT' ||
-    data?.ina_ok === false ||
-    data?.dht_ok === false ||
-    data?.battery?.ina_ok === false
+    !isDisconnected &&
+    (rawSafety === 'SENSOR_FAULT' ||
+      data?.ina_ok === false ||
+      data?.dht_ok === false ||
+      data?.battery?.ina_ok === false)
   const safety = isSensorFault ? 'SENSOR_FAULT' : rawSafety
 
   // Sync ControlPanel state with live physical ESP32 actuators in auto mode
   const activeControlState = useMemo(() => {
-    if (commands?.auto_mode && data) {
+    if (commands?.auto_mode && data && !isDisconnected) {
       return {
         ...commands,
         green_led: data.green_led ?? (safety === 'SAFE'),
@@ -192,39 +222,31 @@ export default function Dashboard() {
       }
     }
     return commands
-  }, [commands, data, safety])
+  }, [commands, data, safety, isDisconnected])
 
-  const profile = data?.battery?.profile ?? data?.profile ?? null
-  const rawOp = (data?.battery?.op ?? data?.op ?? 'IDLE').toUpperCase()
+  const profile = isDisconnected ? null : (data?.battery?.profile ?? data?.profile ?? null)
+  const rawOp = isDisconnected ? 'DISCONNECTED' : (data?.battery?.op ?? data?.op ?? 'IDLE').toUpperCase()
   const op =
-    current != null
+    isDisconnected
+      ? 'DISCONNECTED'
+      : current != null && Math.abs(current) > 0.05
       ? current > 0.05
         ? 'CHARGING'
-        : current < -0.05
-        ? 'DISCHARGING'
-        : rawOp
+        : 'DISCHARGING'
       : rawOp
 
-  const phase = data?.battery?.phase ?? data?.phase
-  const ddLock = data?.battery?.ddLock ?? data?.ddLock
-  const gasWarm = data?.gasIndex?.warm ?? data?.gas?.warm ?? data?.warm
-  const gasWRem = data?.gasIndex?.wRem ?? data?.gas?.wRem ?? data?.wRem
-
-  const lastSeen = data?.timestamp || data?.receivedAt || data?.ts
-
-  // Connection State
-  const connState = useMemo(() => {
-    if (!connected && !data) return { state: 'CONNECTING', label: 'Connecting to ESP32...', color: '#38BDF8' }
-    return getConnectionState(lastSeen)
-  }, [connected, data, lastSeen])
+  const phase = isDisconnected ? null : (data?.battery?.phase ?? data?.phase)
+  const ddLock = !isDisconnected && (data?.battery?.ddLock ?? data?.ddLock)
+  const gasWarm = !isDisconnected && (data?.gasIndex?.warm ?? data?.gas?.warm ?? data?.warm)
+  const gasWRem = !isDisconnected && (data?.gasIndex?.wRem ?? data?.gas?.wRem ?? data?.wRem)
 
   // Network metrics
   const net = {
-    uptime: data?.network?.uptime ?? data?.uptime,
-    rssi: data?.network?.rssi ?? data?.wifi_rssi ?? data?.rssi,
-    heap: data?.network?.free_heap ?? data?.free_heap ?? data?.heap,
-    requests: data?.network?.requests ?? data?.requests,
-    errors: data?.errors ?? data?.error_count ?? 0,
+    uptime: isDisconnected ? null : (data?.network?.uptime ?? data?.uptime),
+    rssi: isDisconnected ? null : (data?.network?.rssi ?? data?.wifi_rssi ?? data?.rssi),
+    heap: isDisconnected ? null : (data?.network?.free_heap ?? data?.free_heap ?? data?.heap),
+    requests: isDisconnected ? null : (data?.network?.requests ?? data?.requests),
+    errors: isDisconnected ? 0 : (data?.errors ?? data?.error_count ?? 0),
   }
   const wifiInfo = rssiToBars(net.rssi)
 
@@ -233,25 +255,33 @@ export default function Dashboard() {
   const envSec = data?.environment || data
   const gasSec = data?.gas || data
 
-  const voltageChip =
-    data?.ina_ok === false ? 'FAULT' : voltage != null && (voltage < 9.5 || voltage > 15) ? 'RANGE' : 'OK'
-  const currentChip = data?.ina_ok === false ? 'FAULT' : 'OK'
-  const tempChip =
-    data?.dht_ok === false
-      ? 'FAULT'
-      : temperature != null && (temperature < 0 || temperature > 65)
-      ? 'RANGE'
-      : 'OK'
-  const humChip = data?.dht_ok === false ? 'FAULT' : 'OK'
-  const gasMq2Chip = gasWarm ? 'WARM' : gasSec?.status_mq2 || 'OK'
-  const gasMq135Chip = gasWarm ? 'WARM' : gasSec?.status_mq135 || 'OK'
+  const voltageChip = isDisconnected
+    ? 'N_C'
+    : data?.ina_ok === false
+    ? 'FAULT'
+    : voltage != null && (voltage < 9.5 || voltage > 15)
+    ? 'RANGE'
+    : 'OK'
+  const currentChip = isDisconnected ? 'N_C' : data?.ina_ok === false ? 'FAULT' : 'OK'
+  const tempChip = isDisconnected
+    ? 'N_C'
+    : data?.dht_ok === false
+    ? 'FAULT'
+    : temperature != null && (temperature < 0 || temperature > 65)
+    ? 'RANGE'
+    : 'OK'
+  const humChip = isDisconnected ? 'N_C' : data?.dht_ok === false ? 'FAULT' : 'OK'
+  const gasMq2Chip = isDisconnected ? 'N_C' : gasWarm ? 'WARM' : gasSec?.status_mq2 || 'OK'
+  const gasMq135Chip = isDisconnected ? 'N_C' : gasWarm ? 'WARM' : gasSec?.status_mq135 || 'OK'
 
   const bhiOffset = CIRC - (Math.min(100, Math.max(0, bhi ?? 0)) / 100) * CIRC
   const sohOffset = CIRC - (Math.min(100, Math.max(0, soh ?? 0)) / 100) * CIRC
 
   // Safety Badge class mapping
   const safetyClass =
-    safety === 'CRITICAL' || safety === 'EMERGENCY'
+    safety === 'DISCONNECTED'
+      ? styles.safety_safe
+      : safety === 'CRITICAL' || safety === 'EMERGENCY'
       ? styles.safety_critical
       : safety === 'WARNING'
       ? styles.safety_warning
@@ -359,27 +389,12 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {!connected && data == null && (
-        <div style={{ margin: '20px 0' }}>
-          <div className={styles.notice} style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span className={styles.liveDotConnecting} />
-            <span><strong>Loading live data from Firebase...</strong> Awaiting real-time ESP32 telemetry frames.</span>
-          </div>
-          <div className={styles.metricsGrid} style={{ marginBottom: 20 }}>
-            {Array.from({ length: 8 }).map((_, i) => (
-              <SkeletonMetric key={i} />
-            ))}
-          </div>
-          <div className={styles.bento}>
-            <SkeletonChart height={300} />
-            <SkeletonControl />
-          </div>
-        </div>
-      )}
-      {!connected && data != null && (
-        <div className={styles.notice}>
-          Displaying cached telemetry. The real-time stream is currently awaiting new samples
-          {error ? ` (${error})` : ''}.
+      {isDisconnected && (
+        <div className={styles.notice} style={{ display: 'flex', alignItems: 'center', gap: 10, borderColor: 'rgba(148, 163, 184, 0.3)', background: 'rgba(148, 163, 184, 0.08)', color: 'var(--text-secondary)' }}>
+          <span style={{ fontSize: 18 }}>🔌</span>
+          <span>
+            <strong>ESP32 Disconnected / No Battery Connected</strong> — Live vitals reset to 0 / N/A until live stream is received. Stored telemetry history is available below.
+          </span>
         </div>
       )}
 
@@ -738,6 +753,9 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* L5 - Recent Telemetry History & Live Data Feed (Last 10-20 frames) */}
+      <RecentTelemetryFeed history={history} connected={connected && !isDisconnected} lastSeen={lastSeen} />
 
       {/* Bottom Bento: Gemini AI Insights + Live Alert Center Feed */}
       <div className={styles.grid2}>

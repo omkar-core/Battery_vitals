@@ -22,9 +22,11 @@
 
 ### 1.2 Hardware Safety Lockout Rule
 - **Physical Trip Precedence**: If physical sensors trip a critical limit (Voltage < 10.0V or > 14.6V; Cell Temp > 45.0°C; MQ-2 Gas > 800 ppm), the ESP32 firmware executes a hardware trip:
-  - **Red LED (GPIO 27)** is driven `HIGH`.
-  - **Active Buzzer (GPIO 25)** is driven in continuous or fast-beep alarm mode.
-- **Remote Override Invalidation**: Web UI commands dispatched via `/api/control/led` or `/api/control/buzzer` **cannot** silence physical alarms or force green LED state while a physical `CRITICAL` or `EMERGENCY` condition persists. Software requests attempting to bypass a trip must be rejected with HTTP `403 Forbidden` or `422 Unprocessable Entity`.
+  - **Green LED (GPIO 14)** remains **continuous SOLID ON** as system power/heartbeat indicator.
+  - **Yellow LED (GPIO 26)** blinks with a single beep whenever telemetry is transmitted.
+  - **Red LED (GPIO 27)** is driven `HIGH` / blinking as the **danger-only alert**.
+  - **Active Buzzer (GPIO 25)** sounds audible danger alarm cadences (fast beep / emergency double-pulse).
+- **Remote Override Invalidation**: Web UI commands dispatched via `/api/control/led` or `/api/control/buzzer` **cannot** silence physical danger alarms or suppress Red LED state while a physical `CRITICAL` or `EMERGENCY` condition persists. Software requests attempting to bypass a trip must be rejected with HTTP `403 Forbidden` or `422 Unprocessable Entity`.
 
 ### 1.3 Edge Autonomy Invariant
 - The ESP32 firmware safety loop runs locally in [`esp32/BatteryVital_v13.0/led_control.h`](file:///d:/Webapp/Working_webapps/Battery_vitals/esp32/BatteryVital_v13.0/led_control.h) independently of network availability.

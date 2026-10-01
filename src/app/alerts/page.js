@@ -5,18 +5,6 @@ import Layout from '../../components/Layout'
 import AlertsList from '../../components/AlertsList'
 import { useRealTimeData } from '../../hooks/useRealTimeData'
 import { playAlertChime } from '../../lib/utils'
-import {
-  BellRing,
-  Volume2,
-  VolumeX,
-  Bell,
-  Smartphone,
-  ShieldAlert,
-  Clock,
-  BarChart3,
-  CheckCircle2,
-  AlertTriangle,
-} from 'lucide-react'
 import styles from '../../styles/pages.module.css'
 
 export default function AlertsPage() {
@@ -109,7 +97,7 @@ function AlertsInner() {
             className={styles.filterBtn}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
           >
-            {soundEnabled ? <Volume2 size={13} color="var(--state-safe)" /> : <VolumeX size={13} />}
+            <span>{soundEnabled ? '🔊' : '🔇'}</span>
             <span>Sound {soundEnabled ? 'Active' : 'Muted'}</span>
           </button>
 
@@ -123,7 +111,7 @@ function AlertsInner() {
               borderColor: pushEnabled ? 'var(--state-safe)' : 'var(--border)',
             }}
           >
-            <Smartphone size={13} color={pushEnabled ? 'var(--state-safe)' : 'var(--text-muted)'} />
+            <span>📱</span>
             <span>{pushEnabled ? 'Push Enabled' : 'Enable Push'}</span>
           </button>
         </div>
@@ -139,7 +127,7 @@ function AlertsInner() {
           }}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
         >
-          <ShieldAlert size={14} color="#FF2D55" />
+          <span>🛡️</span>
           <span>Active Alerts {unacked > 0 ? `(${unacked})` : ''}</span>
         </button>
 
@@ -151,7 +139,7 @@ function AlertsInner() {
           }}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
         >
-          <Clock size={14} color="#38BDF8" />
+          <span>⏱️</span>
           <span>Alert History ({alerts.length})</span>
         </button>
 
@@ -163,7 +151,7 @@ function AlertsInner() {
           }}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
         >
-          <BarChart3 size={14} color="#FFB800" />
+          <span>📊</span>
           <span>Incident Analytics</span>
         </button>
       </div>
@@ -171,10 +159,10 @@ function AlertsInner() {
       {/* Summary Chips Strip */}
       <div className={styles.toolbar}>
         <span className="chip">
-          <BellRing size={12} /> {alerts.length} Total Logged
+          <span>🔔</span> {alerts.length} Total Logged
         </span>
         <span className="chip" style={{ color: unacked > 0 ? 'var(--state-caution)' : 'var(--state-safe)' }}>
-          <Bell size={12} /> {unacked} Unacknowledged
+          <span>🛎️</span> {unacked} Unacknowledged
         </span>
         {counts.CRITICAL ? (
           <span className="chip" style={{ color: 'var(--state-critical)', borderColor: 'rgba(255,45,85,0.5)' }}>
@@ -210,7 +198,7 @@ function AlertsInner() {
       {activeTab === 'analytics' && (
         <div className={styles.card}>
           <h3 className={styles.cardTitle} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <BarChart3 size={16} color="#FFB800" />
+            <span>📊</span>
             Safety Incident &amp; Severity Distribution Analytics
           </h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, margin: '16px 0' }}>

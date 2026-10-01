@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Lightbulb, CheckCircle2, ShieldAlert } from 'lucide-react'
 import styles from '../../styles/pages.module.css'
 
 export default function LEDControl({ commands = {}, onCommand, isAuto = false }) {
@@ -24,21 +23,21 @@ export default function LEDControl({ commands = {}, onCommand, isAuto = false })
   const leds = [
     {
       color: 'green',
-      name: 'Normal (Green)',
+      name: 'System ON (Green)',
       pin: 'GPIO 14',
       hex: '#00E8A0',
       active: commands.green_led ?? commands.led_green ?? true,
     },
     {
       color: 'yellow',
-      name: 'Warning (Yellow)',
+      name: 'Telemetry Tx (Yellow)',
       pin: 'GPIO 26',
       hex: '#FFB800',
       active: commands.yellow_led ?? commands.led_yellow ?? false,
     },
     {
       color: 'red',
-      name: 'Critical (Red)',
+      name: 'Danger Alert (Red)',
       pin: 'GPIO 27',
       hex: '#FF2D55',
       active: commands.red_led ?? commands.led_red ?? false,
@@ -49,7 +48,7 @@ export default function LEDControl({ commands = {}, onCommand, isAuto = false })
     <div className={styles.card}>
       <div className={styles.cardHeader}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Lightbulb size={18} color="#00E8A0" />
+          <span style={{ fontSize: 18 }}>💡</span>
           <h3 className={styles.cardTitle}>LED Status Indicator Controls</h3>
         </div>
         {isAuto && (

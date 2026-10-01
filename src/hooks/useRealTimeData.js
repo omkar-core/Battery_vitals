@@ -47,6 +47,39 @@ export function useRealTimeData(batteryId) {
   const [mode, setMode] = useState('poll')
   const [error, setError] = useState(null)
 
+  // 1. Initial load of historical readings from MongoDB on device switch or mount
+  useEffect(() => {
+    if (noDevice || !activeId) {
+      setData(null)
+      setHistory([])
+      setConnected(false)
+      return
+    }
+
+    let active = true
+    async function loadInitialHistory() {
+      try {
+        const resp = await fetch(`/api/history?batteryId=${encodeURIComponent(activeId)}&limit=50&t=${Date.now()}`)
+        if (resp.ok) {
+          const json = await resp.json()
+          if (active && json.data && Array.isArray(json.data) && json.data.length > 0) {
+            setHistory(json.data)
+            // If data is null, set the most recent historical packet
+            setData((prev) => prev || json.data[json.data.length - 1])
+          }
+        }
+      } catch (err) {
+        // Silently continue to live polling
+      }
+    }
+
+    loadInitialHistory()
+
+    return () => {
+      active = false
+    }
+  }, [activeId, noDevice])
+
   // Latest telemetry capture time as an epoch-ms value (or null before first packet),
   // so pages can feed the header connection badge a real timestamp.
   const lastSeen = useMemo(() => {
@@ -55,6 +88,27 @@ export function useRealTimeData(batteryId) {
     return ts != null ? Number(ts) : null
   }, [data, noDevice])
 
+  // Helper to append a reading to history without duplicating timestamps
+  const appendHistory = useCallback((newReading) => {
+    if (!newReading) return
+    const readTs = newReading.timestamp || newReading.ts || newReading.time || Date.now()
+    const timeMs = typeof readTs === 'number' ? readTs : new Date(readTs).getTime()
+
+    setHistory((prev) => {
+      // Check if last element has identical timestamp (within 500ms)
+      const last = prev[prev.length - 1]
+      const lastTs = last ? (last.timestamp || last.ts || last.time || 0) : 0
+      const lastTimeMs = typeof lastTs === 'number' ? lastTs : new Date(lastTs).getTime()
+      if (Math.abs(timeMs - lastTimeMs) < 500) {
+        // Update in-place
+        const updated = [...prev]
+        updated[updated.length - 1] = { ...last, ...newReading, time: timeMs, timestamp: timeMs }
+        return updated.slice(-50)
+      }
+      return [...prev, { time: timeMs, timestamp: timeMs, ...newReading }].slice(-50)
+    })
+  }, [])
+
   // Firebase real-time stream path
   useEffect(() => {
     if (noDevice) return
@@ -62,19 +116,10 @@ export function useRealTimeData(batteryId) {
       setMode('firebase')
       setConnected(true)
       setError(null)
-      setHistory((h) => [...h, { time: Date.now(), ...firebaseData }].slice(-50))
+      appendHistory(firebaseData)
       setData((prev) => ({ ...prev, ...firebaseData }))
     }
-  }, [firebaseConnected, firebaseData, noDevice])
-
-  // Drop stale readings when the operator switches fleet units.
-  useEffect(() => {
-    if (noDevice) return
-    setData(null)
-    setHistory([])
-    setMode('poll')
-    setConnected(false)
-  }, [activeId, noDevice])
+  }, [firebaseConnected, firebaseData, noDevice, appendHistory])
 
   // HTTP polling fallback (only while Firebase RTDB stream has no data)
   useEffect(() => {
@@ -94,11 +139,11 @@ export function useRealTimeData(batteryId) {
         if (!resp.ok) throw new Error('HTTP ' + resp.status)
         const d = await resp.json()
         if (active && d && d.message !== 'No data yet') {
-          setData(d)
+          setData((prev) => ({ ...prev, ...d }))
           setConnected(true)
           setError(null)
           setMode((m) => (m === 'firebase' ? m : 'poll'))
-          setHistory((h) => [...h, { time: Date.now(), ...d }].slice(-50))
+          appendHistory(d)
         }
       } catch (e) {
         if (active) {
@@ -118,7 +163,7 @@ export function useRealTimeData(batteryId) {
       if (timer) clearInterval(timer)
       if (timed) timed.clear()
     }
-  }, [activeId, firebaseConnected, noDevice])
+  }, [activeId, firebaseConnected, noDevice, appendHistory])
 
   const sendControl = async (command, value) => {
     if (noDevice) {
@@ -151,6 +196,8 @@ export function useRealTimeData(batteryId) {
     }
   }
 
+  const isDisconnected = noDevice || !connected || (lastSeen && (Date.now() - lastSeen) > 30000)
+
   return {
     data: noDevice ? null : data,
     history: noDevice ? [] : history,
@@ -158,6 +205,7 @@ export function useRealTimeData(batteryId) {
     mode: noDevice ? 'idle' : mode,
     error: noDevice ? 'No battery device selected. Use the device switcher to select a device.' : error,
     lastSeen,
+    isDisconnected,
     sendControl,
   }
 }

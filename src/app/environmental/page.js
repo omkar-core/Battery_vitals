@@ -35,7 +35,13 @@ function EnvironmentalPageInner() {
       .finally(() => setLoadingViolations(false))
   }, [environmental])
 
-  const hasHazards = environmental.isGasAlert || environmental.isTempAlert || violations.length > 0
+  const isOffline = !connected || environmental?.isDisconnected
+  const hasHazards = !isOffline && (environmental.isGasAlert || environmental.isTempAlert || violations.length > 0)
+  const statusBadge = isOffline
+    ? { text: 'ESP32 DISCONNECTED', icon: '🔌', color: '#94A3B8', bg: 'rgba(148, 163, 184, 0.12)', border: 'rgba(148, 163, 184, 0.3)' }
+    : hasHazards
+    ? { text: 'HAZARD ELEVATED', icon: '⚠️', color: '#FF2D55', bg: 'rgba(255, 45, 85, 0.15)', border: 'rgba(255, 45, 85, 0.4)' }
+    : { text: 'ENVIRONMENT SECURE', icon: '🛡️', color: '#00E8A0', bg: 'rgba(0, 232, 160, 0.12)', border: 'rgba(0, 232, 160, 0.3)' }
 
   return (
     <Layout connected={connected} lastSeen={lastSeen} data={{ environmental }}>
@@ -54,9 +60,9 @@ function EnvironmentalPageInner() {
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <span
             style={{
-              background: hasHazards ? 'rgba(255,45,85,0.15)' : 'rgba(0,232,160,0.12)',
-              border: `1px solid ${hasHazards ? 'rgba(255,45,85,0.4)' : 'rgba(0,232,160,0.3)'}`,
-              color: hasHazards ? '#FF2D55' : '#00E8A0',
+              background: statusBadge.bg,
+              border: `1px solid ${statusBadge.border}`,
+              color: statusBadge.color,
               padding: '6px 14px',
               borderRadius: 20,
               fontSize: 12,
@@ -66,8 +72,8 @@ function EnvironmentalPageInner() {
               gap: 6,
             }}
           >
-            <span>{hasHazards ? '⚠️' : '🛡️'}</span>
-            <span>{hasHazards ? 'HAZARD ELEVATED' : 'ENVIRONMENT SECURE'}</span>
+            <span>{statusBadge.icon}</span>
+            <span>{statusBadge.text}</span>
           </span>
         </div>
       </div>

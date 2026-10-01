@@ -42,10 +42,12 @@ export default function MetricCard({
 }) {
   const chipUpper = (chip || '').toUpperCase()
   const chipMeta = CHIP_META[chipUpper] || (chip ? { label: chipUpper, color, bg: `${color}1a` } : null)
-  const isValueMissing = value == null || value === '' || value === '--'
+  const isNullOrUndefined = value === null || value === undefined || value === ''
+  const isNaOrDash = value === '--' || value === 'N/A' || value === 'NA'
+  const isValueMissing = isNullOrUndefined
 
   // K2 - Animated numeric values (count-up with easing, reduced-motion aware).
-  const parsedValue = parseFloat(value)
+  const parsedValue = isNaOrDash ? NaN : parseFloat(value)
   const digits =
     typeof value === 'number'
       ? Number.isInteger(value) ? 0 : 2
@@ -53,8 +55,8 @@ export default function MetricCard({
       ? Math.min(3, String(value).split('.')[1].length)
       : 0
   const animatedValue = useAnimatedNumber(parsedValue, 450, digits)
-  const useAnimated = animate && !isValueMissing && !Number.isNaN(parsedValue)
-  const displayValue = useAnimated && animatedValue != null ? animatedValue : value
+  const useAnimated = animate && !isValueMissing && !isNaOrDash && !Number.isNaN(parsedValue)
+  const displayValue = isNaOrDash ? value : (useAnimated && animatedValue != null ? animatedValue : value)
 
   const titleKey = (title || '').toLowerCase().trim()
   const tooltipText = tooltip || DEFAULT_TOOLTIPS[titleKey] || `Real-time metric: ${title}`
@@ -101,10 +103,12 @@ export default function MetricCard({
       <div className={styles.metricValue}>
         {isValueMissing ? (
           <SkeletonBox width="80px" height="32px" borderRadius="6px" />
+        ) : isNaOrDash ? (
+          <span style={{ color: 'var(--text-muted)' }}>{displayValue}</span>
         ) : (
           <span style={{ color }}>{displayValue}</span>
         )}
-        {unit && !isValueMissing ? <span className={styles.metricUnit}>{unit}</span> : null}
+        {unit && !isValueMissing && !isNaOrDash ? <span className={styles.metricUnit}>{unit}</span> : null}
       </div>
 
       {(delta != null || subtext) && (

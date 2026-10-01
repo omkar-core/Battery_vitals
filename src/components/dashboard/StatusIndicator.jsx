@@ -76,7 +76,7 @@ export default function StatusIndicator({ hardware = {}, safety = 'SAFE' }) {
           />
           <div>
             <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>Green LED</div>
-            <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>GPIO14 (Normal)</div>
+            <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>GPIO14 (System ON)</div>
           </div>
         </div>
 
@@ -103,7 +103,7 @@ export default function StatusIndicator({ hardware = {}, safety = 'SAFE' }) {
           />
           <div>
             <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>Yellow LED</div>
-            <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>GPIO26 (Warning)</div>
+            <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>GPIO26 (Telemetry Tx)</div>
           </div>
         </div>
 
@@ -130,7 +130,7 @@ export default function StatusIndicator({ hardware = {}, safety = 'SAFE' }) {
           />
           <div>
             <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>Red LED</div>
-            <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>GPIO27 (Critical)</div>
+            <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>GPIO27 (Danger Alert)</div>
           </div>
         </div>
 

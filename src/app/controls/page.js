@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import Layout from '../../components/Layout'
 import ControlPanel from '../../components/ControlPanel'
 import { useRealTimeData } from '../../hooks/useRealTimeData'
-import { Terminal, ShieldAlert, Check, XCircle, Clock, Trash2 } from 'lucide-react'
 import styles from '../../styles/pages.module.css'
 
 const HISTORY_KEY = 'bv_command_history_v2'
@@ -71,7 +70,7 @@ export default function Controls() {
       <div className={styles.pageHeader}>
         <div>
           <h1 className={styles.pageTitle}>
-            <Terminal size={22} style={{ verticalAlign: 'middle', marginRight: 8 }} color="#00E8A0" />
+            <span style={{ verticalAlign: 'middle', marginRight: 8, fontSize: 22 }}>🎛️</span>
             Manual Hardware <span className="gradText">Control Center</span>
           </h1>
           <p className={styles.subtitle} style={{ marginBottom: 0 }}>
@@ -94,7 +93,7 @@ export default function Controls() {
       <div className={styles.card}>
         <div className={styles.cardHeader}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Clock size={16} color="#38BDF8" />
+            <span style={{ fontSize: 16 }}>⏱️</span>
             <h3 className={styles.cardTitle} style={{ margin: 0 }}>
               Command Dispatch Audit Log (Last 50 Commands)
             </h3>
@@ -115,7 +114,7 @@ export default function Controls() {
                 cursor: 'pointer',
               }}
             >
-              <Trash2 size={11} /> Clear Log
+              <span>🗑️</span> Clear Log
             </button>
           )}
         </div>

@@ -587,71 +587,89 @@ int evaluateFullSafety(SensorData &sd) {
 }
 
 // ── 16. ACTUATOR & CADENCE CONTROLLERS ──
-void updateActuatorsAuto(int sev) {
-  unsigned long now = millis();
-  bool g = false, y = false, r = false;
-  BuzzerMode bz = BZ_OFF;
+static unsigned long txPulseStart = 0;
+static bool txActive = false;
 
-  switch (sev) {
-    case SEV_SAFE:
-      // Green LED SOLID ON: symbol of system ON and healthy
-      g = true;
-      y = false;
-      r = false;
-      bz = BZ_OFF;
-      break;
-
-    case SEV_CAUTION:
-      // Yellow LED SOLID ON: advisory notice, silent buzzer
-      g = false;
-      y = true;
-      r = false;
-      bz = BZ_OFF;
-      break;
-
-    case SEV_WARNING:
-      // Yellow LED BLINK (500ms ON / 500ms OFF), gentle reminder alert
-      g = false;
-      y = ((now % 1000) < 500);
-      r = false;
-      bz = BZ_WARNING;
-      break;
-
-    case SEV_CRITICAL:
-      // Red LED BLINK FAST (250ms ON / 250ms OFF), distinct pulsed tone
-      g = false;
-      y = false;
-      r = ((now % 500) < 250);
-      bz = BZ_CRITICAL;
-      break;
-
-    case SEV_EMERGENCY:
-      // Red & Yellow RAPID FLASH (100ms ON / 100ms OFF), fast double-pulse tone
-      g = false;
-      y = ((now % 200) < 100);
-      r = ((now % 200) < 100);
-      bz = BZ_EMERGENCY;
-      break;
-  }
-
-  sensorData.greenLed = g;
-  sensorData.yellowLed = y;
-  sensorData.redLed = r;
-  digitalWrite(LED_GREEN, g ? HIGH : LOW);
-  digitalWrite(LED_YELLOW, y ? HIGH : LOW);
-  digitalWrite(LED_RED, r ? HIGH : LOW);
-  activeBuzzerMode = bz;
+void triggerTelemetryTxPulse() {
+  txActive = true;
+  txPulseStart = millis();
+  digitalWrite(LED_YELLOW, HIGH);
+  digitalWrite(BUZZER_PIN, HIGH);
+  sensorData.yellowLed = true;
+  sensorData.buzzerOn = true;
 }
 
-// Clean, pulse-based buzzer cadence — never locks buzzer continuously ON
+void updateActuatorsAuto(int sev) {
+  unsigned long now = millis();
+
+  // 1. Green LED: ALWAYS SOLID ON as system power / heartbeat indicator
+  sensorData.greenLed = true;
+  digitalWrite(LED_GREEN, HIGH);
+
+  // 2. Red LED: ON ONLY IF THERE IS DANGER (WARNING, CRITICAL, EMERGENCY, or hardware trip)
+  bool r = false;
+  BuzzerMode bz = BZ_OFF;
+
+  if (sev == SEV_EMERGENCY) {
+    // Fast flash in emergency danger (100ms ON / 100ms OFF)
+    r = ((now % 200) < 100);
+    bz = BZ_EMERGENCY;
+  } else if (sev == SEV_CRITICAL) {
+    // Fast flash in critical danger (250ms ON / 250ms OFF)
+    r = ((now % 500) < 250);
+    bz = BZ_CRITICAL;
+  } else if (sev == SEV_WARNING) {
+    // Solid RED on warning danger
+    r = true;
+    bz = BZ_WARNING;
+  } else {
+    // SAFE or CAUTION: NO DANGER -> RED LED is OFF
+    r = false;
+    bz = BZ_OFF;
+  }
+
+  sensorData.redLed = r;
+  digitalWrite(LED_RED, r ? HIGH : LOW);
+  activeBuzzerMode = bz;
+
+  // 3. Yellow LED & Tx Beep: Handles pulse completion (100ms blink + single beep on telemetry send)
+  if (txActive) {
+    if (now - txPulseStart >= 100) {
+      txActive = false;
+      digitalWrite(LED_YELLOW, LOW);
+      sensorData.yellowLed = false;
+      if (activeBuzzerMode == BZ_OFF) {
+        digitalWrite(BUZZER_PIN, LOW);
+        sensorData.buzzerOn = false;
+      }
+    } else {
+      digitalWrite(LED_YELLOW, HIGH);
+      sensorData.yellowLed = true;
+    }
+  } else {
+    digitalWrite(LED_YELLOW, LOW);
+    sensorData.yellowLed = false;
+  }
+}
+
+// Clean, pulse-based buzzer cadence — handles single Tx beep + danger alarms
 void updateBuzzerPattern() {
   unsigned long now = millis();
+
+  // Priority 1: If executing a single Tx beep on telemetry send, keep buzzer on for pulse duration
+  if (txActive) {
+    digitalWrite(BUZZER_PIN, HIGH);
+    sensorData.buzzerOn = true;
+    return;
+  }
+
   if (buzzerMuted && currentSeverity < SEV_CRITICAL) {
     digitalWrite(BUZZER_PIN, LOW);
     sensorData.buzzerOn = false;
     return;
   }
 
+  // Priority 2: Danger alarm cadence if active
   bool bzPin = false;
   switch (activeBuzzerMode) {
     case BZ_OFF:
@@ -659,21 +677,21 @@ void updateBuzzerPattern() {
       break;
 
     case BZ_WARNING: {
-      // 150ms pulse every 2000ms: noticeable reminder, NOT annoying or deafening
+      // 150ms pulse every 2000ms: noticeable danger reminder
       unsigned long phase = now % 2000;
       bzPin = (phase < 150);
       break;
     }
 
     case BZ_CRITICAL: {
-      // Urgent pulse: 200ms ON / 300ms OFF (500ms period) — distinct alarm, NO continuous screech
+      // Urgent danger pulse: 200ms ON / 300ms OFF (500ms period)
       unsigned long phase = now % 500;
       bzPin = (phase < 200);
       break;
     }
 
     case BZ_EMERGENCY: {
-      // Double pulse: 100ms ON, 100ms OFF, 100ms ON, 700ms OFF (1000ms period)
+      // Emergency danger double pulse: 100ms ON, 100ms OFF, 100ms ON, 700ms OFF
       unsigned long phase = now % 1000;
       bzPin = (phase < 100) || (phase >= 200 && phase < 300);
       break;
@@ -785,6 +803,9 @@ void ringPush(const String &payload) {
 }
 
 void sendTelemetry() {
+  // Trigger Yellow LED blink and single beep when telemetry packet is sent
+  triggerTelemetryTxPulse();
+
   FirebaseJson json;
   String jsonStr = buildTelemetryJSON(json);
 

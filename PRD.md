@@ -119,22 +119,24 @@ A full-stack IoT platform bridging ESP32 edge sensor nodes with real-time cloud 
 
 ### 3.3 Autonomous Hardware Safety Actuation
 - **Hardware Actuators**:
-  - **Green LED** (GPIO 14): Normal nominal state.
-  - **Yellow LED** (GPIO 26): Warning / caution state.
-  - **Red LED** (GPIO 27): Critical hazard trip.
-  - **Active Buzzer** (GPIO 25): Audible alarm (Silent, Slow Beep, Fast Beep, Continuous Alarm).
+  - **Green LED** (GPIO 14): System Power & Heartbeat indicator (**Continuous SOLID ON** as long as system is powered and running).
+  - **Yellow LED** (GPIO 26): Telemetry Transmission sync (**Blinks on telemetry send** to cloud, paired with a single 100ms beep).
+  - **Red LED** (GPIO 27): Danger & Safety Alert (**Active ONLY during danger** — `WARNING`, `CRITICAL`, `EMERGENCY`, or sensor hardware fault).
+  - **Active Buzzer** (GPIO 25): Dual-function audible transducer:
+    - Normal Operation: Emits a single crisp 100ms beep on every telemetry packet transmission.
+    - Danger Condition: Sounds emergency alarm cadences (Slow warning beep, Fast critical pulse, or Urgent emergency double-pulse).
 - **State Machine Hierarchy**:
   ```
-  [Normal (Green ON)]
-      │ (Temp > 38°C OR MQ2 > 500ppm OR SOC < 15% OR Volt < 10.5V)
+  [System ON (Green SOLID ON, Yellow Blinks + Single Beep on Tx, Red OFF)]
+      │ (Threshold breach: Temp > 40°C OR MQ2 > 1500 ADC OR SOC < 20% OR Volt < 10.5V)
       ▼
-  [Warning (Yellow ON, Buzzer Slow Beep 2s/2s)]
-      │ (Temp > 45°C OR MQ2 > 800ppm OR Volt > 14.6V OR Volt < 10.0V)
+  [Warning Danger (Green ON, Yellow Tx Blink, Red SOLID ON, Buzzer Slow Beep 2s)]
+      │ (Critical breach: Temp > 45°C OR MQ2 > 3000 ADC OR Volt > 14.4V OR Volt < 10.0V)
       ▼
-  [Critical (Red ON, Buzzer Fast Beep 0.5s/0.5s)]
-      │ (Temp > 55°C [Runaway Edge] OR MQ2 > 1500ppm [Explosion Risk] OR Volt < 9.5V)
+  [Critical Danger (Green ON, Yellow Tx Blink, Red FAST BLINK 250ms, Buzzer Urgent Pulse 500ms)]
+      │ (Emergency breach: Temp > 55°C [Runaway Edge] OR Volt < 9.5V OR BHI ≥ 90)
       ▼
-  [Emergency (Red Flashing, Buzzer Continuous 2.4kHz Alarm)]
+  [Emergency Danger (Green ON, Yellow Tx Blink, Red RAPID FLASH 100ms, Buzzer Urgent Double-Pulse)]
   ```
 - **Failsafe Invariant**: Hardware actuators operate autonomously in firmware loop. If Wi-Fi or cloud connection drops, local pins continue enforcing physical safety trips.
 

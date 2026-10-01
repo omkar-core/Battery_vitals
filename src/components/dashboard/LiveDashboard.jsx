@@ -34,7 +34,8 @@ export default function LiveDashboard({
     mq2: data?.gasIndex?.mq2,
     mq135: data?.gasIndex?.mq135,
   }
-  const aqi = data?.environment?.aqi ?? (env.mq135 != null ? Math.round(env.mq135 * 0.45) : null)
+  const isOffline = !connected || !data || data.isDisconnected
+  const aqi = !isOffline ? (data?.environment?.aqi ?? (env.mq135 != null ? Math.round(env.mq135 * 0.45) : null)) : null
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -42,7 +43,7 @@ export default function LiveDashboard({
       <SensorGrid telemetry={data} />
 
       {/* 2. Hardware Actuators Feedback */}
-      <StatusIndicator hardware={data?.outputs || commands} safety={data?.battery?.safety || data?.safety} />
+      <StatusIndicator hardware={data?.outputs || commands} safety={data?.battery?.safety || data?.safety || (isOffline ? 'UNKNOWN' : 'SAFE')} />
 
       {/* 3. Main 2-Column Live Monitoring Section */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 20 }}>
@@ -53,16 +54,16 @@ export default function LiveDashboard({
               State of Charge (SOC)
             </div>
             <SOCIndicator
-              soc={data?.battery?.soc ?? data?.soc ?? 85}
-              voltage={data?.battery?.voltage ?? data?.voltage ?? 12.6}
-              current={data?.battery?.current ?? data?.current ?? 0}
+              soc={!isOffline ? (data?.battery?.soc ?? data?.soc ?? null) : null}
+              voltage={!isOffline ? (data?.battery?.voltage ?? data?.voltage ?? null) : null}
+              current={!isOffline ? (data?.battery?.current ?? data?.current ?? null) : null}
               size={180}
             />
           </div>
 
-          <BatteryStatus battery={data?.battery || data} />
-          <TempHumidity environmental={env} />
-          <GasDetection environmental={env} />
+          <BatteryStatus battery={isOffline ? null : (data?.battery || data)} />
+          <TempHumidity environmental={isOffline ? null : env} />
+          <GasDetection environmental={isOffline ? null : env} />
         </div>
 
         {/* Right Column: Live Chart, Control Panel & AI Insights */}
@@ -76,14 +77,14 @@ export default function LiveDashboard({
 
           <AirQualityIndex
             aqi={aqi}
-            category={data?.environment?.aqiCategory ?? 'Good'}
-            color="#00E8A0"
+            category={aqi != null ? (data?.environment?.aqiCategory ?? 'Good') : 'Awaiting Data'}
+            color={aqi != null ? '#00E8A0' : 'var(--text-muted)'}
           />
 
           <ControlPanel
             commands={commands}
             onCommand={onControl}
-            batteryState={data?.battery?.safety || data?.safety || 'SAFE'}
+            batteryState={data?.battery?.safety || data?.safety || (isOffline ? 'DISCONNECTED' : 'SAFE')}
           />
 
           <AIInsights

@@ -4,9 +4,27 @@ import { useMemo } from 'react'
 import { useRealTimeData } from './useRealTimeData'
 
 export function useEnvironmental() {
-  const { data, history, connected, mode, error, lastSeen } = useRealTimeData()
+  const { data, history, connected, mode, error, lastSeen, isDisconnected } = useRealTimeData()
 
   const environmental = useMemo(() => {
+    if (isDisconnected || !data) {
+      return {
+        temperature: null,
+        humidity: null,
+        heatIndex: null,
+        dewPoint: null,
+        mq2: 0,
+        mq135: 0,
+        aqi: null,
+        aqiCategory: 'Sensor Offline',
+        aqiColor: 'var(--text-muted)',
+        isGasAlert: false,
+        isTempAlert: false,
+        isHumidityAlert: false,
+        timestamp: Date.now(),
+      }
+    }
+
     const raw = data?.environmental || data || {}
     const temperature = raw.temperature != null ? Number(raw.temperature) : null
     const humidity = raw.humidity != null ? Number(raw.humidity) : null
@@ -81,7 +99,7 @@ export function useEnvironmental() {
       isHumidityAlert,
       timestamp: data?.timestamp || Date.now(),
     }
-  }, [data])
+  }, [data, isDisconnected])
 
   // Extract environmental history
   const envHistory = useMemo(() => {

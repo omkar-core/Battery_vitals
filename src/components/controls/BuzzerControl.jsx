@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Volume2, VolumeX, AlertTriangle, Radio } from 'lucide-react'
 import styles from '../../styles/pages.module.css'
 
 export default function BuzzerControl({ commands = {}, onCommand, isAuto = false }) {
@@ -21,17 +20,17 @@ export default function BuzzerControl({ commands = {}, onCommand, isAuto = false
   }
 
   const patterns = [
-    { id: 'off', name: 'Silence / Mute', desc: 'Buzzer disabled', icon: VolumeX, color: '#8B95A5' },
-    { id: 'slow_beep', name: 'Slow Beep', desc: '2.0s interval (Minor anomaly)', icon: Volume2, color: '#38BDF8' },
-    { id: 'fast_beep', name: 'Fast Beep', desc: '0.5s interval (Warning state)', icon: Volume2, color: '#FFB800' },
-    { id: 'continuous', name: 'Continuous Tone', desc: 'Solid alarm (Critical emergency)', icon: AlertTriangle, color: '#FF2D55' },
+    { id: 'off', name: 'Silence / Mute', desc: 'Buzzer danger alarms muted (Tx beeps still active)', icon: '🔇', color: '#8B95A5' },
+    { id: 'slow_beep', name: 'Slow Beep', desc: '2.0s interval (Minor anomaly / Warning)', icon: '🔊', color: '#38BDF8' },
+    { id: 'fast_beep', name: 'Fast Beep', desc: '0.5s interval (Critical danger pulse)', icon: '🔔', color: '#FFB800' },
+    { id: 'continuous', name: 'Continuous Tone', desc: 'Solid alarm (Emergency danger trip)', icon: '🚨', color: '#FF2D55' },
   ]
 
   return (
     <div className={styles.card}>
       <div className={styles.cardHeader}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Volume2 size={18} color="#FF2D55" />
+          <span style={{ fontSize: 18 }}>🔊</span>
           <h3 className={styles.cardTitle}>Audible Alarm &amp; Buzzer Patterns</h3>
         </div>
         <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>Pin: GPIO 25 (Active Buzzer)</span>
@@ -39,7 +38,6 @@ export default function BuzzerControl({ commands = {}, onCommand, isAuto = false
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12 }}>
         {patterns.map((p) => {
-          const Icon = p.icon
           const isSelected = currentPattern === p.id
 
           return (
@@ -59,7 +57,7 @@ export default function BuzzerControl({ commands = {}, onCommand, isAuto = false
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <Icon size={16} color={isSelected ? p.color : 'var(--text-secondary)'} />
+                <span style={{ fontSize: 16 }}>{p.icon}</span>
                 <span style={{ fontSize: 13, fontWeight: 700, color: isSelected ? p.color : 'var(--text-primary)' }}>
                   {p.name}
                 </span>

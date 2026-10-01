@@ -30,8 +30,8 @@ Establish precision multi-sensor data acquisition on the ESP32 microcontroller, 
   - MQ-2 combustible gas and smoke analog sensor on ADC1 channel 6 (GPIO 34).
   - MQ-135 hazardous air quality and CO₂ analog sensor on ADC1 channel 7 (GPIO 35).
 - [x] **Actuator Circuit & State Machine**:
-  - Green (GPIO 14), Yellow (GPIO 26), and Red (GPIO 27) status LEDs.
-  - Active buzzer (GPIO 25) with non-blocking `millis()` tone generation for continuous, fast-beep, and slow-beep alarm patterns.
+  - Green (GPIO 14) continuous power/system-on LED, Yellow (GPIO 26) telemetry transmission blink LED, and Red (GPIO 27) danger-only alert LED.
+  - Active buzzer (GPIO 25) with dual-function non-blocking `millis()` actuation: single crisp beep on telemetry transmit, and distinct alarm cadences for danger trips.
 - [x] **Firmware Architecture Modernization**:
   - Transitioned from monolithic legacy sketch (`BatteryVitals_v12.0.ino`, 20KB) to modular architecture (`BatteryVital_v13.0/`):
     - `BatteryVital_v13.0.ino`: Setup and main loop scheduler.

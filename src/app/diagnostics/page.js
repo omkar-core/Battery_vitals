@@ -54,11 +54,11 @@ export default function DiagnosticsPage() {
           eventSeverity: (data?.ina_ok === false || data?.dht_ok === false) ? 'CRITICAL' : 'WARNING',
           telemetryWindow: [
             {
-              voltage: data?.battery?.voltage ?? data?.voltage ?? 12.4,
+              voltage: data?.battery?.voltage ?? data?.voltage ?? 0,
               current: data?.battery?.current ?? data?.current ?? 0,
-              temperature: data?.environment?.temperature ?? data?.temperature ?? 24,
-              gasMq2: data?.gas?.index_mq2 ?? 120,
-              gasMq135: data?.gas?.index_mq135 ?? 95,
+              temperature: data?.environment?.temperature ?? data?.temperature ?? 0,
+              gasMq2: data?.gas?.index_mq2 ?? data?.mq2 ?? 0,
+              gasMq135: data?.gas?.index_mq135 ?? data?.mq135 ?? 0,
             }
           ],
         }),

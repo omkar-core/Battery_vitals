@@ -75,10 +75,10 @@ Gemini AI Engine (gemini-1.5-flash / pro)
    └─ Ambient hazard mitigations
 
 Hardware Actuators (ESP32)
-   ├─ Green LED (GPIO14)  ─────────────────► Normal nominal state
-   ├─ Yellow LED (GPIO26) ─────────────────► Warning / elevated reading
-   ├─ Red LED (GPIO27)    ─────────────────► Critical alert / hazard trip
-   └─ Buzzer (GPIO25)     ─────────────────► Audible alarm (continuous, fast beep, slow beep)
+   ├─ Green LED (GPIO14)  ─────────────────► System ON / Power (Continuous SOLID ON)
+   ├─ Yellow LED (GPIO26) ─────────────────► Telemetry Tx (Blinks on packet send + single beep)
+   ├─ Red LED (GPIO27)    ─────────────────► Danger Alert (Active ONLY on danger / safety trip)
+   └─ Buzzer (GPIO25)     ─────────────────► Tx Single Beep & Danger Alarm Cadences
 ```
 
 ### Telemetry Pipeline
@@ -108,10 +108,10 @@ Hardware Actuators (ESP32)
 #define MQ135_PIN           35    // MQ-135 Air Quality / CO2 (ADC1_CH7)
 
 // ── Actuator Outputs ──
-#define BUZZER_PIN          25    // Active Buzzer
-#define LED_GREEN           14    // Normal Operation Indicator
-#define LED_YELLOW          26    // Warning State Indicator
-#define LED_RED             27    // Critical Alert Indicator
+#define BUZZER_PIN          25    // Active Buzzer (Tx Beep & Danger Alarms)
+#define LED_GREEN           14    // System Power Indicator (Continuous SOLID ON)
+#define LED_YELLOW          26    // Telemetry Tx Indicator (Blinks on send + single beep)
+#define LED_RED             27    // Danger Alert Indicator (Danger Only)
 ```
 
 ### Sensor Specifications
@@ -131,18 +131,19 @@ Hardware Actuators (ESP32)
 
 | LED Color | GPIO | System State | Trigger Condition |
 |-----------|------|--------------|-------------------|
-| 🟢 **Green** | 14 | Normal | Voltage: 10.5–14.4V, Temp < 38°C, MQ-2 < 500 ppm |
-| 🟡 **Yellow** | 26 | Warning | Temp: 38–45°C, MQ-2: 500–800 ppm, SOC < 15% |
-| 🔴 **Red** | 27 | Critical | Voltage > 14.6V or < 10.5V, Temp > 45°C, MQ-2 > 800 ppm |
+| 🟢 **Green** | 14 | System ON | Continuous **SOLID ON** whenever system is powered and running |
+| 🟡 **Yellow** | 26 | Telemetry Tx | **Blinks** on every telemetry packet transmission to cloud + single beep |
+| 🔴 **Red** | 27 | Danger Alert | **Active ONLY on danger** (`WARNING`, `CRITICAL`, `EMERGENCY`, or sensor fault) |
 
 ### Buzzer Sound Modes
 
 | Pattern | Sound Sequence | Condition |
 |---------|----------------|-----------|
-| **Continuous** | Solid 2.4 kHz tone | Critical battery trip, thermal runaway risk, gas emergency |
-| **Fast Beep** | 0.5s ON / 0.5s OFF | Warning threshold exceeded |
-| **Slow Beep** | 2.0s ON / 2.0s OFF | Minor anomaly detected or acknowledged event |
-| **Off** | Silent | Normal operation |
+| **Telemetry Beep** | Single crisp 100ms beep | Emitted every 2s in sync with Yellow LED blink on telemetry dispatch |
+| **Emergency** | Urgent double pulse (100ms ON / 100ms OFF / 100ms ON) | Thermal runaway risk, severe overvoltage, explosive gas breach |
+| **Critical Alarm** | Fast pulse (200ms ON / 300ms OFF) | Critical safety trip active, hardware lockout enforced |
+| **Warning Reminder** | Slow beep (150ms pulse every 2.0s) | Pre-critical warning threshold exceeded |
+| **Silent** | Muted | Normal operation (Tx telemetry beeps still pulse) |
 
 ---
 

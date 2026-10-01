@@ -83,10 +83,10 @@ The standard Battery Vital hardware platform utilizes the **ESP32-WROOM-32 (30-p
 | **DHT DATA**| `GPIO 4` | Digital Bidirectional | DHT11 / DHT22 Ambient Temp/Hum | 10 kΩ pull-up to 3.3V; non-blocking timing |
 | **MQ2 SENSE**| `GPIO 34` | Analog Input (`ADC1_CH6`)| MQ-2 Combustible Gas & Smoke | Input-only pin. 0–3.3V via voltage divider |
 | **MQ135 SENSE**| `GPIO 35` | Analog Input (`ADC1_CH7`)| MQ-135 Air Quality / CO2 / VOCs | Input-only pin. 0–3.3V via voltage divider |
-| **BUZZER** | `GPIO 25` | Digital Output | Active Piezo Buzzer (2.4 kHz) | Driven via NPN/MOSFET buffer (30 mA max) |
-| **LED YELLOW**| `GPIO 26` | Digital Output | Warning Status Indicator LED | 330 Ω current-limiting resistor (5–10 mA) |
-| **LED RED** | `GPIO 27` | Digital Output | Critical Alarm / Trip LED | 330 Ω current-limiting resistor (5–10 mA) |
-| **LED GREEN** | `GPIO 14` | Digital Output | Normal Nominal Indicator LED | 330 Ω current-limiting resistor (5–10 mA) |
+| **BUZZER** | `GPIO 25` | Digital Output | Active Piezo Buzzer (2.4 kHz) | Single beep on Tx + danger alarm cadences |
+| **LED GREEN** | `GPIO 14` | Digital Output | System Power & Heartbeat LED | **Continuous SOLID ON** when system is powered |
+| **LED YELLOW**| `GPIO 26` | Digital Output | Telemetry Tx Transmission LED| **Blinks on telemetry send** + single beep |
+| **LED RED** | `GPIO 27` | Digital Output | Danger / Safety Trip Alert LED| **Active ONLY on danger** / safety trip |
 
 > [!CAUTION]
 > **ADC Pin Rule**: Analog sensors (MQ-2, MQ-135) **MUST ONLY** be connected to **ADC1** (GPIOs 32–39). **ADC2** (GPIOs 0, 2, 4, 12–15, 25–27) is shared with the Wi-Fi baseband driver; reading analog values from ADC2 while Wi-Fi is active will fail or return corrupt zero readings.
@@ -410,36 +410,43 @@ The web application dispatches actuator control commands through Firebase RTDB a
 }
 ```
 
-### 6.2 Startup Indication & LED Actuator Behavior (GPIO 14, 26, 27)
+### 6.2 Redesigned LED Actuator Behavior (GPIO 14, 26, 27)
 
-1. **System Boot Sequence**:
-   - On boot, the buzzer emits a **single crisp beep (100 ms)**.
-   - If the boot self-test passes and metrics are nominal, the **Green LED (GPIO 14) lights up SOLID ON** as the physical symbol that the system is powered ON and operating in a SAFE condition.
-   - If self-test fails or a fault is detected during boot, the Green LED remains OFF and the respective warning/fault LED blinks.
+1. **System Power & Heartbeat — Green LED (GPIO 14)**:
+   - **Continuous SOLID ON**: Whenever the ESP32 system is powered ON and operating, the **Green LED stays ON continuously**. It serves as the physical hardware symbol that the system is active, running, and powered.
 
-2. **Automated State Mapping Table**:
+2. **Telemetry Transmit Sync — Yellow LED (GPIO 26)**:
+   - **Blink on Telemetry Dispatch**: Every time a telemetry data packet is sent to the cloud (Firebase RTDB / Web Gateway every 2.0s), the **Yellow LED blinks** (100 ms pulse) and the active buzzer emits a **single crisp beep (100 ms)**.
+   - Remains OFF between transmissions (when no manual override).
 
-| State | Green LED (GPIO 14) | Yellow LED (GPIO 26) | Red LED (GPIO 27) | Description |
-|:---|:---:|:---:|:---:|:---|
-| **Normal / SAFE** | **SOLID ON** | OFF | OFF | System powered ON & healthy. All electrical/gas/temp metrics nominal. |
-| **CAUTION** | OFF | **SOLID ON** | OFF | Minor voltage drift, elevated temp (>40°C), low SOC (<20%). Silent advisory. |
-| **WARNING** | OFF | **BLINK (500ms ON / 500ms OFF)** | OFF | Moderate out-of-band threshold. Intermittent chime alert. |
-| **CRITICAL** | OFF | OFF | **BLINK FAST (250ms ON / 250ms OFF)** | Safety trip active. Urgent pulsed alarm. Actuator lockout enforced. |
-| **EMERGENCY** | OFF | **RAPID FLASH (100ms)** | **RAPID FLASH (100ms ON / 100ms OFF)** | Thermal runaway risk or severe overvoltage. Fast double-pulse alarm. |
-| **Sensor Fault** | OFF | **SOLID ON** | **PULSE (1s ON / 1s OFF)** | INA219 or DHT11 disconnected/offline. |
+3. **Danger & Safety Alert — Red LED (GPIO 27)**:
+   - **Danger Only**: The Red LED is turned ON **ONLY when there is danger** (`WARNING`, `CRITICAL`, `EMERGENCY`, or sensor hardware fault). Under normal/safe operating conditions, the Red LED is completely OFF.
+
+4. **Automated State Mapping Table**:
+
+| System Condition | Green LED (GPIO 14) | Yellow LED (GPIO 26) | Red LED (GPIO 27) | Buzzer (GPIO 25) | Description |
+|:---|:---:|:---:|:---:|:---:|:---|
+| **System ON / SAFE** | **SOLID ON** | **Blinks on Tx (100ms)** | OFF | **Single beep on Tx (100ms)** | Normal operation. System powered, telemetry streaming every 2s. |
+| **CAUTION** | **SOLID ON** | **Blinks on Tx (100ms)** | OFF | **Single beep on Tx (100ms)** | Minor advisory (elevated temp/gas trend), no immediate danger. |
+| **WARNING (Danger)** | **SOLID ON** | **Blinks on Tx (100ms)** | **SOLID ON** | **Slow beep (2s) + Tx beep** | Out-of-band threshold warning. Pre-critical danger indicator. |
+| **CRITICAL (Danger)** | **SOLID ON** | **Blinks on Tx (100ms)** | **FAST BLINK (250ms)** | **Urgent pulse (500ms cadence)** | Safety trip active. Critical hazard alarm. Actuator lockout. |
+| **EMERGENCY (Danger)**| **SOLID ON** | **Blinks on Tx (100ms)** | **RAPID FLASH (100ms)**| **Urgent double-pulse alarm** | Thermal runaway risk or severe overvoltage. Maximum danger alarm. |
+| **Sensor Fault** | **SOLID ON** | **Blinks on Tx (100ms)** | **PULSE (1s ON / 1s OFF)** | **Slow warning beep** | INA219 or DHT11 hardware probe fault. |
 
 ---
 
 ### 6.3 Buzzer Pattern Generator (GPIO 25)
 
-The active buzzer is driven using non-blocking modulo mathematical cadence on `millis()`. **To prevent ear fatigue, coil overheating, and unnecessary noise, continuous unbroken tones are strictly forbidden**:
+The active buzzer operates in two primary modes:
+1. **Telemetry Beep**: Emits a **single crisp 100ms beep** in sync with the Yellow LED blink every time a telemetry packet is dispatched.
+2. **Danger Alarm Cadence**: In the presence of danger (`WARNING`, `CRITICAL`, `EMERGENCY`), non-blocking mathematical cadences sound to alert human operators:
 
 ```cpp
 enum BuzzerMode {
-  BZ_OFF,        // Silent (Normal / SAFE / CAUTION)
-  BZ_WARNING,    // 150ms pulse every 2000ms: gentle reminder, NOT annoying
-  BZ_CRITICAL,   // Urgent pulse: 200ms ON / 300ms OFF (500ms period) - alert without continuous screech
-  BZ_EMERGENCY   // Double pulse: 100ms ON, 100ms OFF, 100ms ON, 700ms OFF (1000ms period)
+  BZ_OFF,        // Silent (Normal / SAFE / CAUTION — Tx single beeps still pulse)
+  BZ_WARNING,    // 150ms pulse every 2000ms: noticeable warning danger reminder
+  BZ_CRITICAL,   // Urgent pulse: 200ms ON / 300ms OFF (500ms period) - critical danger alarm
+  BZ_EMERGENCY   // Urgent double pulse: 100ms ON, 100ms OFF, 100ms ON, 700ms OFF (1000ms period)
 };
 ```
 

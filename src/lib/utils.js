@@ -23,21 +23,26 @@ export function formatPower(value) {
 
 export function safetyColor(safety) {
   const s = (safety || 'SAFE').toUpperCase()
+  if (s === 'DISCONNECTED' || s === 'OFFLINE' || s === 'NO_BATTERY' || s === 'NO_DATA') return '#94A3B8'
   if (s === 'EMERGENCY' || s === 'CRITICAL') return '#FF2D55'
   if (s === 'WARNING') return '#FF6B35'
   if (s === 'CAUTION') return '#FFD60A'
   if (s === 'SENSOR_FAULT') return '#FF6B35'
+  if (s === 'UNKNOWN') return '#94A3B8'
   return '#00E8A0'
 }
 
 export function safetyLabel(safety) {
   const s = (safety || 'SAFE').toUpperCase()
+  if (s === 'DISCONNECTED' || s === 'NO_BATTERY') return 'Disconnected / No Battery'
+  if (s === 'OFFLINE' || s === 'NO_DATA') return 'ESP32 Offline'
   if (s === 'SENSOR_FAULT') return 'Sensor Fault'
+  if (s === 'UNKNOWN') return 'Awaiting Data'
   return s.charAt(0) + s.slice(1).toLowerCase()
 }
 
 export function bhiStatus(bhi) {
-  if (bhi == null) return { label: 'Unknown', color: '#94A3B8', zone: 'UNKNOWN' }
+  if (bhi == null) return { label: 'N/A', color: '#94A3B8', zone: 'UNKNOWN', desc: 'No battery telemetry connected' }
   if (bhi >= 70) return { label: 'Critical Risk', color: '#FF2D55', zone: 'CRITICAL', desc: 'Dominant risk: High thermal/chemical hazard' }
   if (bhi >= 50) return { label: 'High Warning', color: '#FF6B35', zone: 'WARNING', desc: 'Dominant risk: Elevated degradation/stress' }
   if (bhi >= 20) return { label: 'Moderate Caution', color: '#FFD60A', zone: 'CAUTION', desc: 'Dominant risk: Mild voltage/temp drift' }
@@ -45,7 +50,7 @@ export function bhiStatus(bhi) {
 }
 
 export function getConnectionState(timestamp) {
-  if (!timestamp) return { state: 'NO_DATA', label: 'No Data', color: '#94A3B8', ageSec: null }
+  if (!timestamp) return { state: 'NO_DATA', label: 'No Data / Disconnected', color: '#94A3B8', ageSec: null }
   const time = typeof timestamp === 'number' ? timestamp : new Date(timestamp).getTime()
   const ageSec = Math.max(0, Math.floor((Date.now() - time) / 1000))
   if (ageSec < 10) {
@@ -63,11 +68,18 @@ export function getConnectionState(timestamp) {
 // through to 'UNKNOWN'.
 export function batteryMood({ soc, temperature, current, safety }) {
   const safeLevel = String(safety || 'SAFE').toUpperCase()
+  if (safeLevel === 'DISCONNECTED' || safeLevel === 'OFFLINE' || safeLevel === 'NO_BATTERY' || safeLevel === 'NO_DATA') {
+    return { emoji: '🔌', label: 'Disconnected', reason: 'ESP32 is offline or no battery is connected', color: '#94A3B8' }
+  }
   const hasCrit = safeLevel === 'CRITICAL' || safeLevel === 'EMERGENCY'
   const hasWarn = hasCrit || safeLevel === 'WARNING' || safeLevel === 'CAUTION'
   const t = temperature == null ? null : Number(temperature)
   const s = soc == null ? null : Number(soc)
   const c = current == null ? null : Number(current)
+
+  if (s == null && t == null && c == null) {
+    return { emoji: '🔌', label: 'Disconnected', reason: 'Awaiting battery connection', color: '#94A3B8' }
+  }
 
   if (hasCrit || (t != null && t > 60)) {
     return { emoji: '😱', label: 'Panicking', reason: 'Critical alert or thermal runaway risk detected', color: '#FF2D55' }

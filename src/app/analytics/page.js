@@ -11,19 +11,19 @@ import { normalizeTelemetry, formatNumber, safetyColor, safetyLabel, bhiStatus, 
 import styles from '../../styles/pages.module.css'
 
 export default function Analytics() {
-  const { data, history, connected } = useRealTimeData()
+  const { data, history, connected, isDisconnected } = useRealTimeData()
   const { profile: activeProfile, voltageBand } = useActiveProfile(data?.batteryId)
 
   const live = data
-  const bhi = live?.risk?.bhi ?? live?.bhi
-  const safety = live?.battery?.safety ?? live?.safety ?? 'SAFE'
-  const voltage = live?.battery?.voltage ?? live?.voltage
-  const current = live?.battery?.current ?? live?.current
-  const temp = live?.environment?.temperature ?? live?.temperature
-  const soc = live?.battery?.soc ?? live?.soc
-  const soh = live?.battery?.soh ?? live?.soh
-  const ir = live?.battery?.resistance ?? live?.resistance
-  const cycles = live?.battery?.cycles ?? live?.cycles
+  const bhi = isDisconnected ? null : (live?.risk?.bhi ?? live?.bhi)
+  const safety = isDisconnected ? 'DISCONNECTED' : (live?.battery?.safety ?? live?.safety ?? 'SAFE')
+  const voltage = isDisconnected ? 0 : (live?.battery?.voltage ?? live?.voltage ?? 0)
+  const current = isDisconnected ? 0 : (live?.battery?.current ?? live?.current ?? 0)
+  const temp = isDisconnected ? null : (live?.environment?.temperature ?? live?.temperature)
+  const soc = isDisconnected ? 0 : (live?.battery?.soc ?? live?.soc ?? 0)
+  const soh = isDisconnected ? null : (live?.battery?.soh ?? live?.soh)
+  const ir = isDisconnected ? null : (live?.battery?.resistance ?? live?.resistance)
+  const cycles = isDisconnected ? 0 : (live?.battery?.cycles ?? live?.cycles ?? 0)
 
   const normalizedHistory = useMemo(() => {
     return normalizeTelemetry(history)
@@ -36,58 +36,58 @@ export default function Analytics() {
   const stats = [
     {
       title: 'Current BHI',
-      value: bhi == null ? '--' : formatNumber(bhi, 0),
-      unit: '/100',
+      value: bhi == null ? 'N/A' : formatNumber(bhi, 0),
+      unit: bhi == null ? '' : '/100',
       color: bhiStatus(bhi).color,
-      subtext: bhiStatus(bhi).label,
+      subtext: isDisconnected ? 'ESP32 Disconnected' : bhiStatus(bhi).label,
     },
     {
       title: 'Safety State',
       value: safetyLabel(safety),
       unit: '',
       color: safetyColor(safety),
-      subtext: 'Hardware Interlock',
+      subtext: isDisconnected ? 'Offline' : 'Hardware Interlock',
     },
     {
       title: 'Voltage',
-      value: formatNumber(voltage, 2),
+      value: isDisconnected ? '0.00' : formatNumber(voltage, 2),
       unit: 'V',
-      color: 'var(--state-caution)',
-      subtext: voltageBand ? `Safe: ${voltageBand}` : 'Deploy a profile for band',
+      color: isDisconnected ? 'var(--text-muted)' : 'var(--state-caution)',
+      subtext: isDisconnected ? 'Offline' : (voltageBand ? `Safe: ${voltageBand}` : 'Auto-detected'),
     },
     {
       title: 'Current Flow',
-      value: formatNumber(current, 2),
+      value: isDisconnected ? '0.00' : formatNumber(current, 2),
       unit: 'A',
-      color: current < 0 ? 'var(--state-critical)' : 'var(--state-safe)',
-      subtext: current < 0 ? 'Discharging' : 'Charging',
+      color: isDisconnected ? 'var(--text-muted)' : (current < 0 ? 'var(--state-critical)' : 'var(--state-safe)'),
+      subtext: isDisconnected ? 'Standby' : (current < 0 ? 'Discharging' : 'Charging'),
     },
     {
       title: 'Cell Temp',
-      value: formatNumber(temp, 1),
-      unit: '°C',
-      color: 'var(--state-critical)',
-      subtext: 'Threshold < 50°C',
+      value: temp == null ? 'N/A' : formatNumber(temp, 1),
+      unit: temp == null ? '' : '°C',
+      color: isDisconnected ? 'var(--text-muted)' : 'var(--state-critical)',
+      subtext: isDisconnected ? 'Sensor Offline' : 'Threshold < 50°C',
     },
     {
       title: 'SOC',
-      value: formatNumber(soc, 0),
+      value: isDisconnected ? '0' : formatNumber(soc, 0),
       unit: '%',
-      color: 'var(--state-safe)',
+      color: isDisconnected ? 'var(--text-muted)' : 'var(--state-safe)',
       subtext: 'State of Charge',
     },
     {
       title: 'SOH',
-      value: formatNumber(soh, 0),
-      unit: '%',
-      color: 'var(--state-info)',
+      value: soh == null ? 'N/A' : formatNumber(soh, 0),
+      unit: soh == null ? '' : '%',
+      color: isDisconnected ? 'var(--text-muted)' : 'var(--state-info)',
       subtext: 'State of Health',
     },
     {
       title: 'Internal Res.',
-      value: formatNumber(ir, 2),
-      unit: 'mΩ',
-      color: 'var(--purple)',
+      value: ir == null ? 'N/A' : formatNumber(ir, 2),
+      unit: ir == null ? '' : 'mΩ',
+      color: isDisconnected ? 'var(--text-muted)' : 'var(--purple)',
       subtext: 'Degradation Metric',
     },
   ]

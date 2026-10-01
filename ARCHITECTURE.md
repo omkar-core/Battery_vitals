@@ -105,10 +105,10 @@ Battery Vital is designed as a distributed, multi-tiered Internet of Things (IoT
 #define MQ135_PIN           35    // MQ-135 Hazardous Air/CO2 (ADC1_CHANNEL_7)
 
 // --- Actuator Outputs ---
-#define BUZZER_PIN          25    // Active Buzzer Driver (PWM / GPIO logic)
-#define LED_GREEN           14    // Normal Status Indicator (Current limit 330Ω)
-#define LED_YELLOW          26    // Warning Status Indicator (Current limit 330Ω)
-#define LED_RED             27    // Critical Trip Indicator (Current limit 330Ω)
+#define BUZZER_PIN          25    // Active Buzzer Driver (Tx Beep & Danger Alarm Cadences)
+#define LED_GREEN           14    // System Power Indicator (Continuous SOLID ON)
+#define LED_YELLOW          26    // Telemetry Tx Indicator (Blinks on packet send + single beep)
+#define LED_RED             27    // Danger Alert Indicator (Active ONLY on danger / trip)
 
 // --- System Constants ---
 #define SERIAL_BAUD         115200 // Hardware UART debugging

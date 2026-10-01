@@ -14,8 +14,8 @@ enum BuzzerMode {
 static BuzzerMode currentBuzzerMode = BUZZER_OFF;
 static unsigned long lastBuzzerToggle = 0;
 static bool buzzerState = false;
-static unsigned long lastLedToggle = 0;
-static bool ledBlinkState = false;
+static unsigned long txPulseStart = 0;
+static bool txActive = false;
 
 inline void initActuators() {
   pinMode(LED_GREEN, OUTPUT);
@@ -23,7 +23,8 @@ inline void initActuators() {
   pinMode(LED_RED, OUTPUT);
   pinMode(BUZZER_PIN, OUTPUT);
 
-  digitalWrite(LED_GREEN, LOW);
+  // Green LED ON continuously: power/system ON indicator
+  digitalWrite(LED_GREEN, HIGH);
   digitalWrite(LED_YELLOW, LOW);
   digitalWrite(LED_RED, LOW);
   digitalWrite(BUZZER_PIN, LOW);
@@ -35,9 +36,16 @@ inline void setLEDs(bool green, bool yellow, bool red) {
   digitalWrite(LED_RED, red ? HIGH : LOW);
 }
 
+inline void triggerTxBlinkAndBeep() {
+  txActive = true;
+  txPulseStart = millis();
+  digitalWrite(LED_YELLOW, HIGH);
+  digitalWrite(BUZZER_PIN, HIGH);
+}
+
 inline void setBuzzerMode(BuzzerMode mode) {
   currentBuzzerMode = mode;
-  if (mode == BUZZER_OFF) {
+  if (mode == BUZZER_OFF && !txActive) {
     digitalWrite(BUZZER_PIN, LOW);
     buzzerState = false;
   } else if (mode == BUZZER_CONTINUOUS) {
@@ -46,27 +54,26 @@ inline void setBuzzerMode(BuzzerMode mode) {
   }
 }
 
-// Graded response levels mirror web gradedResponse():
-// L0 MONITOR green → L1 WARNING yellow → L2 ALARM yellow+buzzer →
-// L3 CRITICAL red+buzzer+disconnect advisory → L4 EMERGENCY red+continuous.
+// Redesigned response:
+// - Green LED: Continuous ON (System ON & Active)
+// - Yellow LED: Blinks on telemetry transmission with single beep
+// - Red LED: Active ONLY during danger (WARNING, CRITICAL, EMERGENCY, or fault)
 inline void applyGradedLevel(const String& safetyState) {
+  // Green is always continuous ON
+  digitalWrite(LED_GREEN, HIGH);
+
   if (safetyState == "EMERGENCY") {
-    setLEDs(false, false, true);
+    digitalWrite(LED_RED, HIGH);
     setBuzzerMode(BUZZER_CONTINUOUS);
   } else if (safetyState == "CRITICAL") {
-    setLEDs(false, false, true);
+    digitalWrite(LED_RED, HIGH);
     setBuzzerMode(BUZZER_FAST_BEEP);
   } else if (safetyState == "WARNING") {
-    setLEDs(false, true, false);
-    setBuzzerMode(BUZZER_FAST_BEEP);
-  } else if (safetyState == "CAUTION") {
-    setLEDs(false, true, false);
-    setBuzzerMode(BUZZER_SLOW_BEEP);
-  } else if (safetyState == "UNKNOWN" || safetyState == "UNKNOWN_BATTERY" || safetyState == "PROFILE_MISMATCH") {
-    // Configuration honesty: blink yellow+red slowly, quiet beep — never SAFE.
+    digitalWrite(LED_RED, HIGH);
     setBuzzerMode(BUZZER_SLOW_BEEP);
   } else {
-    setLEDs(true, false, false);
+    // SAFE, CAUTION, or Normal: Red LED is OFF
+    digitalWrite(LED_RED, LOW);
     setBuzzerMode(BUZZER_OFF);
   }
 }
@@ -76,8 +83,21 @@ inline void updateActuators(const String& safetyState, bool autoMode) {
     applyGradedLevel(safetyState);
   }
 
-  // Non-blocking buzzer cadence (no delay() — edge autonomy invariant).
   unsigned long now = millis();
+
+  // Handle Yellow Tx pulse and single beep completion (100ms)
+  if (txActive) {
+    if (now - txPulseStart >= 100) {
+      txActive = false;
+      digitalWrite(LED_YELLOW, LOW);
+      if (currentBuzzerMode == BUZZER_OFF) {
+        digitalWrite(BUZZER_PIN, LOW);
+      }
+    }
+    return;
+  }
+
+  // Non-blocking buzzer cadence for danger alarms
   if (currentBuzzerMode == BUZZER_FAST_BEEP) {
     if (now - lastBuzzerToggle >= 500) {
       lastBuzzerToggle = now;
@@ -89,15 +109,6 @@ inline void updateActuators(const String& safetyState, bool autoMode) {
       lastBuzzerToggle = now;
       buzzerState = !buzzerState;
       digitalWrite(BUZZER_PIN, buzzerState ? HIGH : LOW);
-    }
-  }
-
-  // UNKNOWN / config honesty blink: alternate yellow/red every 1s.
-  if (safetyState == "UNKNOWN" || safetyState == "UNKNOWN_BATTERY" || safetyState == "PROFILE_MISMATCH") {
-    if (now - lastLedToggle >= 1000) {
-      lastLedToggle = now;
-      ledBlinkState = !ledBlinkState;
-      setLEDs(false, ledBlinkState, !ledBlinkState);
     }
   }
 }

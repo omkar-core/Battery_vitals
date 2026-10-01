@@ -4,21 +4,46 @@ import { useMemo } from 'react'
 import { useRealTimeData } from './useRealTimeData'
 
 export function useBattery() {
-  const { data, history, connected, mode, error, lastSeen, sendControl } = useRealTimeData()
+  const { data, history, connected, mode, error, lastSeen, isDisconnected, sendControl } = useRealTimeData()
 
   const battery = useMemo(() => {
     const raw = data?.battery || data || {}
     const numOrNull = (v) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) ? null : Number(v))
-    const voltage = numOrNull(raw.voltage)
-    const current = numOrNull(raw.current)
-    const power = numOrNull(raw.power ?? (voltage != null && current != null ? voltage * current : null))
-    const shuntVoltage = numOrNull(raw.shuntVoltage)
-    const loadVoltage = numOrNull(raw.loadVoltage ?? (voltage != null && shuntVoltage != null ? voltage + shuntVoltage : null))
-    const soc = numOrNull(raw.soc)
+    
+    if (isDisconnected || !data) {
+      return {
+        batteryId: raw.batteryId || 'BAT001',
+        profileId: data?.profileId ?? raw.profileId ?? null,
+        profileState: 'DISCONNECTED',
+        inferredBattery: null,
+        remainingRuntime: null,
+        resistanceMeasurable: false,
+        socMethod: null,
+        voltage: 0,
+        shuntVoltage: 0,
+        loadVoltage: 0,
+        current: 0,
+        power: 0,
+        soc: 0,
+        soh: null,
+        bhi: null,
+        resistance: null,
+        safety: 'DISCONNECTED',
+        direction: 'DISCONNECTED',
+        cells: [],
+        timestamp: Date.now(),
+      }
+    }
+
+    const voltage = numOrNull(raw.voltage) ?? 0
+    const current = numOrNull(raw.current) ?? 0
+    const power = numOrNull(raw.power ?? (voltage != null && current != null ? voltage * current : null)) ?? 0
+    const shuntVoltage = numOrNull(raw.shuntVoltage) ?? 0
+    const loadVoltage = numOrNull(raw.loadVoltage ?? (voltage != null && shuntVoltage != null ? voltage + shuntVoltage : null)) ?? 0
+    const soc = numOrNull(raw.soc) ?? 0
     const soh = numOrNull(raw.soh)
     const bhi = numOrNull(raw.bhi)
     const resistance = numOrNull(raw.resistance)
-    // Honesty: missing safety channels are UNKNOWN, never assumed SAFE.
     const safety = raw.safety || raw.safetyState || 'UNKNOWN'
     const direction = current == null ? 'UNKNOWN' : current > 0.05 ? 'CHARGING' : current < -0.05 ? 'DISCHARGING' : 'IDLE'
 
@@ -44,7 +69,7 @@ export function useBattery() {
       cells: [],
       timestamp: data?.timestamp || Date.now(),
     }
-  }, [data])
+  }, [data, isDisconnected])
 
   // Extract battery-specific history
   const batteryHistory = useMemo(() => {
