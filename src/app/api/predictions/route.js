@@ -42,7 +42,14 @@ export async function GET(request) {
     // Deterministic fallback: compute rate-of-change trends from recent
     // readings with the SAME sensors (no AI, no failure dates). Honest when
     // history is thin — returns [] with insufficient_data instead of guessing.
-    const q2 = { ...(batteryId ? { batteryId } : {}) }
+    const q2 = {
+      ...(batteryId ? { batteryId } : {}),
+      deviceId: { $nin: ['ESP32_TEST', 'mock_device', 'test_device', null] },
+      isMock: { $ne: true },
+      mock: { $ne: true },
+      synthetic: { $ne: true },
+      source: { $ne: 'mock' },
+    }
     const rows = await db.collection('readings').find(q2).sort({ timestamp: -1 }).limit(20).toArray()
     const ordered = rows.reverse()
     const engine = await loadEngineConfigForDevice(batteryId || 'BAT001').catch(() => null)

@@ -36,6 +36,11 @@ async function generateExport({ batteryId = 'BAT001', format = 'csv', minutes = 
     .collection('readings')
     .find({
       batteryId,
+      deviceId: { $nin: ['ESP32_TEST', 'mock_device', 'test_device', null] },
+      isMock: { $ne: true },
+      mock: { $ne: true },
+      synthetic: { $ne: true },
+      source: { $ne: 'mock' },
       $or: [
         { timestamp: { $gte: sinceTs } },
         { receivedAt: { $gte: new Date(sinceTs).toISOString() } },

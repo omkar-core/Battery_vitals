@@ -61,17 +61,17 @@ export async function getLatestTelemetry(batteryId = 'BAT001') {
   try {
     const snapshot = await adminDb.ref(`live_data/${batteryId}`).once('value')
     if (snapshot.exists()) {
-      return normalizeEsp32Packet(snapshot.val())
+      const val = snapshot.val()
+      if (val && typeof val === 'object') {
+        return normalizeEsp32Packet(val)
+      }
     }
     const rootSnapshot = await adminDb.ref('live_data').once('value')
     if (rootSnapshot.exists()) {
       const rootVal = rootSnapshot.val()
-      const val = rootVal && typeof rootVal === 'object' && rootVal[batteryId]
-        ? rootVal[batteryId]
-        : rootVal
-      return val && typeof val === 'object'
-        ? normalizeEsp32Packet({ ...val, batteryId })
-        : null
+      if (rootVal && typeof rootVal === 'object' && rootVal[batteryId]) {
+        return normalizeEsp32Packet(rootVal[batteryId])
+      }
     }
     return null
   } catch (err) {

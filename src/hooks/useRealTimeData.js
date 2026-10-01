@@ -66,6 +66,8 @@ export function useRealTimeData(batteryId) {
             setHistory(json.data)
             // If data is null, set the most recent historical packet
             setData((prev) => prev || json.data[json.data.length - 1])
+          } else if (active) {
+            setHistory([])
           }
         }
       } catch (err) {
@@ -91,6 +93,7 @@ export function useRealTimeData(batteryId) {
   // Helper to append a reading to history without duplicating timestamps
   const appendHistory = useCallback((newReading) => {
     if (!newReading) return
+    if (newReading.isMock || newReading.mock || newReading.synthetic || newReading.deviceId === 'ESP32_TEST') return
     const readTs = newReading.timestamp || newReading.ts || newReading.time || Date.now()
     const timeMs = typeof readTs === 'number' ? readTs : new Date(readTs).getTime()
 

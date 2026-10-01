@@ -16,10 +16,18 @@ export default function RecentTelemetryFeed({ history = [], connected = false, l
   const [limit, setLimit] = useState(10) // 10, 20, or 50
   const [copiedId, setCopiedId] = useState(null)
 
-  // Normalize history rows and sort newest first
+  // Filter out any mock/synthetic rows, normalize, and sort newest first
   const normalizedRows = useMemo(() => {
     if (!Array.isArray(history) || history.length === 0) return []
-    const flat = normalizeTelemetry(history)
+    const realOnly = history.filter((row) => {
+      if (!row || typeof row !== 'object') return false
+      // Filter out any mock/test markers
+      if (row.isMock || row.mock || row.synthetic || row.source === 'mock' || row.deviceId === 'ESP32_TEST') {
+        return false
+      }
+      return true
+    })
+    const flat = normalizeTelemetry(realOnly)
     // Return newest first (reverse of chronological array)
     return [...flat].reverse()
   }, [history])
@@ -101,7 +109,7 @@ export default function RecentTelemetryFeed({ history = [], connected = false, l
             </span>
           </div>
           <p style={{ margin: '4px 0 0 0', fontSize: 12, color: 'var(--text-secondary)' }}>
-            Showing the last <strong>{displayedRows.length}</strong> recorded telemetry packets ({normalizedRows.length} buffered in memory &amp; MongoDB).
+            Showing the last <strong>{displayedRows.length}</strong> authentic ESP32 telemetry packets ({normalizedRows.length} buffered in memory &amp; MongoDB).
           </p>
         </div>
 
@@ -202,10 +210,10 @@ export default function RecentTelemetryFeed({ history = [], connected = false, l
         >
           <span style={{ fontSize: 32, display: 'block', marginBottom: 8 }}>📡</span>
           <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
-            No Telemetry Records Found in Database
+            No Authentic ESP32 Telemetry Records Found
           </div>
           <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, maxWidth: 460, margin: '4px auto 0' }}>
-            Awaiting packets from ESP32. When the battery streams or historical records are synchronized, the last 10–20 telemetry logs will appear here in real time.
+            Awaiting real packets from ESP32 hardware node. Mock and synthetic data are disabled — only authentic physical sensor frames are recorded and displayed.
           </div>
         </div>
       ) : (

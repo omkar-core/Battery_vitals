@@ -3,6 +3,9 @@ import { getDB } from '../../../lib/mongodb'
 import { checkRateLimit, getClientIp } from '../../../lib/rateLimit'
 import { sanitizeString } from '../../../lib/security'
 
+import { getLatestTelemetry } from '../../../lib/firebaseAdmin'
+import { runFirebaseToMongoSync } from '../../../lib/dataSync'
+
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204 })
 }
@@ -25,6 +28,15 @@ export async function GET(request) {
 
     let data = []
 
+    const authenticFilter = {
+      batteryId,
+      deviceId: { $nin: ['ESP32_TEST', 'mock_device', 'test_device', null] },
+      isMock: { $ne: true },
+      mock: { $ne: true },
+      synthetic: { $ne: true },
+      source: { $ne: 'mock' },
+    }
+
     try {
       const db = await getDB()
       if (parsedMinutes) {
@@ -33,7 +45,7 @@ export async function GET(request) {
         data = await db
           .collection('readings')
           .find({
-            batteryId,
+            ...authenticFilter,
             $or: [
               { timestamp: { $gte: since } },
               { timestamp: { $gte: sinceMs } },
@@ -49,11 +61,30 @@ export async function GET(request) {
       if (!data || data.length === 0) {
         const latestDesc = await db
           .collection('readings')
-          .find({ batteryId })
+          .find(authenticFilter)
           .sort({ timestamp: -1, _id: -1 })
           .limit(parsedLimit)
           .toArray()
         data = latestDesc.reverse()
+      }
+
+      // If DB has no historical packets yet, check if Firebase RTDB has an authentic ESP32 packet
+      if (!data || data.length === 0) {
+        try {
+          const liveFb = await getLatestTelemetry(batteryId)
+          if (liveFb && (liveFb.voltage != null || liveFb.temperature != null) && liveFb.deviceId !== 'ESP32_TEST') {
+            await runFirebaseToMongoSync({ batteryId })
+            const syncedDesc = await db
+              .collection('readings')
+              .find(authenticFilter)
+              .sort({ timestamp: -1, _id: -1 })
+              .limit(parsedLimit)
+              .toArray()
+            data = syncedDesc.reverse()
+          }
+        } catch (syncErr) {
+          // If Firebase has no data or device offline, data remains empty []
+        }
       }
     } catch (dbErr) {
       console.warn('MongoDB history query failed:', dbErr.message)

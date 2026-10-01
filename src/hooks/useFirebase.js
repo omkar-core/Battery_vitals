@@ -25,9 +25,7 @@ export function useFirebase(batteryId = 'BAT001') {
             setConnected(true)
             setError(null)
           } else {
-            // Fallback path: check /live_data with a one-time read (get()).
-            // Uses `get` instead of stacking nested onValue listeners so we
-            // do not register a new listener every time the path is empty.
+            // Check /live_data specifically for batteryId child
             get(ref(db, 'live_data'))
               .then((rootSnap) => {
                 if (disposed || !rootSnap.exists()) return
@@ -35,10 +33,15 @@ export function useFirebase(batteryId = 'BAT001') {
                 const val =
                   rootVal && typeof rootVal === 'object' && rootVal[batteryId]
                     ? rootVal[batteryId]
-                    : rootVal
-                setData(normalizeEsp32Packet(val))
-                setConnected(true)
-                setError(null)
+                    : null
+                if (val && typeof val === 'object') {
+                  setData(normalizeEsp32Packet(val))
+                  setConnected(true)
+                  setError(null)
+                } else {
+                  setData(null)
+                  setConnected(false)
+                }
               })
               .catch((err) => {
                 console.error('Firebase live_data fallback read error:', err)

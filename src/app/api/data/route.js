@@ -117,7 +117,12 @@ export async function GET(request) {
     let data = await getLatestTelemetry(batteryId)
     if (!data) {
       const db = await getDB()
-      data = await db.collection('live_data').findOne({ batteryId })
+      data = await db.collection('live_data').findOne({
+        batteryId,
+        deviceId: { $nin: ['device_esp32_001', 'ESP32_TEST', null] },
+        isMock: { $ne: true },
+        mock: { $ne: true },
+      })
     }
 
     if (!data) return NextResponse.json({ error: 'No data yet' }, { status: 404 })

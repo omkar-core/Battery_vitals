@@ -39,7 +39,12 @@ export async function GET(request) {
     if (!data) {
       try {
         const db = await getDB()
-        data = await db.collection('live_data').findOne({ batteryId })
+        data = await db.collection('live_data').findOne({
+          batteryId,
+          deviceId: { $nin: ['device_esp32_001', 'ESP32_TEST', null] },
+          isMock: { $ne: true },
+          mock: { $ne: true },
+        })
       } catch (dbErr) {
         console.warn('MongoDB lookup fallback failed in telemetry GET:', dbErr.message)
       }

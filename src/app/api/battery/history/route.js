@@ -24,7 +24,14 @@ export async function GET(request) {
       const db = await getDB()
       records = await db
         .collection('readings')
-        .find({ $or: [{ batteryId }, { deviceId: batteryId }] })
+        .find({
+          $or: [{ batteryId }, { deviceId: batteryId }],
+          deviceId: { $nin: ['ESP32_TEST', 'mock_device', 'test_device', null] },
+          isMock: { $ne: true },
+          mock: { $ne: true },
+          synthetic: { $ne: true },
+          source: { $ne: 'mock' },
+        })
         .sort({ timestamp: -1 })
         .limit(limit)
         .toArray()
